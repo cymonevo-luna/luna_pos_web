@@ -80,6 +80,9 @@ export default function AdminMenusPage() {
   const [deleting, setDeleting] = useState(false);
   const [dialog, setDialog] = useState<MenuDialogState>(null);
   const [saving, setSaving] = useState(false);
+  const [recipeYield, setRecipeYield] = useState<number>(
+    MENU_COGS_DEFAULTS.recipe_yield,
+  );
   const formRef = useRef<MenuFormHandle>(null);
 
   const hasCategories = categories.length > 0;
@@ -167,6 +170,17 @@ export default function AdminMenusPage() {
     setDialog(null);
   };
 
+  const openDialog = (nextDialog: MenuDialogState) => {
+    if (nextDialog?.mode === "edit") {
+      setRecipeYield(
+        nextDialog.menu.recipe_yield ?? MENU_COGS_DEFAULTS.recipe_yield,
+      );
+    } else {
+      setRecipeYield(MENU_COGS_DEFAULTS.recipe_yield);
+    }
+    setDialog(nextDialog);
+  };
+
   const handleFormSubmit = async (values: MenuFormValues) => {
     if (!dialog) return;
     setSaving(true);
@@ -234,7 +248,7 @@ export default function AdminMenusPage() {
             disabled={categoriesLoading}
           />
           <Button
-            onClick={() => setDialog({ mode: "create" })}
+            onClick={() => openDialog({ mode: "create" })}
             disabled={!hasCategories || categoriesLoading}
           >
             <Plus className="h-4 w-4" />
@@ -316,7 +330,7 @@ export default function AdminMenusPage() {
                           size="icon"
                           className="h-8 w-8"
                           aria-label="Edit menu"
-                          onClick={() => setDialog({ mode: "edit", menu })}
+                          onClick={() => openDialog({ mode: "edit", menu })}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -380,11 +394,16 @@ export default function AdminMenusPage() {
               defaultValues={formDefaultValues}
               onSubmit={handleFormSubmit}
               onCancel={closeDialog}
+              onRecipeYieldChange={setRecipeYield}
               isLoading={saving}
               submitLabel={dialog.mode === "edit" ? "Save changes" : "Add Menu"}
             />
             {dialog.mode === "edit" ? (
-              <MenuIngredientsForm menuId={dialog.menu.id} disabled={saving} />
+              <MenuIngredientsForm
+                menuId={dialog.menu.id}
+                recipeYield={recipeYield}
+                disabled={saving}
+              />
             ) : (
               <div className="text-muted-foreground border-t border-border pt-4 text-sm">
                 Save the menu first to add an ingredient formula.

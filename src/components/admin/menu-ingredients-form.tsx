@@ -16,6 +16,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FoodSupplyPicker } from "@/components/admin/food-supply-picker";
+import {
+  MenuFormulaIngredientQuantityHelp,
+  MenuFormulaPerPortionPreview,
+} from "@/components/admin/menu-formula-ingredient-quantity";
+import { MENU_COGS_DEFAULTS } from "@/lib/menu-cogs";
 
 interface IngredientRowState {
   key: string;
@@ -143,11 +148,13 @@ function mapServerFieldErrors(
 
 export interface MenuIngredientsFormProps {
   menuId: string;
+  recipeYield?: number;
   disabled?: boolean;
 }
 
 export function MenuIngredientsForm({
   menuId,
+  recipeYield = MENU_COGS_DEFAULTS.recipe_yield,
   disabled = false,
 }: MenuIngredientsFormProps) {
   const [rows, setRows] = useState<IngredientRowState[]>([]);
@@ -267,6 +274,7 @@ export function MenuIngredientsForm({
         <p className="text-muted-foreground text-sm">
           Define the food supplies and quantities used for one menu item.
         </p>
+        <MenuFormulaIngredientQuantityHelp />
       </div>
 
       {loading ? (
@@ -343,6 +351,11 @@ export function MenuIngredientsForm({
                         {rowErrors[row.key]?.quantity_per_unit}
                       </p>
                     )}
+                    <MenuFormulaPerPortionPreview
+                      quantity={Number(row.quantity_per_unit)}
+                      unit={row.supply?.unit ?? "—"}
+                      recipeYield={recipeYield}
+                    />
                   </div>
 
                   <div className="flex items-end justify-end">

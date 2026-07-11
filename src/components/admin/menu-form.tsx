@@ -46,6 +46,7 @@ export interface MenuFormProps {
   defaultValues?: Partial<MenuFormValues>;
   onSubmit: (values: MenuFormValues) => void | Promise<void>;
   onCancel: () => void;
+  onRecipeYieldChange?: (recipeYield: number) => void;
   isLoading?: boolean;
   submitLabel?: string;
 }
@@ -62,6 +63,7 @@ export const MenuForm = React.forwardRef<MenuFormHandle, MenuFormProps>(
       defaultValues,
       onSubmit,
       onCancel,
+      onRecipeYieldChange,
       isLoading = false,
       submitLabel = "Save",
     },
@@ -82,6 +84,13 @@ export const MenuForm = React.forwardRef<MenuFormHandle, MenuFormProps>(
     });
 
     const photoUrl = watch("photo_url");
+    const recipeYield = watch("recipe_yield");
+
+    useEffect(() => {
+      if (onRecipeYieldChange && Number.isFinite(recipeYield)) {
+        onRecipeYieldChange(recipeYield);
+      }
+    }, [onRecipeYieldChange, recipeYield]);
 
     useEffect(() => {
       const values = buildDefaultValues(defaultValues);
