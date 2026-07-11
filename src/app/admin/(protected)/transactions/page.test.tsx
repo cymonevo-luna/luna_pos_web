@@ -77,6 +77,9 @@ describe("AdminTransactionsPage", () => {
       data: [transaction1, transaction2],
       meta: { page: 1, per_page: 10, total: 2 },
     });
+    vi.mocked(transactionsAdminApi.summary).mockResolvedValue({
+      data: { period: "daily", buckets: [] },
+    });
   });
 
   it("renders transactions from the API with Rupiah amounts and cashier names", async () => {
@@ -136,6 +139,16 @@ describe("AdminTransactionsPage", () => {
     expect(mockPush).toHaveBeenCalledWith(
       `/admin/transactions/${transaction1.id}`,
     );
+  });
+
+  it("displays the transaction summary chart above the table", async () => {
+    render(<AdminTransactionsPage />);
+
+    expect(await screen.findByText("Transaction volume")).toBeInTheDocument();
+    expect(
+      screen.getByText("No transactions in this period"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Transactions")).toBeInTheDocument();
   });
 
   it("shows error toast when loading fails", async () => {
