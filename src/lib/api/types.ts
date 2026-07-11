@@ -47,3 +47,15 @@ export interface LoginResult {
 export interface RefreshResult {
   tokens: TokenPair;
 }
+
+export type FoodSupplyUnit = "ml" | "piece" | "gr";
+
+export interface FoodSupply {
+  id: string;
+  title: string;
+  description?: string | null;
+  stock_quantity: number;
+  unit: FoodSupplyUnit;
+  created_at: string;
+  updated_at: string;
+}
