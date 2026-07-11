@@ -19,6 +19,7 @@ import { MENU_COGS_DEFAULTS } from "@/lib/menu-cogs";
 import { formatRupiah, menuPhotoUrl } from "@/lib/utils";
 import { toast } from "sonner";
 import { MenuForm, type MenuFormHandle } from "@/components/admin/menu-form";
+import { MenuIngredientsForm } from "@/components/admin/menu-ingredients-form";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -364,19 +365,32 @@ export default function AdminMenusPage() {
         </div>
       </div>
 
-      <Dialog open={dialog !== null} onClose={closeDialog} className="max-w-lg">
+      <Dialog
+        open={dialog !== null}
+        onClose={closeDialog}
+        className={dialog?.mode === "edit" ? "max-w-3xl" : "max-w-lg"}
+      >
         <DialogTitle>{dialogTitle}</DialogTitle>
         {dialog && (
-          <MenuForm
-            key={dialog.mode === "edit" ? `edit-${dialog.menu.id}` : "create"}
-            ref={formRef}
-            categories={categories}
-            defaultValues={formDefaultValues}
-            onSubmit={handleFormSubmit}
-            onCancel={closeDialog}
-            isLoading={saving}
-            submitLabel={dialog.mode === "edit" ? "Save changes" : "Add Menu"}
-          />
+          <>
+            <MenuForm
+              key={dialog.mode === "edit" ? `edit-${dialog.menu.id}` : "create"}
+              ref={formRef}
+              categories={categories}
+              defaultValues={formDefaultValues}
+              onSubmit={handleFormSubmit}
+              onCancel={closeDialog}
+              isLoading={saving}
+              submitLabel={dialog.mode === "edit" ? "Save changes" : "Add Menu"}
+            />
+            {dialog.mode === "edit" ? (
+              <MenuIngredientsForm menuId={dialog.menu.id} disabled={saving} />
+            ) : (
+              <div className="text-muted-foreground border-t border-border pt-4 text-sm">
+                Save the menu first to add an ingredient formula.
+              </div>
+            )}
+          </>
         )}
       </Dialog>
 

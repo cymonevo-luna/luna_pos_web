@@ -51,6 +51,17 @@ vi.mock("@/lib/api/categories", () => ({
   },
 }));
 
+vi.mock("@/components/admin/menu-ingredients-form", () => ({
+  MenuIngredientsForm: ({ menuId }: { menuId: string }) => (
+    <section aria-label="Menu ingredients">
+      <h4>Ingredients</h4>
+      <button type="button">Add ingredient</button>
+      <button type="button">Save ingredients</button>
+      <span>menu:{menuId}</span>
+    </section>
+  ),
+}));
+
 vi.mock("sonner", () => ({
   toast: {
     success: vi.fn(),
@@ -411,5 +422,35 @@ describe("AdminMenusPage", () => {
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(menusAdminApi.create).not.toHaveBeenCalled();
+  });
+
+  it("shows ingredients section when editing an existing menu", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminMenusPage />);
+    await screen.findByText("Nasi Goreng");
+
+    await user.click(screen.getByLabelText("Edit menu"));
+
+    expect(screen.getByRole("region", { name: "Menu ingredients" })).toBeInTheDocument();
+    expect(screen.getByText("menu:menu-1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add ingredient" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save ingredients" })).toBeInTheDocument();
+  });
+
+  it("shows helper text on create instead of ingredients editor", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminMenusPage />);
+    await screen.findByText("Nasi Goreng");
+
+    await user.click(screen.getByRole("button", { name: "Add Menu" }));
+
+    expect(
+      screen.getByText("Save the menu first to add an ingredient formula."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "Menu ingredients" }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -84,6 +84,22 @@ export interface Menu {
   updated_at: string;
 }
 
+export interface MenuIngredientInput {
+  food_supply_id: string;
+  quantity_per_unit: number;
+}
+
+export interface MenuIngredient extends MenuIngredientInput {
+  food_supply_title: string;
+  food_supply_unit: FoodSupplyUnit;
+  food_supply_stock_quantity: number;
+}
+
+export interface FormulaResponse {
+  menu_id: string;
+  ingredients: MenuIngredient[];
+}
+
 export type TransactionMethod = "OFFLINE";
 
 export type TransactionSummaryPeriod = "daily" | "weekly" | "monthly";
