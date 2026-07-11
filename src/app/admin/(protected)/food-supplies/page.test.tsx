@@ -1,15 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import AdminFoodSuppliesPage from "./page";
 import { foodSuppliesAdminApi } from "@/lib/api/food-supplies";
+import { ApiError } from "@/lib/api/client";
 import type { FoodSupply } from "@/lib/api/types";
+import { toast } from "sonner";
 
 vi.mock("@/lib/api/food-supplies", () => ({
   foodSuppliesAdminApi: {
     list: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
     delete: vi.fn(),
   },
+  foodSupplyFormToPayload: vi.fn((values) => ({
+    title: values.title,
+    stock_quantity: values.stock_quantity,
+    unit: values.unit,
+    ...(values.description?.trim()
+      ? { description: values.description.trim() }
+      : {}),
+  })),
 }));
 
 vi.mock("sonner", () => ({
@@ -98,5 +110,120 @@ describe("AdminFoodSuppliesPage", () => {
     await waitFor(() => {
       expect(foodSuppliesAdminApi.delete).toHaveBeenCalledWith("fs-1");
     });
+  });
+
+  it("creates a supply from the dialog", async () => {
+    const user = userEvent.setup();
+    vi.mocked(foodSuppliesAdminApi.create).mockResolvedValue({
+      data: {
+        ...supply,
+        id: "fs-2",
+        title: "Tomato Sauce",
+        description: "House recipe",
+        stock_quantity: 750,
+        unit: "ml",
+      },
+    });
+
+    render(<AdminFoodSuppliesPage />);
+    await screen.findByText("Olive oil");
+
+    await user.click(screen.getAllByRole("button", { name: "Add supply" })[0]);
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toBeInTheDocument();
+
+    await user.type(within(dialog).getByLabelText("Title"), "Tomato Sauce");
+    await user.type(within(dialog).getByLabelText(/Description/), "House recipe");
+    await user.clear(within(dialog).getByLabelText("Stock quantity"));
+    await user.type(within(dialog).getByLabelText("Stock quantity"), "750");
+    await user.selectOptions(within(dialog).getByLabelText("Unit"), "ml");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add supply" }),
+    );
+
+    await waitFor(() => {
+      expect(foodSuppliesAdminApi.create).toHaveBeenCalledWith({
+        title: "Tomato Sauce",
+        description: "House recipe",
+        stock_quantity: 750,
+        unit: "ml",
+      });
+    });
+    expect(toast.success).toHaveBeenCalledWith("Food supply created");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("edits a supply from the dialog", async () => {
+    const user = userEvent.setup();
+    vi.mocked(foodSuppliesAdminApi.update).mockResolvedValue({
+      data: {
+        ...supply,
+        stock_quantity: 1.5,
+        unit: "gr",
+      },
+    });
+
+    render(<AdminFoodSuppliesPage />);
+    await screen.findByText("Olive oil");
+
+    await user.click(screen.getByLabelText("Edit food supply"));
+    expect(screen.getByText("Edit food supply")).toBeInTheDocument();
+    expect(screen.getByLabelText("Unit")).toHaveValue("ml");
+
+    await user.clear(screen.getByLabelText("Stock quantity"));
+    await user.type(screen.getByLabelText("Stock quantity"), "1.5");
+    await user.selectOptions(screen.getByLabelText("Unit"), "gr");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(foodSuppliesAdminApi.update).toHaveBeenCalledWith("fs-1", {
+        title: "Olive oil",
+        description: "Extra virgin",
+        stock_quantity: 1.5,
+        unit: "gr",
+      });
+    });
+    expect(toast.success).toHaveBeenCalledWith("Food supply updated");
+  });
+
+  it("maps server validation errors onto form fields", async () => {
+    const user = userEvent.setup();
+    vi.mocked(foodSuppliesAdminApi.create).mockRejectedValue(
+      new ApiError(422, "validation_error", "Validation failed", {
+        unit: "Invalid unit value",
+      }),
+    );
+
+    render(<AdminFoodSuppliesPage />);
+    await screen.findByText("Olive oil");
+
+    await user.click(screen.getAllByRole("button", { name: "Add supply" })[0]);
+    const dialog = screen.getByRole("dialog");
+
+    await user.type(within(dialog).getByLabelText("Title"), "Tomato Sauce");
+    await user.clear(within(dialog).getByLabelText("Stock quantity"));
+    await user.type(within(dialog).getByLabelText("Stock quantity"), "10");
+    await user.selectOptions(within(dialog).getByLabelText("Unit"), "ml");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add supply" }),
+    );
+
+    expect(await screen.findByText("Invalid unit value")).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("closes the dialog on cancel without saving", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminFoodSuppliesPage />);
+    await screen.findByText("Olive oil");
+
+    await user.click(screen.getAllByRole("button", { name: "Add supply" })[0]);
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Title"), "Eggs");
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(foodSuppliesAdminApi.create).not.toHaveBeenCalled();
   });
 });
