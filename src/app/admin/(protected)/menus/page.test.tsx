@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import AdminMenusPage from "./page";
 import { menusAdminApi } from "@/lib/api/menus";
@@ -35,6 +35,9 @@ vi.mock("@/lib/api/menus", () => ({
     category_id: values.category_id,
     available_stock: values.available_stock,
     sell_price: values.sell_price,
+    recipe_yield: values.recipe_yield,
+    margin_percent: values.margin_percent,
+    vat_percent: values.vat_percent,
     ...(values.description?.trim()
       ? { description: values.description.trim() }
       : {}),
@@ -222,6 +225,9 @@ describe("AdminMenusPage", () => {
         category_id: "cat-1",
         available_stock: 10,
         sell_price: 25000,
+        recipe_yield: 1,
+        margin_percent: 0,
+        vat_percent: 0,
       });
     });
     expect(toast.success).toHaveBeenCalledWith("Menu created");
@@ -257,6 +263,9 @@ describe("AdminMenusPage", () => {
         category_id: "cat-1",
         available_stock: 20,
         sell_price: 30000,
+        recipe_yield: 1,
+        margin_percent: 0,
+        vat_percent: 0,
       });
     });
     expect(toast.success).toHaveBeenCalledWith("Menu updated");
@@ -286,6 +295,107 @@ describe("AdminMenusPage", () => {
 
     expect(await screen.findByText("Title is required")).toBeInTheDocument();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("shows COGS fields in the create dialog", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminMenusPage />);
+    await screen.findByText("Nasi Goreng");
+
+    await user.click(screen.getByRole("button", { name: "Add Menu" }));
+    const dialog = screen.getByRole("dialog");
+
+    expect(within(dialog).getByLabelText("Recipe yield")).toHaveValue(1);
+    expect(within(dialog).getByLabelText("Margin %")).toHaveValue(0);
+    expect(within(dialog).getByLabelText("VAT %")).toHaveValue(0);
+    expect(
+      within(dialog).getByText(
+        "Number of portions produced by the ingredient quantities below",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("saves menu with custom COGS values and reloads them on edit", async () => {
+    const user = userEvent.setup();
+    const savedMenu: Menu = {
+      ...menu,
+      id: "menu-2",
+      title: "Batch Soup",
+      recipe_yield: 40,
+      margin_percent: 30,
+      vat_percent: 11,
+    };
+
+    vi.mocked(menusAdminApi.create).mockResolvedValue({ data: savedMenu });
+    vi.mocked(menusAdminApi.list).mockResolvedValue({
+      data: [savedMenu],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminMenusPage />);
+    await screen.findByText("Batch Soup");
+
+    await user.click(screen.getByRole("button", { name: "Add Menu" }));
+    const dialog = screen.getByRole("dialog");
+
+    await user.type(within(dialog).getByLabelText("Title"), "Batch Soup");
+    await user.selectOptions(within(dialog).getByLabelText("Category"), "cat-1");
+    await user.clear(within(dialog).getByLabelText("Available stock"));
+    await user.type(within(dialog).getByLabelText("Available stock"), "10");
+    await user.clear(within(dialog).getByLabelText("Sell price (Rp)"));
+    await user.type(within(dialog).getByLabelText("Sell price (Rp)"), "25000");
+    await user.clear(within(dialog).getByLabelText("Recipe yield"));
+    await user.type(within(dialog).getByLabelText("Recipe yield"), "40");
+    await user.clear(within(dialog).getByLabelText("Margin %"));
+    await user.type(within(dialog).getByLabelText("Margin %"), "30");
+    await user.clear(within(dialog).getByLabelText("VAT %"));
+    await user.type(within(dialog).getByLabelText("VAT %"), "11");
+    await user.click(within(dialog).getByRole("button", { name: "Add Menu" }));
+
+    await waitFor(() => {
+      expect(menusAdminApi.create).toHaveBeenCalledWith({
+        title: "Batch Soup",
+        category_id: "cat-1",
+        available_stock: 10,
+        sell_price: 25000,
+        recipe_yield: 40,
+        margin_percent: 30,
+        vat_percent: 11,
+      });
+    });
+
+    await user.click(screen.getByLabelText("Edit menu"));
+
+    expect(screen.getByLabelText("Recipe yield")).toHaveValue(40);
+    expect(screen.getByLabelText("Margin %")).toHaveValue(30);
+    expect(screen.getByLabelText("VAT %")).toHaveValue(11);
+  });
+
+  it("blocks recipe yield of zero before submitting", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminMenusPage />);
+    await screen.findByText("Nasi Goreng");
+
+    await user.click(screen.getByRole("button", { name: "Add Menu" }));
+    const dialog = screen.getByRole("dialog");
+
+    await user.type(within(dialog).getByLabelText("Title"), "Invalid Yield");
+    await user.selectOptions(within(dialog).getByLabelText("Category"), "cat-1");
+    await user.clear(within(dialog).getByLabelText("Available stock"));
+    await user.type(within(dialog).getByLabelText("Available stock"), "10");
+    await user.clear(within(dialog).getByLabelText("Sell price (Rp)"));
+    await user.type(within(dialog).getByLabelText("Sell price (Rp)"), "25000");
+    fireEvent.change(within(dialog).getByLabelText("Recipe yield"), {
+      target: { value: "0" },
+    });
+    await user.click(within(dialog).getByRole("button", { name: "Add Menu" }));
+
+    expect(
+      await within(dialog).findByText("Recipe yield must be at least 1"),
+    ).toBeInTheDocument();
+    expect(menusAdminApi.create).not.toHaveBeenCalled();
   });
 
   it("closes the dialog on cancel without saving", async () => {

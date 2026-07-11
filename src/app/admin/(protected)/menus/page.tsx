@@ -15,6 +15,7 @@ import { categoriesAdminApi } from "@/lib/api/categories";
 import { ApiError } from "@/lib/api/client";
 import type { Category, Menu } from "@/lib/api/types";
 import type { MenuFormValues } from "@/lib/validations";
+import { MENU_COGS_DEFAULTS } from "@/lib/menu-cogs";
 import { formatRupiah, menuPhotoUrl } from "@/lib/utils";
 import { toast } from "sonner";
 import { MenuForm, type MenuFormHandle } from "@/components/admin/menu-form";
@@ -41,6 +42,9 @@ function menuToFormValues(menu: Menu): Partial<MenuFormValues> {
     photo_url: menu.photo_url ?? "",
     available_stock: menu.available_stock,
     sell_price: menu.sell_price,
+    recipe_yield: menu.recipe_yield ?? MENU_COGS_DEFAULTS.recipe_yield,
+    margin_percent: menu.margin_percent ?? MENU_COGS_DEFAULTS.margin_percent,
+    vat_percent: menu.vat_percent ?? MENU_COGS_DEFAULTS.vat_percent,
   };
 }
 

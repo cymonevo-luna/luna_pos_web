@@ -77,6 +77,9 @@ export interface Menu {
   photo_url?: string | null;
   available_stock: number;
   sell_price: number;
+  recipe_yield?: number;
+  margin_percent?: number;
+  vat_percent?: number;
   created_at: string;
   updated_at: string;
 }

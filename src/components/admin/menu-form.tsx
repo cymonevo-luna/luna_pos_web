@@ -5,6 +5,7 @@ import { useEffect, useImperativeHandle, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { menuSchema, type MenuFormValues } from "@/lib/validations";
+import { MENU_COGS_DEFAULTS } from "@/lib/menu-cogs";
 import { menuPhotoUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,10 @@ function buildDefaultValues(
     photo_url: defaultValues?.photo_url ?? "",
     available_stock: defaultValues?.available_stock ?? Number.NaN,
     sell_price: defaultValues?.sell_price ?? Number.NaN,
+    recipe_yield: defaultValues?.recipe_yield ?? MENU_COGS_DEFAULTS.recipe_yield,
+    margin_percent:
+      defaultValues?.margin_percent ?? MENU_COGS_DEFAULTS.margin_percent,
+    vat_percent: defaultValues?.vat_percent ?? MENU_COGS_DEFAULTS.vat_percent,
   };
 }
 
@@ -93,7 +98,10 @@ export const MenuForm = React.forwardRef<MenuFormHandle, MenuFormProps>(
             field === "category_id" ||
             field === "photo_url" ||
             field === "available_stock" ||
-            field === "sell_price"
+            field === "sell_price" ||
+            field === "recipe_yield" ||
+            field === "margin_percent" ||
+            field === "vat_percent"
           ) {
             setError(field, { message });
           }
@@ -112,7 +120,7 @@ export const MenuForm = React.forwardRef<MenuFormHandle, MenuFormProps>(
     const previewSrc = menuPhotoUrl(photoUrl);
 
     return (
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <div className="space-y-1.5">
           <Label htmlFor="menu-title">Title</Label>
           <Input id="menu-title" autoComplete="off" {...register("title")} />
@@ -218,6 +226,71 @@ export const MenuForm = React.forwardRef<MenuFormHandle, MenuFormProps>(
               {errors.sell_price.message}
             </p>
           )}
+        </div>
+
+        <div className="space-y-3 rounded-xl border border-border p-4">
+          <p className="text-sm font-medium">COGS configuration</p>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="menu-recipe-yield">Recipe yield</Label>
+            <Input
+              id="menu-recipe-yield"
+              type="number"
+              step="1"
+              min="1"
+              inputMode="numeric"
+              onKeyDown={blockDecimalInput}
+              {...register("recipe_yield", { valueAsNumber: true })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Number of portions produced by the ingredient quantities below
+            </p>
+            {errors.recipe_yield && (
+              <p className="text-sm text-destructive">
+                {errors.recipe_yield.message}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="menu-margin-percent">Margin %</Label>
+            <Input
+              id="menu-margin-percent"
+              type="number"
+              step="0.01"
+              min="0"
+              inputMode="decimal"
+              {...register("margin_percent", { valueAsNumber: true })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Markup on COGS (30 = sell at 130% of cost)
+            </p>
+            {errors.margin_percent && (
+              <p className="text-sm text-destructive">
+                {errors.margin_percent.message}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="menu-vat-percent">VAT %</Label>
+            <Input
+              id="menu-vat-percent"
+              type="number"
+              step="0.01"
+              min="0"
+              inputMode="decimal"
+              {...register("vat_percent", { valueAsNumber: true })}
+            />
+            <p className="text-xs text-muted-foreground">
+              VAT added on top of price after margin
+            </p>
+            {errors.vat_percent && (
+              <p className="text-sm text-destructive">
+                {errors.vat_percent.message}
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
