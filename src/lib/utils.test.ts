@@ -38,6 +38,18 @@ describe("formatStockQuantity", () => {
     expect(formatStockQuantity(500.0, "ml")).toBe("500 ml");
     expect(formatStockQuantity(2.5, "piece")).toBe("2.5 piece");
   });
+
+  it("formats string whole numbers", () => {
+    expect(formatStockQuantity("500", "ml")).toBe("500 ml");
+  });
+
+  it("formats string decimals", () => {
+    expect(formatStockQuantity("2.5", "gr")).toBe("2.5 gr");
+  });
+
+  it("returns an em dash for invalid string input", () => {
+    expect(formatStockQuantity("abc", "ml")).toBe("— ml");
+  });
 });
 
 describe("displayDescription", () => {
