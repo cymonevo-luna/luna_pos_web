@@ -8,7 +8,24 @@ import {
   ChevronRight,
   Plus,
   Pencil,
+  GripVertical,
 } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   categoriesAdminApi,
   categoryFormToPayload,
@@ -27,8 +44,13 @@ import { Dialog, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
+import {
+  categoriesToIds,
+  handleCategoryDragEnd,
+} from "./category-reorder";
 
 const PER_PAGE = 10;
+const REORDER_PER_PAGE = 100;
 
 type CategoryDialogState =
   | { mode: "create" }
@@ -43,6 +65,89 @@ function categoryToFormValues(
   };
 }
 
+interface SortableCategoryRowProps {
+  category: Category;
+  canReorder: boolean;
+  onEdit: (category: Category) => void;
+  onDelete: (category: Category) => void;
+}
+
+function SortableCategoryRow({
+  category,
+  canReorder,
+  onEdit,
+  onDelete,
+}: SortableCategoryRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: category.id,
+    disabled: !canReorder,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <tr
+      ref={setNodeRef}
+      style={style}
+      className={`border-b border-border last:border-0 hover:bg-muted/30 ${
+        isDragging ? "bg-muted/50 opacity-80" : ""
+      }`}
+    >
+      <td className="w-10 px-2 py-3">
+        {canReorder ? (
+          <button
+            type="button"
+            ref={setActivatorNodeRef}
+            className="flex h-8 w-8 cursor-grab items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
+            aria-label="Drag to reorder"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        ) : null}
+      </td>
+      <td className="px-4 py-3 font-medium">{category.name}</td>
+      <td className="px-4 py-3 text-muted-foreground">
+        {formatDate(category.created_at)}
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label="Edit category"
+            onClick={() => onEdit(category)}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-destructive"
+            aria-label="Delete category"
+            onClick={() => onDelete(category)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [total, setTotal] = useState(0);
@@ -55,7 +160,24 @@ export default function AdminCategoriesPage() {
   const [deleting, setDeleting] = useState(false);
   const [dialog, setDialog] = useState<CategoryDialogState>(null);
   const [saving, setSaving] = useState(false);
+  const [reordering, setReordering] = useState(false);
   const formRef = useRef<CategoryFormHandle>(null);
+
+  const isSearchActive = debounced.trim().length > 0;
+  const usePagination = isSearchActive || total > REORDER_PER_PAGE;
+  const perPage = usePagination ? PER_PAGE : REORDER_PER_PAGE;
+  const effectivePage = usePagination ? page : 1;
+  const canReorder =
+    !isSearchActive && total <= REORDER_PER_PAGE && !reordering && !loading;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -70,8 +192,8 @@ export default function AdminCategoriesPage() {
     setError(null);
     try {
       const res = await categoriesAdminApi.list({
-        page,
-        perPage: PER_PAGE,
+        page: effectivePage,
+        perPage,
         search: debounced,
       });
       setCategories(res.data ?? []);
@@ -83,11 +205,31 @@ export default function AdminCategoriesPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debounced]);
+  }, [effectivePage, perPage, debounced]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  const onDragEnd = async (event: DragEndEvent) => {
+    if (!canReorder || reordering) return;
+
+    setReordering(true);
+    try {
+      await handleCategoryDragEnd(event, {
+        categories,
+        setCategories,
+        reorder: (categoryIds) => categoriesAdminApi.reorder(categoryIds),
+        onSuccess: () => toast.success("Category order saved"),
+        onError: (message) => toast.error(message),
+        reload: () => {
+          void load();
+        },
+      });
+    } finally {
+      setReordering(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!pendingDelete) return;
@@ -143,7 +285,8 @@ export default function AdminCategoriesPage() {
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const showPagination = usePagination && totalPages > 1;
 
   const dialogTitle =
     dialog?.mode === "edit" ? "Edit category" : "Add category";
@@ -152,6 +295,8 @@ export default function AdminCategoriesPage() {
     dialog?.mode === "edit"
       ? categoryToFormValues(dialog.category)
       : undefined;
+
+  const columnCount = 4;
 
   return (
     <div className="space-y-6">
@@ -177,11 +322,28 @@ export default function AdminCategoriesPage() {
         </div>
       </div>
 
+      {isSearchActive ? (
+        <p className="text-sm text-muted-foreground">
+          Clear search to reorder categories.
+        </p>
+      ) : null}
+
+      {!isSearchActive && total > REORDER_PER_PAGE ? (
+        <p className="text-sm text-muted-foreground">
+          Reordering is available when all categories fit on one page.
+        </p>
+      ) : null}
+
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/50 text-left text-muted-foreground">
               <tr>
+                <th className="w-10 px-2 py-3 font-medium">
+                  {canReorder ? (
+                    <span className="sr-only">Priority</span>
+                  ) : null}
+                </th>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Created</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -191,7 +353,7 @@ export default function AdminCategoriesPage() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-border">
-                    {Array.from({ length: 3 }).map((__, j) => (
+                    {Array.from({ length: columnCount }).map((__, j) => (
                       <td key={j} className="px-4 py-3">
                         <Skeleton className="h-4 w-24" />
                       </td>
@@ -201,7 +363,7 @@ export default function AdminCategoriesPage() {
               ) : error ? (
                 <tr>
                   <td
-                    colSpan={3}
+                    colSpan={columnCount}
                     className="px-4 py-10 text-center text-destructive"
                   >
                     {error}
@@ -210,79 +372,70 @@ export default function AdminCategoriesPage() {
               ) : categories.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={3}
+                    colSpan={columnCount}
                     className="px-4 py-10 text-center text-muted-foreground"
                   >
                     No categories found.
                   </td>
                 </tr>
               ) : (
-                categories.map((category) => (
-                  <tr
-                    key={category.id}
-                    className="border-b border-border last:border-0 hover:bg-muted/30"
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={(event) => {
+                    void onDragEnd(event);
+                  }}
+                >
+                  <SortableContext
+                    items={categoriesToIds(categories)}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <td className="px-4 py-3 font-medium">{category.name}</td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatDate(category.created_at)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          aria-label="Edit category"
-                          onClick={() =>
-                            setDialog({ mode: "edit", category })
-                          }
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive"
-                          aria-label="Delete category"
-                          onClick={() => setPendingDelete(category)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                    {categories.map((category) => (
+                      <SortableCategoryRow
+                        key={category.id}
+                        category={category}
+                        canReorder={canReorder}
+                        onEdit={(item) =>
+                          setDialog({ mode: "edit", category: item })
+                        }
+                        onDelete={setPendingDelete}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
               )}
             </tbody>
           </table>
         </div>
       </Card>
 
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          Page {page} of {totalPages}
-        </p>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1 || loading}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages || loading}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Next
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+      {showPagination ? (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Page {page} of {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1 || loading}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages || loading}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <Dialog open={dialog !== null} onClose={closeDialog} className="max-w-lg">
         <DialogTitle>{dialogTitle}</DialogTitle>

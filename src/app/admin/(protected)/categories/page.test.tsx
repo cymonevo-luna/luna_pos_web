@@ -13,6 +13,7 @@ vi.mock("@/lib/api/categories", () => ({
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    reorder: vi.fn(),
   },
   categoryFormToPayload: vi.fn((values) => ({
     name: values.name.trim(),
@@ -29,8 +30,25 @@ vi.mock("sonner", () => ({
 const category: Category = {
   id: "cat-1",
   name: "Desserts",
+  priority: 0,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-15T00:00:00Z",
+};
+
+const categoryTwo: Category = {
+  id: "cat-2",
+  name: "Appetizers",
+  priority: 1,
+  created_at: "2026-01-02T00:00:00Z",
+  updated_at: "2026-01-16T00:00:00Z",
+};
+
+const categoryThree: Category = {
+  id: "cat-3",
+  name: "Mains",
+  priority: 2,
+  created_at: "2026-01-03T00:00:00Z",
+  updated_at: "2026-01-17T00:00:00Z",
 };
 
 describe("AdminCategoriesPage", () => {
@@ -38,7 +56,10 @@ describe("AdminCategoriesPage", () => {
     vi.clearAllMocks();
     vi.mocked(categoriesAdminApi.list).mockResolvedValue({
       data: [category],
-      meta: { page: 1, per_page: 10, total: 1 },
+      meta: { page: 1, per_page: 100, total: 1 },
+    });
+    vi.mocked(categoriesAdminApi.reorder).mockResolvedValue({
+      data: [category],
     });
   });
 
@@ -53,7 +74,7 @@ describe("AdminCategoriesPage", () => {
   it("shows empty state when no categories match", async () => {
     vi.mocked(categoriesAdminApi.list).mockResolvedValue({
       data: [],
-      meta: { page: 1, per_page: 10, total: 0 },
+      meta: { page: 1, per_page: 100, total: 0 },
     });
 
     render(<AdminCategoriesPage />);
@@ -222,5 +243,111 @@ describe("AdminCategoriesPage", () => {
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(categoriesAdminApi.create).not.toHaveBeenCalled();
+  });
+
+  it("renders drag handles when not searching", async () => {
+    vi.mocked(categoriesAdminApi.list).mockResolvedValue({
+      data: [category, categoryTwo, categoryThree],
+      meta: { page: 1, per_page: 100, total: 3 },
+    });
+
+    render(<AdminCategoriesPage />);
+
+    await screen.findByText("Desserts");
+    expect(screen.getAllByLabelText("Drag to reorder")).toHaveLength(3);
+  });
+
+  it("calls reorder with the new order when drag ends", async () => {
+    vi.mocked(categoriesAdminApi.list).mockResolvedValue({
+      data: [category, categoryTwo, categoryThree],
+      meta: { page: 1, per_page: 100, total: 3 },
+    });
+
+    const { handleCategoryDragEnd } = await import("./category-reorder");
+
+    render(<AdminCategoriesPage />);
+    await screen.findByText("Desserts");
+
+    await handleCategoryDragEnd(
+      {
+        active: { id: "cat-2" },
+        over: { id: "cat-1" },
+      } as never,
+      {
+        categories: [category, categoryTwo, categoryThree],
+        setCategories: vi.fn(),
+        reorder: categoriesAdminApi.reorder,
+        onSuccess: () => toast.success("Category order saved"),
+        onError: (message) => toast.error(message),
+        reload: vi.fn(),
+      },
+    );
+
+    expect(categoriesAdminApi.reorder).toHaveBeenCalledWith([
+      "cat-2",
+      "cat-1",
+      "cat-3",
+    ]);
+    expect(toast.success).toHaveBeenCalledWith("Category order saved");
+  });
+
+  it("reverts order and shows an error toast when reorder fails", async () => {
+    const categories = [category, categoryTwo, categoryThree];
+    const { handleCategoryDragEnd } = await import("./category-reorder");
+
+    vi.mocked(categoriesAdminApi.reorder).mockRejectedValue(
+      new ApiError(500, "error", "Failed to save order"),
+    );
+
+    const setCategories = vi.fn();
+
+    await handleCategoryDragEnd(
+      {
+        active: { id: "cat-2" },
+        over: { id: "cat-1" },
+      } as never,
+      {
+        categories,
+        setCategories,
+        reorder: categoriesAdminApi.reorder,
+        onSuccess: () => toast.success("Category order saved"),
+        onError: (message) => toast.error(message),
+        reload: vi.fn(),
+      },
+    );
+
+    expect(categoriesAdminApi.reorder).toHaveBeenCalledWith([
+      "cat-2",
+      "cat-1",
+      "cat-3",
+    ]);
+    expect(setCategories).toHaveBeenLastCalledWith(categories);
+    expect(toast.error).toHaveBeenCalledWith("Failed to save order");
+  });
+
+  it("disables reorder affordance while search is active", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    vi.mocked(categoriesAdminApi.list).mockResolvedValue({
+      data: [category, categoryTwo, categoryThree],
+      meta: { page: 1, per_page: 10, total: 3 },
+    });
+
+    render(<AdminCategoriesPage />);
+    await screen.findByText("Desserts");
+    expect(screen.getAllByLabelText("Drag to reorder")).toHaveLength(3);
+
+    await user.type(screen.getByPlaceholderText("Search by name"), "Des");
+    await vi.advanceTimersByTimeAsync(350);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Clear search to reorder categories."),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByLabelText("Drag to reorder")).not.toBeInTheDocument();
+
+    vi.useRealTimers();
   });
 });
