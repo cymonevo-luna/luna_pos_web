@@ -34,6 +34,23 @@ export function displayDescription(
   return `${trimmed.slice(0, maxLength)}…`;
 }
 
+/** Default food photo served from the public directory. */
+export const DEFAULT_FOOD_PHOTO_URL = "/default-food.svg";
+
+/** Format an integer amount as Indonesian Rupiah (e.g. Rp 35.000). */
+export function formatRupiah(amount: number) {
+  return `Rp ${new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount)}`;
+}
+
+/** Resolve a menu photo URL, falling back to the default food image. */
+export function menuPhotoUrl(photoUrl?: string | null) {
+  const trimmed = photoUrl?.trim();
+  return trimmed || DEFAULT_FOOD_PHOTO_URL;
+}
+
 /** Produce up-to-two-character initials from a name for avatars. */
 export function initials(name: string) {
   return name
