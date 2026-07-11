@@ -97,6 +97,7 @@ describe("categoriesAdminApi", () => {
     const category = {
       id: "cat-1",
       name: "Desserts",
+      priority: 0,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
@@ -137,6 +138,48 @@ describe("categoriesAdminApi", () => {
     expect(updated.data).toEqual(category);
 
     await categoriesAdminApi.delete("cat-1");
+    expect(fetchMock).toHaveBeenCalled();
+  });
+
+  it("reorder sends PUT with category_ids in order", async () => {
+    const categories = [
+      {
+        id: "id-2",
+        name: "Second",
+        priority: 0,
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      },
+      {
+        id: "id-1",
+        name: "First",
+        priority: 1,
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      },
+    ];
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async (input, init) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+
+        if (
+          method === "PUT" &&
+          url.endsWith("/api/admin/categories/reorder")
+        ) {
+          expect(init?.body).toBe(
+            JSON.stringify({ category_ids: ["id-2", "id-1"] }),
+          );
+          return jsonResponse({ success: true, data: categories });
+        }
+
+        return jsonResponse({ success: false }, 404);
+      },
+    );
+
+    const result = await categoriesAdminApi.reorder(["id-2", "id-1"]);
+    expect(result.data).toEqual(categories);
     expect(fetchMock).toHaveBeenCalled();
   });
 });

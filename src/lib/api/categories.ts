@@ -42,4 +42,9 @@ export const categoriesAdminApi = {
     api.put<Category>(`/api/admin/categories/${id}`, payload),
 
   delete: (id: string) => api.delete<void>(`/api/admin/categories/${id}`),
+
+  reorder: (categoryIds: string[]) =>
+    api.put<Category[]>("/api/admin/categories/reorder", {
+      category_ids: categoryIds,
+    }),
 };
