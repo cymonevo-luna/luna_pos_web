@@ -1,0 +1,11 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8087}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Luna POS}
+    ports:
+      - "${WEB_PORT:-3007}:3000"
+    restart: unless-stopped
