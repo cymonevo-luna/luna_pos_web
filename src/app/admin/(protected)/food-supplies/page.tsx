@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Search,
   Trash2,
@@ -9,17 +9,40 @@ import {
   Plus,
   Pencil,
 } from "lucide-react";
-import { foodSuppliesAdminApi } from "@/lib/api/food-supplies";
+import {
+  foodSuppliesAdminApi,
+  foodSupplyFormToPayload,
+} from "@/lib/api/food-supplies";
 import { ApiError } from "@/lib/api/client";
 import type { FoodSupply } from "@/lib/api/types";
+import type { FoodSupplyFormValues } from "@/lib/validations";
 import { displayDescription, formatDate, formatStockQuantity } from "@/lib/utils";
 import { toast } from "sonner";
+import {
+  FoodSupplyForm,
+  type FoodSupplyFormHandle,
+} from "@/components/admin/food-supply-form";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 
 const PER_PAGE = 10;
+
+type SupplyDialogState =
+  | { mode: "create" }
+  | { mode: "edit"; supply: FoodSupply }
+  | null;
+
+function supplyToFormValues(supply: FoodSupply): Partial<FoodSupplyFormValues> {
+  return {
+    title: supply.title,
+    description: supply.description ?? "",
+    stock_quantity: supply.stock_quantity,
+    unit: supply.unit,
+  };
+}
 
 export default function AdminFoodSuppliesPage() {
   const [supplies, setSupplies] = useState<FoodSupply[]>([]);
@@ -31,6 +54,9 @@ export default function AdminFoodSuppliesPage() {
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<FoodSupply | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [dialog, setDialog] = useState<SupplyDialogState>(null);
+  const [saving, setSaving] = useState(false);
+  const formRef = useRef<FoodSupplyFormHandle>(null);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -81,7 +107,44 @@ export default function AdminFoodSuppliesPage() {
     }
   };
 
+  const closeDialog = () => {
+    if (saving) return;
+    setDialog(null);
+  };
+
+  const handleFormSubmit = async (values: FoodSupplyFormValues) => {
+    if (!dialog) return;
+    setSaving(true);
+    try {
+      const payload = foodSupplyFormToPayload(values);
+      if (dialog.mode === "create") {
+        await foodSuppliesAdminApi.create(payload);
+        toast.success("Food supply created");
+      } else {
+        await foodSuppliesAdminApi.update(dialog.supply.id, payload);
+        toast.success("Food supply updated");
+      }
+      setDialog(null);
+      void load();
+    } catch (err) {
+      if (err instanceof ApiError && err.fields) {
+        formRef.current?.applyServerErrors(err.fields);
+      }
+      toast.error(
+        err instanceof ApiError ? err.message : "Failed to save food supply",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
+
+  const dialogTitle =
+    dialog?.mode === "edit" ? "Edit food supply" : "Add food supply";
+
+  const formDefaultValues =
+    dialog?.mode === "edit" ? supplyToFormValues(dialog.supply) : undefined;
 
   return (
     <div className="space-y-6">
@@ -100,7 +163,7 @@ export default function AdminFoodSuppliesPage() {
               className="pl-9"
             />
           </div>
-          <Button onClick={() => {}}>
+          <Button onClick={() => setDialog({ mode: "create" })}>
             <Plus className="h-4 w-4" />
             Add supply
           </Button>
@@ -171,8 +234,9 @@ export default function AdminFoodSuppliesPage() {
                           size="icon"
                           className="h-8 w-8"
                           aria-label="Edit food supply"
-                          disabled
-                          onClick={() => {}}
+                          onClick={() =>
+                            setDialog({ mode: "edit", supply })
+                          }
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -220,6 +284,23 @@ export default function AdminFoodSuppliesPage() {
           </Button>
         </div>
       </div>
+
+      <Dialog open={dialog !== null} onClose={closeDialog} className="max-w-lg">
+        <DialogTitle>{dialogTitle}</DialogTitle>
+        {dialog && (
+          <FoodSupplyForm
+            key={
+              dialog.mode === "edit" ? `edit-${dialog.supply.id}` : "create"
+            }
+            ref={formRef}
+            defaultValues={formDefaultValues}
+            onSubmit={handleFormSubmit}
+            onCancel={closeDialog}
+            isLoading={saving}
+            submitLabel={dialog.mode === "edit" ? "Save changes" : "Add supply"}
+          />
+        )}
+      </Dialog>
 
       {pendingDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
