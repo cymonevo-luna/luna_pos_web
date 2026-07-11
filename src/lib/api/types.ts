@@ -63,6 +63,7 @@ export interface FoodSupply {
 export interface Category {
   id: string;
   name: string;
+  priority: number;
   created_at: string;
   updated_at: string;
 }
