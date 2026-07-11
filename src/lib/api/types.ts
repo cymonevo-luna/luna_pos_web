@@ -66,3 +66,16 @@ export interface Category {
   created_at: string;
   updated_at: string;
 }
+
+export interface Menu {
+  id: string;
+  title: string;
+  description?: string | null;
+  category_id: string;
+  category_name: string;
+  photo_url?: string | null;
+  available_stock: number;
+  sell_price: number;
+  created_at: string;
+  updated_at: string;
+}

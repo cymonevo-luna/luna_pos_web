@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cn, formatDate, formatStockQuantity, displayDescription, initials } from "./utils";
+import { cn, formatDate, formatRupiah, formatStockQuantity, displayDescription, menuPhotoUrl, initials } from "./utils";
 
 describe("cn", () => {
   it("merges class names", () => {
@@ -54,6 +54,27 @@ describe("displayDescription", () => {
   it("truncates long text", () => {
     const long = "a".repeat(100);
     expect(displayDescription(long)).toBe(`${"a".repeat(80)}…`);
+  });
+});
+
+describe("formatRupiah", () => {
+  it("formats amounts with Indonesian grouping and no decimals", () => {
+    expect(formatRupiah(35000)).toBe("Rp 35.000");
+    expect(formatRupiah(25000)).toBe("Rp 25.000");
+  });
+});
+
+describe("menuPhotoUrl", () => {
+  it("returns the default food photo when empty", () => {
+    expect(menuPhotoUrl(null)).toBe("/default-food.svg");
+    expect(menuPhotoUrl("")).toBe("/default-food.svg");
+    expect(menuPhotoUrl("   ")).toBe("/default-food.svg");
+  });
+
+  it("returns a trimmed custom photo URL when provided", () => {
+    expect(menuPhotoUrl(" https://example.com/food.jpg ")).toBe(
+      "https://example.com/food.jpg",
+    );
   });
 });
 

@@ -57,3 +57,31 @@ export const categorySchema = z.object({
 });
 
 export type CategoryFormValues = z.infer<typeof categorySchema>;
+
+export const menuSchema = z.object({
+  title: z.string().trim().min(1, "Title is required").max(200, "Title is too long"),
+  description: z
+    .string()
+    .max(2000, "Description is too long")
+    .optional()
+    .or(z.literal("")),
+  category_id: z.string().min(1, "Category is required"),
+  photo_url: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine(
+      (value) => !value?.trim() || z.string().url().safeParse(value.trim()).success,
+      "Enter a valid URL",
+    ),
+  available_stock: z
+    .number({ error: "Available stock is required" })
+    .int("Available stock must be a whole number")
+    .min(0, "Available stock cannot be negative"),
+  sell_price: z
+    .number({ error: "Sell price is required" })
+    .int("Sell price must be a whole number")
+    .positive("Sell price must be greater than 0"),
+});
+
+export type MenuFormValues = z.infer<typeof menuSchema>;
