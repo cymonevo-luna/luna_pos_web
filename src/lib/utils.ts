@@ -17,6 +17,25 @@ export function formatDate(value: string | Date) {
   }).format(date);
 }
 
+/** Format an ISO date string with time for detail views. */
+export function formatDateTime(value: string | Date) {
+  const date = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("en", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+/** Truncate an ID for compact table display. */
+export function truncateId(id: string, length = 8) {
+  if (id.length <= length) return id;
+  return `${id.slice(0, length)}…`;
+}
+
 /** Format stock quantity with unit, trimming unnecessary trailing zeros. */
 export function formatStockQuantity(quantity: number | string, unit: string) {
   const n = typeof quantity === "number" ? quantity : Number(quantity);
