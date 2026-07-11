@@ -18,8 +18,10 @@ export function formatDate(value: string | Date) {
 }
 
 /** Format stock quantity with unit, trimming unnecessary trailing zeros. */
-export function formatStockQuantity(quantity: number, unit: string) {
-  const formatted = Number.parseFloat(quantity.toFixed(10)).toString();
+export function formatStockQuantity(quantity: number | string, unit: string) {
+  const n = typeof quantity === "number" ? quantity : Number(quantity);
+  if (!Number.isFinite(n)) return `— ${unit}`;
+  const formatted = Number.parseFloat(n.toFixed(10)).toString();
   return `${formatted} ${unit}`;
 }
 

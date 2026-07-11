@@ -59,6 +59,23 @@ describe("AdminFoodSuppliesPage", () => {
     expect(screen.getByText("1 total")).toBeInTheDocument();
   });
 
+  it("renders stock quantity when API returns it as a string", async () => {
+    vi.mocked(foodSuppliesAdminApi.list).mockResolvedValue({
+      data: [
+        {
+          ...supply,
+          stock_quantity: "500" as unknown as FoodSupply["stock_quantity"],
+        },
+      ],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminFoodSuppliesPage />);
+
+    expect(await screen.findByText("Olive oil")).toBeInTheDocument();
+    expect(screen.getByText("500 ml")).toBeInTheDocument();
+  });
+
   it("shows empty state when no supplies match", async () => {
     vi.mocked(foodSuppliesAdminApi.list).mockResolvedValue({
       data: [],
