@@ -1,0 +1,25 @@
+# luna_pos_web DEPLOY compose (daemon / systemd).
+#
+# This file only RUNS the prebuilt dashboard image (luna_pos_web:latest). It
+# contains NO `build:` sections, so it can live without the source tree
+# (e.g. /opt/luna_pos_web).
+#
+# Build/refresh from the repo:
+#   scripts/refresh-daemon.sh
+#
+# Runtime config comes from ./.env next to this file.
+#
+# Ports (uncommon, to avoid conflicts): web http://localhost:8788.
+
+name: luna_pos_web
+
+services:
+  luna_pos_web:
+    image: luna_pos_web:latest
+    pull_policy: never
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "8788:3000"
