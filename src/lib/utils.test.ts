@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cn, formatDate, initials } from "./utils";
+import { cn, formatDate, formatStockQuantity, displayDescription, initials } from "./utils";
 
 describe("cn", () => {
   it("merges class names", () => {
@@ -22,6 +22,38 @@ describe("formatDate", () => {
 
   it("returns a dash for invalid input", () => {
     expect(formatDate("not-a-date")).toBe("—");
+  });
+});
+
+describe("formatStockQuantity", () => {
+  it("formats whole numbers without trailing zeros", () => {
+    expect(formatStockQuantity(500, "ml")).toBe("500 ml");
+  });
+
+  it("preserves meaningful decimals", () => {
+    expect(formatStockQuantity(2.5, "gr")).toBe("2.5 gr");
+  });
+
+  it("strips unnecessary trailing zeros", () => {
+    expect(formatStockQuantity(500.0, "ml")).toBe("500 ml");
+    expect(formatStockQuantity(2.5, "piece")).toBe("2.5 piece");
+  });
+});
+
+describe("displayDescription", () => {
+  it("returns an em dash for empty values", () => {
+    expect(displayDescription(null)).toBe("—");
+    expect(displayDescription("")).toBe("—");
+    expect(displayDescription("   ")).toBe("—");
+  });
+
+  it("returns short text unchanged", () => {
+    expect(displayDescription("Extra virgin")).toBe("Extra virgin");
+  });
+
+  it("truncates long text", () => {
+    const long = "a".repeat(100);
+    expect(displayDescription(long)).toBe(`${"a".repeat(80)}…`);
   });
 });
 

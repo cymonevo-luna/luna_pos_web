@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, Users, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Users, Package, ArrowLeft } from "lucide-react";
 import {
   DashboardShell,
   type NavItem,
@@ -10,6 +10,7 @@ import { RequireAuth } from "@/components/layout/require-auth";
 const navItems: NavItem[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/food-supplies", label: "Food Supplies", icon: Package },
   { href: "/dashboard", label: "Back to app", icon: ArrowLeft },
 ];
 

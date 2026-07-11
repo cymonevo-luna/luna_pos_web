@@ -17,6 +17,23 @@ export function formatDate(value: string | Date) {
   }).format(date);
 }
 
+/** Format stock quantity with unit, trimming unnecessary trailing zeros. */
+export function formatStockQuantity(quantity: number, unit: string) {
+  const formatted = Number.parseFloat(quantity.toFixed(10)).toString();
+  return `${formatted} ${unit}`;
+}
+
+/** Truncate text for table cells; returns an em dash when empty. */
+export function displayDescription(
+  description?: string | null,
+  maxLength = 80,
+) {
+  const trimmed = description?.trim();
+  if (!trimmed) return "—";
+  if (trimmed.length <= maxLength) return trimmed;
+  return `${trimmed.slice(0, maxLength)}…`;
+}
+
 /** Produce up-to-two-character initials from a name for avatars. */
 export function initials(name: string) {
   return name
