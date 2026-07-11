@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { menusAdminApi } from "./menus";
+import { menusAdminApi, menuFormToPayload } from "./menus";
 import { menuSchema } from "@/lib/validations";
 import { tokenStore } from "@/lib/auth/tokens";
 
@@ -16,6 +16,9 @@ describe("menuSchema", () => {
     category_id: "cat-1",
     available_stock: 10,
     sell_price: 25000,
+    recipe_yield: 1,
+    margin_percent: 0,
+    vat_percent: 0,
   };
 
   it("accepts a valid payload", () => {
@@ -92,6 +95,37 @@ describe("menuSchema", () => {
       ).toBe(true);
     }
   });
+
+  it("rejects recipe yield below 1", () => {
+    const result = menuSchema.safeParse({ ...base, recipe_yield: 0 });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((i) =>
+          i.message.includes("Recipe yield must be at least 1"),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("rejects negative margin and VAT", () => {
+    expect(menuSchema.safeParse({ ...base, margin_percent: -1 }).success).toBe(
+      false,
+    );
+    expect(menuSchema.safeParse({ ...base, vat_percent: -1 }).success).toBe(
+      false,
+    );
+  });
+
+  it("accepts decimal margin and VAT values", () => {
+    expect(
+      menuSchema.safeParse({
+        ...base,
+        margin_percent: 30.5,
+        vat_percent: 11.25,
+      }).success,
+    ).toBe(true);
+  });
 });
 
 describe("menusAdminApi", () => {
@@ -141,6 +175,9 @@ describe("menusAdminApi", () => {
       photo_url: null,
       available_stock: 10,
       sell_price: 25000,
+      recipe_yield: 40,
+      margin_percent: 30,
+      vat_percent: 11,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
@@ -174,6 +211,9 @@ describe("menusAdminApi", () => {
       category_id: "cat-1",
       available_stock: 10,
       sell_price: 25000,
+      recipe_yield: 1,
+      margin_percent: 0,
+      vat_percent: 0,
     });
     expect(created.data).toEqual(menu);
 
@@ -182,10 +222,39 @@ describe("menusAdminApi", () => {
       category_id: "cat-1",
       available_stock: 10,
       sell_price: 25000,
+      recipe_yield: 1,
+      margin_percent: 0,
+      vat_percent: 0,
     });
     expect(updated.data).toEqual(menu);
 
     await menusAdminApi.delete("menu-1");
     expect(fetchMock).toHaveBeenCalled();
+  });
+});
+
+describe("menuFormToPayload", () => {
+  it("includes COGS fields in the API payload", () => {
+    expect(
+      menuFormToPayload({
+        title: "Batch Soup",
+        description: "",
+        category_id: "cat-1",
+        photo_url: "",
+        available_stock: 10,
+        sell_price: 25000,
+        recipe_yield: 40,
+        margin_percent: 30,
+        vat_percent: 11,
+      }),
+    ).toEqual({
+      title: "Batch Soup",
+      category_id: "cat-1",
+      available_stock: 10,
+      sell_price: 25000,
+      recipe_yield: 40,
+      margin_percent: 30,
+      vat_percent: 11,
+    });
   });
 });
