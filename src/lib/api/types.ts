@@ -80,3 +80,40 @@ export interface Menu {
   created_at: string;
   updated_at: string;
 }
+
+export type TransactionMethod = "OFFLINE";
+
+export type TransactionSummaryPeriod = "daily" | "weekly" | "monthly";
+
+export interface TransactionLineItem {
+  menu_id: string;
+  title: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+}
+
+export interface Transaction {
+  id: string;
+  method: TransactionMethod;
+  amount: number;
+  cash_tendered: number;
+  change_amount: number;
+  cashier_user_id: string;
+  cashier_username: string;
+  items: TransactionLineItem[];
+  transaction_date: string;
+  created_at: string;
+}
+
+export interface TransactionSummaryBucket {
+  period_start: string;
+  period_label: string;
+  count: number;
+  total_amount: number;
+}
+
+export interface TransactionSummary {
+  period: TransactionSummaryPeriod;
+  buckets: TransactionSummaryBucket[];
+}
