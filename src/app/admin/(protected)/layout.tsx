@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, Users, Package, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Users, Package, Tags, ArrowLeft } from "lucide-react";
 import {
   DashboardShell,
   type NavItem,
@@ -11,6 +11,7 @@ const navItems: NavItem[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/food-supplies", label: "Food Supplies", icon: Package },
+  { href: "/admin/categories", label: "Categories", icon: Tags },
   { href: "/dashboard", label: "Back to app", icon: ArrowLeft },
 ];
 
