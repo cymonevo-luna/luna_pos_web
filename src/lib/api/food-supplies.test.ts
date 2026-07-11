@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { foodSuppliesAdminApi } from "./food-supplies";
+import {
+  foodSuppliesAdminApi,
+  parseStockQuantity,
+  normalizeFoodSupply,
+} from "./food-supplies";
 import { foodSupplySchema } from "@/lib/validations";
 import { tokenStore } from "@/lib/auth/tokens";
 
@@ -135,7 +139,7 @@ describe("foodSuppliesAdminApi", () => {
       title: "Olive oil",
       description: null,
       stock_quantity: 2.5,
-      unit: "ml",
+      unit: "ml" as const,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
@@ -183,5 +187,89 @@ describe("foodSuppliesAdminApi", () => {
 
     await foodSuppliesAdminApi.delete("fs-1");
     expect(fetchMock).toHaveBeenCalled();
+  });
+
+  it("normalizes string stock_quantity from list API", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: [
+          {
+            id: "fs-1",
+            title: "Milk",
+            description: null,
+            stock_quantity: "500",
+            unit: "ml",
+            created_at: "2026-01-01T00:00:00Z",
+            updated_at: "2026-01-01T00:00:00Z",
+          },
+        ],
+        meta: { page: 1, per_page: 10, total: 1 },
+      }),
+    );
+
+    const result = await foodSuppliesAdminApi.list();
+    expect(result.data[0]?.stock_quantity).toBe(500);
+    expect(typeof result.data[0]?.stock_quantity).toBe("number");
+  });
+
+  it("normalizes decimal string stock_quantity from create API", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        {
+          success: true,
+          data: {
+            id: "fs-2",
+            title: "Spice mix",
+            description: null,
+            stock_quantity: "2.5",
+            unit: "gr",
+            created_at: "2026-01-01T00:00:00Z",
+            updated_at: "2026-01-01T00:00:00Z",
+          },
+        },
+        201,
+      ),
+    );
+
+    const result = await foodSuppliesAdminApi.create({
+      title: "Spice mix",
+      stock_quantity: 2.5,
+      unit: "gr",
+    });
+    expect(result.data?.stock_quantity).toBe(2.5);
+    expect(typeof result.data?.stock_quantity).toBe("number");
+  });
+});
+
+describe("parseStockQuantity", () => {
+  it("passes through finite numbers", () => {
+    expect(parseStockQuantity(500)).toBe(500);
+    expect(parseStockQuantity(2.5)).toBe(2.5);
+  });
+
+  it("parses numeric strings", () => {
+    expect(parseStockQuantity("500")).toBe(500);
+    expect(parseStockQuantity("2.5")).toBe(2.5);
+  });
+
+  it("returns 0 for null, undefined, and invalid values", () => {
+    expect(parseStockQuantity(null)).toBe(0);
+    expect(parseStockQuantity(undefined)).toBe(0);
+    expect(parseStockQuantity("not-a-number")).toBe(0);
+  });
+});
+
+describe("normalizeFoodSupply", () => {
+  it("coerces string stock_quantity to number", () => {
+    const normalized = normalizeFoodSupply({
+      id: "fs-1",
+      title: "Flour",
+      stock_quantity: "2500",
+      unit: "gr",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+    expect(normalized.stock_quantity).toBe(2500);
   });
 });
