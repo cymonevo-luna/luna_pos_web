@@ -17,6 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CtaSection } from "@/components/landing/cta-section";
 
 export const metadata: Metadata = {
   description:
@@ -115,6 +116,7 @@ export default function HomePage() {
       </section>
 
       <PosAppSection />
+      <CtaSection />
     </div>
   );
 }
