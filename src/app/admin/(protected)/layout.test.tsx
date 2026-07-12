@@ -73,6 +73,23 @@ describe("AdminProtectedLayout", () => {
     ).toBe(true);
   });
 
+  it("includes Food Supplies for operational users", () => {
+    const items: NavItem[] = [
+      {
+        href: "/admin/food-supplies",
+        label: "Food Supplies",
+        icon: () => null,
+        roles: ["manager", "operational"],
+      },
+    ];
+
+    expect(
+      filterAdminNavItems(items, ["operational"]).some(
+        (item) => item.label === "Food Supplies",
+      ),
+    ).toBe(true);
+  });
+
   it("includes operational items for operational users", () => {
     const items: NavItem[] = [
       {

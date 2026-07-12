@@ -55,6 +55,20 @@ describe("canAccessRoute", () => {
     expect(canAccessRoute("/admin/store-settings", ["admin"])).toBe(false);
   });
 
+  it("blocks admin-only users from operational routes", () => {
+    expect(canAccessRoute("/admin/suppliers", ["admin"])).toBe(false);
+    expect(canAccessRoute("/admin/purchases", ["admin"])).toBe(false);
+  });
+
+  it("allows operational users on food-supplies routes", () => {
+    expect(canAccessRoute("/admin/food-supplies", ["operational"])).toBe(true);
+  });
+
+  it("blocks operational users from manager-only routes", () => {
+    expect(canAccessRoute("/admin/cogs", ["operational"])).toBe(false);
+    expect(canAccessRoute("/admin/menus", ["operational"])).toBe(false);
+  });
+
   it("allows manager users on manager routes", () => {
     expect(canAccessRoute("/admin/cogs", ["manager"])).toBe(true);
     expect(canAccessRoute("/admin/menus/menu-1/ingredients", ["manager"])).toBe(

@@ -75,7 +75,7 @@ const overviewCards: OverviewCard[] = [
     description: "Maintain ingredient inventory.",
     href: "/admin/food-supplies",
     icon: Package,
-    roles: ["manager"],
+    roles: ["manager", "operational"],
   },
   {
     title: "Receipt settings",

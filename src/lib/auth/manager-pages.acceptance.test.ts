@@ -84,17 +84,20 @@ describe("POS-18-12 manager-scoped page guards", () => {
   });
 
   it("manager supporting routes remain gated", () => {
-    const routes = [
+    const managerOnlyRoutes = [
       "/admin/categories",
       "/admin/menus",
       "/admin/menus/menu-1/ingredients",
-      "/admin/food-supplies",
     ];
-    for (const route of routes) {
+    for (const route of managerOnlyRoutes) {
       expect(canAccessRoute(route, ["manager"])).toBe(true);
       expect(canAccessRoute(route, ["admin"])).toBe(false);
       expect(canAccessRoute(route, ["operational"])).toBe(false);
     }
+
+    expect(canAccessRoute("/admin/food-supplies", ["manager"])).toBe(true);
+    expect(canAccessRoute("/admin/food-supplies", ["operational"])).toBe(true);
+    expect(canAccessRoute("/admin/food-supplies", ["admin"])).toBe(false);
   });
 
   it("no selling reports UI route exists", () => {

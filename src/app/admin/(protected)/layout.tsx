@@ -17,7 +17,7 @@ import type { MerchantRole } from "@/lib/api/types";
 const allNavItems: NavItem[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/users", label: "Users", icon: Users, roles: ["admin"] },
-  { href: "/admin/food-supplies", label: "Food Supplies", icon: Package, roles: ["manager"] },
+  { href: "/admin/food-supplies", label: "Food Supplies", icon: Package, roles: ["manager", "operational"] },
   { href: "/admin/categories", label: "Categories", icon: Tags, roles: ["manager"] },
   { href: "/admin/menus", label: "Menus", icon: UtensilsCrossed, roles: ["manager"] },
   { href: "/admin/cogs", label: "COGS", icon: Calculator, roles: ["manager"] },
