@@ -4,6 +4,7 @@ import type {
   PurchaseRequest,
   PurchaseRequestItem,
   PurchaseRequestStatus,
+  PurchaseRequestStatusHistoryEntry,
   PurchaseRequestSummary,
 } from "./types";
 import type { PurchaseRequestFormValues } from "@/lib/validations";
@@ -22,9 +23,13 @@ interface PurchaseRequestItemRaw
 }
 
 interface PurchaseRequestRaw
-  extends Omit<PurchaseRequest, "items" | "total_estimated_amount"> {
+  extends Omit<
+    PurchaseRequest,
+    "items" | "total_estimated_amount" | "status_history"
+  > {
   items: PurchaseRequestItemRaw[];
   total_estimated_amount: number | string;
+  status_history?: PurchaseRequestStatusHistoryEntry[];
 }
 
 interface PurchaseRequestSummaryRaw
@@ -52,6 +57,7 @@ export function normalizePurchaseRequest(
     ...raw,
     total_estimated_amount: parseNumeric(raw.total_estimated_amount),
     items: (raw.items ?? []).map(normalizePurchaseRequestItem),
+    status_history: raw.status_history ?? [],
   };
 }
 

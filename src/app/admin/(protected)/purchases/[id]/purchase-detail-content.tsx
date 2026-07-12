@@ -13,6 +13,7 @@ import type {
   PurchaseRequest,
   PurchaseRequestItem,
   PurchaseRequestStatus,
+  PurchaseRequestStatusHistoryEntry,
 } from "@/lib/api/types";
 import {
   buildPurchaseWhatsAppMessage,
@@ -21,6 +22,7 @@ import {
   formatRupiah,
   formatStockQuantity,
   formatSupplierUnitPrice,
+  menuPhotoUrl,
 } from "@/lib/utils";
 import { toast } from "sonner";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
@@ -112,6 +114,19 @@ function getNextStatus(
 
 function statusRequiresPhoto(status: PurchaseRequestStatus): boolean {
   return status === "PAID" || status === "DELIVERED";
+}
+
+function formatStatusHistoryLabel(entry: PurchaseRequestStatusHistoryEntry) {
+  if (entry.from_status?.trim()) {
+    return `${entry.from_status} → ${entry.to_status}`;
+  }
+  return entry.to_status;
+}
+
+function statusHistoryPhotoAltText(toStatus: string) {
+  if (toStatus === "PAID") return "Receipt photo";
+  if (toStatus === "DELIVERED") return "Package photo";
+  return "Status photo";
 }
 
 export function AdminPurchaseDetailContent({ id }: { id: string }) {
@@ -404,71 +419,6 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
             </Card>
           ) : null}
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Status history</CardTitle>
-              <CardDescription>
-                Lifecycle changes recorded for this purchase request.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {purchase.status_history && purchase.status_history.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="border-b border-border bg-muted/50 text-left text-muted-foreground">
-                      <tr>
-                        <th className="px-4 py-3 font-medium">Status</th>
-                        <th className="px-4 py-3 font-medium">Changed at</th>
-                        <th className="px-4 py-3 font-medium">Changed by</th>
-                        <th className="px-4 py-3 font-medium">Photo</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {purchase.status_history.map((entry) => (
-                        <tr
-                          key={entry.id}
-                          className="border-b border-border last:border-0"
-                        >
-                          <td className="px-4 py-3">
-                            <Badge
-                              variant={purchaseStatusBadgeVariant(entry.status)}
-                            >
-                              {entry.status}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            {formatDateTime(entry.created_at)}
-                          </td>
-                          <td className="px-4 py-3">
-                            {entry.created_by_username?.trim() || "—"}
-                          </td>
-                          <td className="px-4 py-3">
-                            {entry.photo_url?.trim() ? (
-                              <a
-                                href={entry.photo_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary underline-offset-4 hover:underline"
-                              >
-                                View photo
-                              </a>
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No status changes recorded yet.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
           {purchase.notes?.trim() ? (
             <Card>
               <CardHeader>
@@ -479,6 +429,75 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
               </CardContent>
             </Card>
           ) : null}
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Status History</CardTitle>
+              <CardDescription>
+                Chronological record of status changes for this purchase request.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {purchase.status_history.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No status history yet
+                </p>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {purchase.status_history.map((entry) => {
+                    const resolvedPhotoUrl = entry.photo_url?.trim()
+                      ? menuPhotoUrl(entry.photo_url)
+                      : null;
+
+                    return (
+                      <li
+                        key={entry.id}
+                        className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge
+                              variant={purchaseStatusBadgeVariant(
+                                entry.to_status as PurchaseRequestStatus,
+                              )}
+                            >
+                              {formatStatusHistoryLabel(entry)}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {entry.changed_by_username}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-start gap-2 sm:items-end">
+                          <time
+                            className="text-sm text-muted-foreground"
+                            dateTime={entry.created_at}
+                          >
+                            {formatDateTime(entry.created_at)}
+                          </time>
+                          {resolvedPhotoUrl ? (
+                            <a
+                              href={resolvedPhotoUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block overflow-hidden rounded-md border border-border"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={resolvedPhotoUrl}
+                                alt={statusHistoryPhotoAltText(entry.to_status)}
+                                className="h-20 w-20 object-cover"
+                              />
+                            </a>
+                          ) : null}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
 
           <Card className="overflow-hidden">
             <CardHeader>

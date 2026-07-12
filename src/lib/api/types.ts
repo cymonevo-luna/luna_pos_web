@@ -287,12 +287,13 @@ export interface PurchaseRequestItem {
   line_estimated_amount: number;
 }
 
-export interface PurchaseStatusHistoryEntry {
+export interface PurchaseRequestStatusHistoryEntry {
   id: string;
-  status: PurchaseRequestStatus;
-  photo_url?: string | null;
+  from_status: string | null;
+  to_status: string;
+  changed_by_username: string;
+  photo_url: string | null;
   created_at: string;
-  created_by_username?: string | null;
 }
 
 export interface PurchaseRequest {
@@ -303,9 +304,9 @@ export interface PurchaseRequest {
   status: PurchaseRequestStatus;
   notes?: string | null;
   items: PurchaseRequestItem[];
+  status_history: PurchaseRequestStatusHistoryEntry[];
   total_estimated_amount: number;
   created_by_username?: string | null;
-  status_history?: PurchaseStatusHistoryEntry[];
   created_at: string;
   updated_at: string;
 }

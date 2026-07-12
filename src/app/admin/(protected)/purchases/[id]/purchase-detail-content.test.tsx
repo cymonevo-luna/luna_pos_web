@@ -6,6 +6,7 @@ import { purchaseRequestsAdminApi } from "@/lib/api/purchase-requests";
 import { uploadPurchasePhoto } from "@/lib/api/uploads";
 import { ApiError } from "@/lib/api/client";
 import type { PurchaseRequest } from "@/lib/api/types";
+import { config } from "@/lib/config";
 import { toast } from "sonner";
 
 vi.mock("@/lib/api/purchase-requests", () => ({
@@ -47,10 +48,11 @@ const purchase: PurchaseRequest = {
   status_history: [
     {
       id: "hist-1",
-      status: "PENDING",
+      from_status: null,
+      to_status: "PENDING",
+      changed_by_username: "admin",
       photo_url: null,
       created_at: "2026-01-01T00:00:00Z",
-      created_by_username: "admin",
     },
   ],
   items: [
@@ -111,7 +113,7 @@ describe("AdminPurchaseDetailContent", () => {
     expect(summaryCard).not.toBeNull();
     expect(within(summaryCard as HTMLElement).getByText("Rp 118.000")).toBeInTheDocument();
 
-    const lineItemsTable = screen.getAllByRole("table")[1] as HTMLTableElement;
+    const lineItemsTable = screen.getAllByRole("table")[0] as HTMLTableElement;
     expect(within(lineItemsTable).getByText("Rp 78.000")).toBeInTheDocument();
     expect(within(lineItemsTable).getByText("Rp 40.000")).toBeInTheDocument();
     expect(within(lineItemsTable).getByText("Rp 118.000")).toBeInTheDocument();
@@ -129,13 +131,14 @@ describe("AdminPurchaseDetailContent", () => {
       ...purchase,
       status: "REQUESTED" as const,
       status_history: [
-        ...purchase.status_history!,
+        ...purchase.status_history,
         {
           id: "hist-2",
-          status: "REQUESTED" as const,
+          from_status: "PENDING",
+          to_status: "REQUESTED",
+          changed_by_username: "admin",
           photo_url: null,
           created_at: "2026-01-02T00:00:00Z",
-          created_by_username: "admin",
         },
       ],
     };
@@ -176,13 +179,14 @@ describe("AdminPurchaseDetailContent", () => {
       ...currentPurchase,
       status: "PAID" as const,
       status_history: [
-        ...(currentPurchase.status_history ?? []),
+        ...currentPurchase.status_history,
         {
           id: "hist-paid",
-          status: "PAID" as const,
+          from_status: "REQUESTED",
+          to_status: "PAID",
+          changed_by_username: "admin",
           photo_url: "https://cdn.example.com/receipt.jpg",
           created_at: "2026-01-03T00:00:00Z",
-          created_by_username: "admin",
         },
       ],
     };
@@ -238,13 +242,14 @@ describe("AdminPurchaseDetailContent", () => {
       ...currentPurchase,
       status: "DELIVERED" as const,
       status_history: [
-        ...(currentPurchase.status_history ?? []),
+        ...currentPurchase.status_history,
         {
           id: "hist-delivered",
-          status: "DELIVERED" as const,
+          from_status: "PAID",
+          to_status: "DELIVERED",
+          changed_by_username: "admin",
           photo_url: "https://cdn.example.com/package.jpg",
           created_at: "2026-01-04T00:00:00Z",
-          created_by_username: "admin",
         },
       ],
     };
@@ -312,13 +317,14 @@ describe("AdminPurchaseDetailContent", () => {
       ...purchase,
       status: "REQUESTED" as const,
       status_history: [
-        ...(purchase.status_history ?? []),
+        ...purchase.status_history,
         {
           id: "hist-2",
-          status: "REQUESTED" as const,
+          from_status: "PENDING",
+          to_status: "REQUESTED",
+          changed_by_username: "admin",
           photo_url: null,
           created_at: "2026-01-02T00:00:00Z",
-          created_by_username: "admin",
         },
       ],
     };
@@ -336,9 +342,18 @@ describe("AdminPurchaseDetailContent", () => {
     render(<AdminPurchaseDetailContent id="pr-1" />);
     await screen.findByText("Beras Supplier");
 
-    const historyTable = screen.getAllByRole("table")[0];
-    expect(within(historyTable).getAllByText("PENDING")).toHaveLength(1);
-    expect(within(historyTable).queryByText("REQUESTED")).not.toBeInTheDocument();
+    const statusHistoryHeading = screen.getByRole("heading", {
+      name: "Status History",
+    });
+    const statusHistorySection = statusHistoryHeading.closest(
+      ".rounded-2xl",
+    ) as HTMLElement;
+    expect(
+      within(statusHistorySection).getByText("PENDING"),
+    ).toBeInTheDocument();
+    expect(
+      within(statusHistorySection).queryByText("PENDING → REQUESTED"),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Mark as Requested" }));
 
@@ -346,8 +361,9 @@ describe("AdminPurchaseDetailContent", () => {
       expect(purchaseRequestsAdminApi.get).toHaveBeenCalledTimes(2);
     });
 
-    const refreshedHistoryTable = screen.getAllByRole("table")[0];
-    expect(within(refreshedHistoryTable).getByText("REQUESTED")).toBeInTheDocument();
+    expect(
+      within(statusHistorySection).getByText("PENDING → REQUESTED"),
+    ).toBeInTheDocument();
   });
 
   it("shows API validation errors for invalid status transitions", async () => {
@@ -422,5 +438,117 @@ describe("AdminPurchaseDetailContent", () => {
     expect(
       await screen.findByText("Failed to load purchase request"),
     ).toBeInTheDocument();
+  });
+
+  it("renders Status History above Line items in DOM order", async () => {
+    render(<AdminPurchaseDetailContent id="pr-1" />);
+
+    const statusHistoryHeading = await screen.findByRole("heading", {
+      name: "Status History",
+    });
+    const lineItemsHeading = screen.getByRole("heading", {
+      name: "Line items",
+    });
+
+    expect(
+      statusHistoryHeading.compareDocumentPosition(lineItemsHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("renders status history rows with transition, username, and timestamp", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        status_history: [
+          {
+            id: "hist-1",
+            from_status: null,
+            to_status: "PENDING",
+            changed_by_username: "admin",
+            photo_url: null,
+            created_at: "2026-01-01T08:00:00Z",
+          },
+          {
+            id: "hist-2",
+            from_status: "PENDING",
+            to_status: "REQUESTED",
+            changed_by_username: "manager",
+            photo_url: null,
+            created_at: "2026-01-02T09:30:00Z",
+          },
+        ],
+      },
+    });
+
+    render(<AdminPurchaseDetailContent id="pr-1" />);
+
+    const statusHistoryHeading = await screen.findByRole("heading", {
+      name: "Status History",
+    });
+    const statusHistorySection = statusHistoryHeading.closest(
+      ".rounded-2xl",
+    ) as HTMLElement;
+
+    expect(
+      within(statusHistorySection).getByText("PENDING"),
+    ).toBeInTheDocument();
+    expect(
+      within(statusHistorySection).getByText("PENDING → REQUESTED"),
+    ).toBeInTheDocument();
+    expect(within(statusHistorySection).getByText("manager")).toBeInTheDocument();
+    expect(
+      within(statusHistorySection).getByText("Jan 2, 2026, 09:30 AM"),
+    ).toBeInTheDocument();
+  });
+
+  it("renders a clickable photo link for history entries with photo_url", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        status_history: [
+          {
+            id: "hist-paid",
+            from_status: "REQUESTED",
+            to_status: "PAID",
+            changed_by_username: "cashier",
+            photo_url: "/static/uploads/receipts/receipt.jpg",
+            created_at: "2026-01-03T10:00:00Z",
+          },
+          {
+            id: "hist-delivered",
+            from_status: "PAID",
+            to_status: "DELIVERED",
+            changed_by_username: "operational",
+            photo_url: "/static/uploads/packages/package.jpg",
+            created_at: "2026-01-04T11:00:00Z",
+          },
+        ],
+      },
+    });
+
+    render(<AdminPurchaseDetailContent id="pr-1" />);
+
+    const receiptLink = await screen.findByRole("link", { name: "Receipt photo" });
+    expect(receiptLink).toHaveAttribute(
+      "href",
+      `${config.apiBaseUrl}/static/uploads/receipts/receipt.jpg`,
+    );
+
+    const packageLink = screen.getByRole("link", { name: "Package photo" });
+    expect(packageLink).toHaveAttribute(
+      "href",
+      `${config.apiBaseUrl}/static/uploads/packages/package.jpg`,
+    );
+  });
+
+  it("shows empty state when status history is empty", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: { ...purchase, status_history: [] },
+    });
+
+    render(<AdminPurchaseDetailContent id="pr-1" />);
+
+    expect(await screen.findByText("No status history yet")).toBeInTheDocument();
   });
 });

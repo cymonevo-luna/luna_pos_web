@@ -341,4 +341,55 @@ describe("normalizePurchaseRequest regression", () => {
 
     expect(normalized.total_estimated_amount).toBe(0);
   });
+
+  it("defaults status_history to an empty array when omitted", () => {
+    const raw = {
+      id: "pr-1",
+      supplier_id: "sup-1",
+      supplier_name: "Supplier",
+      supplier_contact_info: "08123",
+      status: "PENDING" as const,
+      notes: null,
+      items: [],
+      total_estimated_amount: 0,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    };
+    const normalized = normalizePurchaseRequest(
+      raw as unknown as Parameters<typeof normalizePurchaseRequest>[0],
+    );
+
+    expect(normalized.status_history).toEqual([]);
+  });
+
+  it("preserves status_history entries from the API", () => {
+    const normalized = normalizePurchaseRequest({
+      id: "pr-1",
+      supplier_id: "sup-1",
+      supplier_name: "Supplier",
+      supplier_contact_info: "08123",
+      status: "PAID",
+      notes: null,
+      items: [],
+      total_estimated_amount: 0,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-02T00:00:00Z",
+      status_history: [
+        {
+          id: "hist-1",
+          from_status: "PENDING",
+          to_status: "REQUESTED",
+          changed_by_username: "admin",
+          photo_url: null,
+          created_at: "2026-01-01T08:00:00Z",
+        },
+      ],
+    });
+
+    expect(normalized.status_history).toHaveLength(1);
+    expect(normalized.status_history[0]).toMatchObject({
+      to_status: "REQUESTED",
+      changed_by_username: "admin",
+    });
+  });
 });
