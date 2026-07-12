@@ -12,23 +12,24 @@ import type { PurchaseRequestFormValues } from "@/lib/validations";
 interface PurchaseRequestItemRaw
   extends Omit<
     PurchaseRequestItem,
-    "quantity" | "price_quantity" | "unit_price" | "price_amount"
+    "quantity" | "price_quantity" | "unit_price" | "price_amount" | "line_estimated_amount"
   > {
   quantity: number | string;
   price_quantity: number | string;
   unit_price: number | string;
   price_amount: number | string;
+  line_estimated_amount: number | string;
 }
 
 interface PurchaseRequestRaw
-  extends Omit<PurchaseRequest, "items" | "total_amount"> {
+  extends Omit<PurchaseRequest, "items" | "total_estimated_amount"> {
   items: PurchaseRequestItemRaw[];
-  total_amount: number | string;
+  total_estimated_amount: number | string;
 }
 
 interface PurchaseRequestSummaryRaw
-  extends Omit<PurchaseRequestSummary, "total_amount"> {
-  total_amount: number | string;
+  extends Omit<PurchaseRequestSummary, "total_estimated_amount"> {
+  total_estimated_amount: number | string;
 }
 
 export function normalizePurchaseRequestItem(
@@ -40,6 +41,7 @@ export function normalizePurchaseRequestItem(
     price_quantity: parseNumeric(raw.price_quantity),
     unit_price: parseNumeric(raw.unit_price),
     price_amount: parseNumeric(raw.price_amount),
+    line_estimated_amount: parseNumeric(raw.line_estimated_amount),
   };
 }
 
@@ -48,7 +50,7 @@ export function normalizePurchaseRequest(
 ): PurchaseRequest {
   return {
     ...raw,
-    total_amount: parseNumeric(raw.total_amount),
+    total_estimated_amount: parseNumeric(raw.total_estimated_amount),
     items: (raw.items ?? []).map(normalizePurchaseRequestItem),
   };
 }
@@ -58,7 +60,7 @@ function normalizePurchaseRequestSummary(
 ): PurchaseRequestSummary {
   return {
     ...raw,
-    total_amount: parseNumeric(raw.total_amount),
+    total_estimated_amount: parseNumeric(raw.total_estimated_amount),
   };
 }
 

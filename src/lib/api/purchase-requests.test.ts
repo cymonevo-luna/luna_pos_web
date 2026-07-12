@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   purchaseRequestsAdminApi,
   normalizePurchaseRequestItem,
+  normalizePurchaseRequest,
   purchaseRequestFormToPayload,
 } from "./purchase-requests";
 import { purchaseRequestSchema } from "@/lib/validations";
@@ -25,12 +26,14 @@ describe("normalizePurchaseRequestItem", () => {
       price_quantity: "1000",
       unit_price: "140",
       price_amount: "350",
+      line_estimated_amount: "875",
     });
 
     expect(normalized.price_quantity).toBe(1000);
     expect(normalized.unit_price).toBe(140);
     expect(normalized.quantity).toBe(2.5);
     expect(normalized.price_amount).toBe(350);
+    expect(normalized.line_estimated_amount).toBe(875);
     expect(Number.isNaN(normalized.price_quantity)).toBe(false);
     expect(Number.isNaN(normalized.unit_price)).toBe(false);
   });
@@ -43,12 +46,32 @@ describe("normalizePurchaseRequestItem", () => {
       price_quantity: 500,
       unit_price: 200,
       price_amount: 600,
+      line_estimated_amount: 1800,
     });
 
     expect(normalized.quantity).toBe(3);
     expect(normalized.price_quantity).toBe(500);
     expect(normalized.unit_price).toBe(200);
     expect(normalized.price_amount).toBe(600);
+    expect(normalized.line_estimated_amount).toBe(1800);
+  });
+
+  it("preserves line_estimated_amount distinct from price_amount", () => {
+    const normalized = normalizePurchaseRequestItem({
+      id: "item-ayam",
+      food_supply_id: "fs-ayam",
+      food_supply_title: "Ayam",
+      unit: "piece",
+      quantity: "3",
+      price_quantity: "1",
+      unit_price: "26000",
+      price_amount: 26000,
+      line_estimated_amount: 78000,
+    });
+
+    expect(normalized.price_amount).toBe(26000);
+    expect(normalized.line_estimated_amount).toBe(78000);
+    expect(normalized.line_estimated_amount).not.toBe(normalized.price_amount);
   });
 });
 
@@ -165,15 +188,16 @@ describe("purchaseRequestsAdminApi", () => {
         {
           id: "item-1",
           food_supply_id: "fs-1",
-          food_supply_title: "Beras",
-          unit: "gr" as const,
-          quantity: "2",
-          price_quantity: "1000",
-          unit_price: "140",
-          price_amount: "280",
+          food_supply_title: "Ayam",
+          unit: "piece" as const,
+          quantity: "3",
+          price_quantity: "1",
+          unit_price: "26000",
+          price_amount: 26000,
+          line_estimated_amount: 78000,
         },
       ],
-      total_amount: "280",
+      total_estimated_amount: "118000",
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
@@ -206,21 +230,25 @@ describe("purchaseRequestsAdminApi", () => {
     );
 
     const got = await purchaseRequestsAdminApi.get("pr-1");
-    expect(got.data.items[0]?.price_quantity).toBe(1000);
-    expect(got.data.items[0]?.unit_price).toBe(140);
-    expect(got.data.total_amount).toBe(280);
+    expect(got.data.items[0]?.price_quantity).toBe(1);
+    expect(got.data.items[0]?.unit_price).toBe(26000);
+    expect(got.data.items[0]?.price_amount).toBe(26000);
+    expect(got.data.items[0]?.line_estimated_amount).toBe(78000);
+    expect(got.data.total_estimated_amount).toBe(118000);
 
     const created = await purchaseRequestsAdminApi.create({
       supplier_id: "sup-1",
-      items: [{ food_supply_id: "fs-1", quantity: "2" }],
+      items: [{ food_supply_id: "fs-1", quantity: "3" }],
     });
     expect(created.data).toMatchObject({ id: "pr-1" });
+    expect(created.data.total_estimated_amount).toBe(118000);
 
     const updated = await purchaseRequestsAdminApi.updateStatus(
       "pr-1",
       "REQUESTED",
     );
     expect(updated.data.status).toBe("REQUESTED");
+    expect(updated.data.total_estimated_amount).toBe(118000);
     expect(fetchMock).toHaveBeenCalled();
   });
 
@@ -235,7 +263,7 @@ describe("purchaseRequestsAdminApi", () => {
             supplier_name: "Beras Supplier",
             status: "PENDING",
             item_count: 2,
-            total_amount: "560",
+            total_estimated_amount: "560",
             created_at: "2026-01-01T00:00:00Z",
             updated_at: "2026-01-01T00:00:00Z",
           },
@@ -245,7 +273,28 @@ describe("purchaseRequestsAdminApi", () => {
     );
 
     const result = await purchaseRequestsAdminApi.list();
-    expect(result.data[0]?.total_amount).toBe(560);
+    expect(result.data[0]?.total_estimated_amount).toBe(560);
     expect(result.data[0]?.item_count).toBe(2);
+  });
+});
+
+describe("normalizePurchaseRequest regression", () => {
+  it("defaults total_estimated_amount to 0 when field is omitted (old total_amount key was the bug)", () => {
+    const raw = {
+      id: "pr-1",
+      supplier_id: "sup-1",
+      supplier_name: "Supplier",
+      supplier_contact_info: "08123",
+      status: "PENDING" as const,
+      notes: null,
+      items: [],
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    };
+    const normalized = normalizePurchaseRequest(
+      raw as unknown as Parameters<typeof normalizePurchaseRequest>[0],
+    );
+
+    expect(normalized.total_estimated_amount).toBe(0);
   });
 });

@@ -284,6 +284,7 @@ export interface PurchaseRequestItem {
   price_quantity: number;
   unit_price: number;
   price_amount: number;
+  line_estimated_amount: number;
 }
 
 export interface PurchaseRequest {
@@ -294,7 +295,7 @@ export interface PurchaseRequest {
   status: PurchaseRequestStatus;
   notes?: string | null;
   items: PurchaseRequestItem[];
-  total_amount: number;
+  total_estimated_amount: number;
   created_by?: string;
   created_at: string;
   updated_at: string;
@@ -306,7 +307,7 @@ export interface PurchaseRequestSummary {
   supplier_name: string;
   status: PurchaseRequestStatus;
   item_count: number;
-  total_amount: number;
+  total_estimated_amount: number;
   created_by_username?: string;
   notes?: string | null;
   created_at: string;
