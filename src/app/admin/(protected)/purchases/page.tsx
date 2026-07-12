@@ -165,7 +165,7 @@ export default function AdminPurchasesPage() {
                     </td>
                     <td className="px-4 py-3">{purchase.item_count}</td>
                     <td className="px-4 py-3 font-medium">
-                      {formatRupiah(purchase.total_amount)}
+                      {formatRupiah(purchase.total_estimated_amount)}
                     </td>
                     <td className="px-4 py-3">
                       {purchase.created_by_username ?? "—"}

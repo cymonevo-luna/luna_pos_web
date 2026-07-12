@@ -32,7 +32,7 @@ const purchase: PurchaseRequestSummary = {
   supplier_name: "Beras Supplier",
   status: "PENDING",
   item_count: 2,
-  total_amount: 280000,
+  total_estimated_amount: 280000,
   created_by_username: "admin1",
   created_at: "2026-01-15T10:30:00Z",
   updated_at: "2026-01-15T10:30:00Z",

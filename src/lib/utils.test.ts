@@ -127,21 +127,22 @@ describe("buildPurchaseWhatsAppMessage", () => {
           id: "item-1",
           food_supply_id: "fs-1",
           food_supply_title: "Beras",
-          unit: "gr",
-          quantity: 2,
-          price_quantity: 1000,
-          unit_price: 140,
-          price_amount: 280,
+          unit: "piece",
+          quantity: 3,
+          price_quantity: 1,
+          unit_price: 26000,
+          price_amount: 26000,
+          line_estimated_amount: 78000,
         },
       ],
-      total_amount: 280,
+      total_estimated_amount: 118000,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     });
 
     expect(message).toContain("Halo Beras Supplier,");
-    expect(message).toContain("1. 2 gr Beras");
-    expect(message).toContain("Estimasi total: Rp 280");
+    expect(message).toContain("1. 3 pcs Beras");
+    expect(message).toContain("Estimasi total: Rp 118.000");
     expect(message).toContain("Terima kasih.");
   });
 
@@ -162,9 +163,10 @@ describe("buildPurchaseWhatsAppMessage", () => {
           price_quantity: 1000,
           unit_price: 140,
           price_amount: 280000,
+          line_estimated_amount: 280000,
         },
       ],
-      total_amount: 280000,
+      total_estimated_amount: 280000,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     });

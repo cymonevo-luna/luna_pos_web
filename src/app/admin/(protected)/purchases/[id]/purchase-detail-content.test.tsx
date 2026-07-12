@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AdminPurchaseDetailContent } from "./purchase-detail-content";
 import { purchaseRequestsAdminApi } from "@/lib/api/purchase-requests";
@@ -33,14 +33,26 @@ const purchase: PurchaseRequest = {
       id: "item-1",
       food_supply_id: "fs-1",
       food_supply_title: "Beras",
-      unit: "gr",
+      unit: "piece",
+      quantity: 3,
+      price_quantity: 1,
+      unit_price: 26000,
+      price_amount: 26000,
+      line_estimated_amount: 78000,
+    },
+    {
+      id: "item-2",
+      food_supply_id: "fs-2",
+      food_supply_title: "Gula",
+      unit: "piece",
       quantity: 2,
-      price_quantity: 1000,
-      unit_price: 140,
-      price_amount: 280,
+      price_quantity: 1,
+      unit_price: 20000,
+      price_amount: 20000,
+      line_estimated_amount: 40000,
     },
   ],
-  total_amount: 280,
+  total_estimated_amount: 118000,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
@@ -56,9 +68,29 @@ describe("AdminPurchaseDetailContent", () => {
 
     expect(await screen.findByText("Beras Supplier")).toBeInTheDocument();
     expect(screen.getByText("Beras")).toBeInTheDocument();
-    expect(screen.getByText("2 gr")).toBeInTheDocument();
-    expect(screen.getAllByText("Rp 280").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Gula")).toBeInTheDocument();
+    expect(screen.getByText("3 pcs")).toBeInTheDocument();
+    expect(screen.getByText("2 pcs")).toBeInTheDocument();
     expect(screen.getByText("admin")).toBeInTheDocument();
+
+    const totalEstimateLabels = screen.getAllByText("Total estimate");
+    expect(totalEstimateLabels).toHaveLength(2);
+
+    const summaryCard = totalEstimateLabels[0].closest(
+      ".rounded-2xl",
+    ) as HTMLElement | null;
+    expect(summaryCard).not.toBeNull();
+    expect(within(summaryCard as HTMLElement).getByText("Rp 118.000")).toBeInTheDocument();
+
+    const table = screen.getByRole("table");
+    expect(within(table).getByText("Rp 78.000")).toBeInTheDocument();
+    expect(within(table).getByText("Rp 40.000")).toBeInTheDocument();
+    expect(within(table).getByText("Rp 118.000")).toBeInTheDocument();
+
+    const unitPriceCells = within(table).getAllByText("Rp 26.000 / piece");
+    expect(unitPriceCells).toHaveLength(1);
+    expect(within(table).getByText("Rp 20.000 / piece")).toBeInTheDocument();
+    expect(within(table).queryByText("Rp 78.000 / piece")).not.toBeInTheDocument();
   });
 
   it("updates status via the API and shows a success toast", async () => {
