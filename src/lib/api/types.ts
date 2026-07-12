@@ -3,14 +3,16 @@
  * Every endpoint returns the same `Envelope` shape.
  */
 
-export type Role = "admin" | "user";
-
-/** Merchant-scoped roles returned after merchant registration. */
+/** Merchant-scoped roles returned after login and registration. */
 export type MerchantRole = "admin" | "manager" | "operational";
 
-export interface Merchant {
+/** Merchant summary persisted in the auth session. */
+export interface SessionMerchant {
   id: string;
   name: string;
+}
+
+export interface Merchant extends SessionMerchant {
   address: string;
   phone: string;
   created_at: string;
@@ -21,9 +23,8 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: Role;
-  roles?: MerchantRole[];
-  merchant_id?: string;
+  roles: MerchantRole[];
+  merchant_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -56,6 +57,13 @@ export interface Envelope<T> {
 export interface LoginResult {
   tokens: TokenPair;
   user: User;
+  merchant: SessionMerchant;
+}
+
+/** Returned when login requires the user to pick a merchant. */
+export interface MerchantChoice {
+  id: string;
+  name: string;
 }
 
 export interface MerchantRegisterResult {

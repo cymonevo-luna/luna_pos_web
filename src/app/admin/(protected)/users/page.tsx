@@ -7,6 +7,7 @@ import { adminApi } from "@/lib/api/users";
 import { ApiError } from "@/lib/api/client";
 import type { User } from "@/lib/api/types";
 import { formatDate } from "@/lib/utils";
+import { formatUserRoles, resolveUserRoles } from "@/lib/auth/roles";
 import { useAuth } from "@/lib/auth/context";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -149,9 +150,13 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-4 py-3">
                       <Badge
-                        variant={u.role === "admin" ? "success" : "secondary"}
+                        variant={
+                          resolveUserRoles(u).includes("admin")
+                            ? "success"
+                            : "secondary"
+                        }
                       >
-                        {u.role}
+                        {formatUserRoles(u.roles)}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">

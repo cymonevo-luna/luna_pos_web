@@ -7,6 +7,7 @@ import { adminApi } from "@/lib/api/users";
 import { ApiError } from "@/lib/api/client";
 import type { User } from "@/lib/api/types";
 import { formatDate, initials } from "@/lib/utils";
+import { formatUserRoles, resolveUserRoles } from "@/lib/auth/roles";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -72,9 +73,13 @@ export default function AdminUserDetailPage({
                 <CardTitle className="flex items-center gap-2">
                   {user.name}
                   <Badge
-                    variant={user.role === "admin" ? "success" : "secondary"}
+                    variant={
+                      resolveUserRoles(user).includes("admin")
+                        ? "success"
+                        : "secondary"
+                    }
                   >
-                    {user.role}
+                    {formatUserRoles(user.roles)}
                   </Badge>
                 </CardTitle>
                 <CardDescription>{user.email}</CardDescription>
@@ -86,7 +91,7 @@ export default function AdminUserDetailPage({
               {[
                 ["User ID", user.id],
                 ["Email", user.email],
-                ["Role", user.role],
+                ["Roles", formatUserRoles(user.roles)],
                 ["Created", formatDate(user.created_at)],
                 ["Updated", formatDate(user.updated_at)],
               ].map(([label, value]) => (

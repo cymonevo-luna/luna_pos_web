@@ -29,8 +29,18 @@ describe("proxy", () => {
   });
 
   it("allows protected routes when access is expired but refresh is valid", async () => {
-    const access = makeJwt({ uid: "1", role: "user", exp: pastExp });
-    const refresh = makeJwt({ uid: "1", role: "user", exp: futureExp });
+    const access = makeJwt({
+      uid: "1",
+      roles: ["operational"],
+      merchant_id: "merchant-1",
+      exp: pastExp,
+    });
+    const refresh = makeJwt({
+      uid: "1",
+      roles: ["operational"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
 
     vi.stubGlobal(
       "fetch",
@@ -39,8 +49,18 @@ describe("proxy", () => {
         json: async () => ({
           data: {
             tokens: {
-              access_token: makeJwt({ uid: "1", role: "user", exp: futureExp }),
-              refresh_token: makeJwt({ uid: "1", role: "user", exp: futureExp }),
+              access_token: makeJwt({
+                uid: "1",
+                roles: ["operational"],
+                merchant_id: "merchant-1",
+                exp: futureExp,
+              }),
+              refresh_token: makeJwt({
+                uid: "1",
+                roles: ["operational"],
+                merchant_id: "merchant-1",
+                exp: futureExp,
+              }),
               expires_in: 900,
             },
           },
@@ -60,8 +80,18 @@ describe("proxy", () => {
   });
 
   it("redirects to login when refresh fails", async () => {
-    const access = makeJwt({ uid: "1", role: "user", exp: pastExp });
-    const refresh = makeJwt({ uid: "1", role: "user", exp: futureExp });
+    const access = makeJwt({
+      uid: "1",
+      roles: ["operational"],
+      merchant_id: "merchant-1",
+      exp: pastExp,
+    });
+    const refresh = makeJwt({
+      uid: "1",
+      roles: ["operational"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
 
     vi.stubGlobal(
       "fetch",

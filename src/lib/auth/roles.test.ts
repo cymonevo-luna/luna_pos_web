@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   canAccessNavRoles,
+  formatUserRoles,
   getAuthenticatedLandingPath,
   isAdminOnlyUser,
   resolveUserRoles,
@@ -8,44 +9,42 @@ import {
 
 describe("resolveUserRoles", () => {
   it("returns explicit roles when present", () => {
-    expect(resolveUserRoles({ role: "user", roles: ["admin"] })).toEqual([
-      "admin",
-    ]);
+    expect(resolveUserRoles({ roles: ["admin"] })).toEqual(["admin"]);
   });
 
-  it("falls back to full merchant roles for legacy admin users", () => {
-    expect(resolveUserRoles({ role: "admin" })).toEqual([
-      "admin",
-      "manager",
-      "operational",
-    ]);
+  it("returns an empty array when roles are missing", () => {
+    expect(resolveUserRoles({ roles: [] })).toEqual([]);
   });
 });
 
 describe("getAuthenticatedLandingPath", () => {
   it("sends admin-only users to user management", () => {
-    expect(
-      getAuthenticatedLandingPath({ role: "admin", roles: ["admin"] }),
-    ).toBe("/admin/users");
+    expect(getAuthenticatedLandingPath({ roles: ["admin"] })).toBe("/admin/users");
   });
 
   it("sends manager users to the admin overview", () => {
-    expect(
-      getAuthenticatedLandingPath({ role: "admin", roles: ["admin", "manager"] }),
-    ).toBe("/admin");
+    expect(getAuthenticatedLandingPath({ roles: ["admin", "manager"] })).toBe(
+      "/admin",
+    );
   });
 
   it("sends non-admin users to the dashboard", () => {
-    expect(getAuthenticatedLandingPath({ role: "user" })).toBe("/dashboard");
+    expect(getAuthenticatedLandingPath({ roles: [] })).toBe("/dashboard");
   });
 });
 
 describe("isAdminOnlyUser", () => {
   it("detects founding admin accounts", () => {
-    expect(isAdminOnlyUser({ role: "admin", roles: ["admin"] })).toBe(true);
-    expect(
-      isAdminOnlyUser({ role: "admin", roles: ["admin", "manager"] }),
-    ).toBe(false);
+    expect(isAdminOnlyUser({ roles: ["admin"] })).toBe(true);
+    expect(isAdminOnlyUser({ roles: ["admin", "manager"] })).toBe(false);
+  });
+});
+
+describe("formatUserRoles", () => {
+  it("joins roles for display", () => {
+    expect(formatUserRoles(["manager", "operational"])).toBe(
+      "manager, operational",
+    );
   });
 });
 
