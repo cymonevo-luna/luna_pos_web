@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -15,6 +16,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
+export const metadata: Metadata = {
+  description:
+    "Modern point-of-sale for restaurants and retail — web admin, inventory, COGS, and a native cashier app.",
+};
 
 const features = [
   {
