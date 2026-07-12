@@ -227,3 +227,12 @@ export interface CogsMenuDetail extends CogsMenuSummary {
   ingredients: CogsIngredientBreakdown[];
   total_cogs: number | null;
 }
+
+/** Receipt header/footer settings returned by GET /api/admin/store-settings. */
+export interface StoreSettings {
+  brand_name: string;
+  branch_name: string;
+  address: string;
+  phone: string;
+  thank_you_note: string;
+}

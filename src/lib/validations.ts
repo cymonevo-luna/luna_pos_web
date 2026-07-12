@@ -149,3 +149,33 @@ export const menuSchema = z.object({
 });
 
 export type MenuFormValues = z.infer<typeof menuSchema>;
+
+export const storeSettingsSchema = z.object({
+  brand_name: z
+    .string()
+    .trim()
+    .min(1, "Brand name is required")
+    .max(200, "Brand name is too long"),
+  branch_name: z
+    .string()
+    .trim()
+    .min(1, "Branch name is required")
+    .max(200, "Branch name is too long"),
+  address: z
+    .string()
+    .trim()
+    .min(1, "Address is required")
+    .max(500, "Address is too long"),
+  phone: z
+    .string()
+    .trim()
+    .min(1, "Phone is required")
+    .max(30, "Phone is too long"),
+  thank_you_note: z
+    .string()
+    .max(500, "Thank you note is too long")
+    .optional()
+    .or(z.literal("")),
+});
+
+export type StoreSettingsFormValues = z.infer<typeof storeSettingsSchema>;
