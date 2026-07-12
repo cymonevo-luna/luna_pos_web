@@ -95,7 +95,8 @@ export interface CreateSupplierPayload {
   phone_number: string;
   address: string;
   supports_delivery: boolean;
-  delivery_cost: number;
+  /** Present only when supports_delivery is true. */
+  delivery_cost?: number;
 }
 
 export type UpdateSupplierPayload = CreateSupplierPayload;
@@ -112,13 +113,16 @@ export type UpdateSupplierPricePayload = CreateSupplierPricePayload;
 export function supplierFormToPayload(
   values: SupplierFormValues,
 ): CreateSupplierPayload {
-  return {
+  const payload: CreateSupplierPayload = {
     name: values.name,
     phone_number: values.phone_number.trim(),
     address: values.address,
     supports_delivery: values.supports_delivery,
-    delivery_cost: values.supports_delivery ? (values.delivery_cost ?? 0) : 0,
   };
+  if (values.supports_delivery) {
+    payload.delivery_cost = values.delivery_cost ?? 0;
+  }
+  return payload;
 }
 
 /** Map price form values to an API payload. */

@@ -3,6 +3,7 @@ import {
   suppliersAdminApi,
   parseNumeric,
   normalizeSupplier,
+  supplierFormToPayload,
   supplierPriceFormToPayload,
 } from "./suppliers";
 import { supplierSchema, supplierPriceSchema } from "@/lib/validations";
@@ -92,6 +93,73 @@ describe("supplierPriceSchema", () => {
       price_quantity: 1000,
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("supplierFormToPayload", () => {
+  const base = {
+    name: "Toko Aji",
+    phone_number: "08161974323",
+    address: "Jl Cempaka Putih Tengah",
+    supports_delivery: true,
+    delivery_cost: 0,
+  };
+
+  it("maps ticket scenario with delivery enabled and zero cost", () => {
+    expect(supplierFormToPayload(base)).toEqual({
+      name: "Toko Aji",
+      phone_number: "08161974323",
+      address: "Jl Cempaka Putih Tengah",
+      supports_delivery: true,
+      delivery_cost: 0,
+    });
+  });
+
+  it("trims phone_number", () => {
+    expect(
+      supplierFormToPayload({ ...base, phone_number: "  08161974323  " }),
+    ).toMatchObject({ phone_number: "08161974323" });
+  });
+
+  it("omits delivery_cost when delivery is not supported", () => {
+    expect(
+      supplierFormToPayload({
+        name: "No Delivery Supplier",
+        phone_number: "08123456789",
+        address: "Jl Test Address",
+        supports_delivery: false,
+      }),
+    ).toEqual({
+      name: "No Delivery Supplier",
+      phone_number: "08123456789",
+      address: "Jl Test Address",
+      supports_delivery: false,
+    });
+    expect(
+      supplierFormToPayload({
+        name: "No Delivery Supplier",
+        phone_number: "08123456789",
+        address: "Jl Test Address",
+        supports_delivery: false,
+      }).delivery_cost,
+    ).toBeUndefined();
+  });
+
+  it("defaults delivery_cost to 0 when delivery is supported but cost omitted", () => {
+    expect(
+      supplierFormToPayload({
+        name: "Toko Beras",
+        phone_number: "08123456789",
+        address: "Jl Deket Kios",
+        supports_delivery: true,
+      }),
+    ).toEqual({
+      name: "Toko Beras",
+      phone_number: "08123456789",
+      address: "Jl Deket Kios",
+      supports_delivery: true,
+      delivery_cost: 0,
+    });
   });
 });
 

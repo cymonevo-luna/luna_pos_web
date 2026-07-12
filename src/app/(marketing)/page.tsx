@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Zap } from "lucide-react";
 import { FeaturesSection } from "@/components/landing/features-section";
 import { buttonVariants } from "@/components/ui/button";
+
+export const metadata: Metadata = {
+  description:
+    "Modern point-of-sale for restaurants and retail — web admin, inventory, COGS, and a native cashier app.",
+};
 
 export default function HomePage() {
   return (

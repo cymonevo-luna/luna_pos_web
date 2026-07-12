@@ -1,3 +1,4 @@
+import { config } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 interface LogoMarkProps {
@@ -50,7 +51,7 @@ export function Logo({ className, showText = true }: LogoProps) {
     <span className={cn("flex items-center gap-2.5", className)}>
       <LogoMark />
       {showText && (
-        <span className="text-lg font-bold tracking-tight">App Template</span>
+        <span className="text-lg font-bold tracking-tight">{config.appName}</span>
       )}
     </span>
   );
