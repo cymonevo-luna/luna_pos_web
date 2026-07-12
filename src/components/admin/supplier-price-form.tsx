@@ -9,7 +9,7 @@ import {
   type SupplierPriceFormValues,
 } from "@/lib/validations";
 import type { FoodSupply } from "@/lib/api/types";
-import { formatUnitLabel } from "@/lib/units";
+import { getUnitLabel } from "@/lib/units";
 import { formatSupplierUnitPrice } from "@/lib/utils";
 import { FoodSupplyPicker } from "@/components/admin/food-supply-picker";
 import { Button } from "@/components/ui/button";
@@ -107,7 +107,7 @@ export const SupplierPriceForm = React.forwardRef<
   }));
 
   const unitLabel = selectedSupply
-    ? formatUnitLabel(selectedSupply.unit)
+    ? getUnitLabel(selectedSupply.unit)
     : "—";
 
   const unitPricePreview =

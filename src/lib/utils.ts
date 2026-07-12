@@ -2,6 +2,7 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { config } from "@/lib/config";
 import type { PurchaseRequest } from "@/lib/api/types";
+import { formatMeasurementQuantity } from "@/lib/units";
 
 /** Merge conditional class names and resolve Tailwind conflicts. */
 export function cn(...inputs: ClassValue[]) {
@@ -38,12 +39,9 @@ export function truncateId(id: string, length = 8) {
   return `${id.slice(0, length)}…`;
 }
 
-/** Format stock quantity with unit, trimming unnecessary trailing zeros. */
+/** Format stock quantity with unit, including auto-conversion for display. */
 export function formatStockQuantity(quantity: number | string, unit: string) {
-  const n = typeof quantity === "number" ? quantity : Number(quantity);
-  if (!Number.isFinite(n)) return `— ${unit}`;
-  const formatted = Number.parseFloat(n.toFixed(10)).toString();
-  return `${formatted} ${unit}`;
+  return formatMeasurementQuantity(quantity, unit);
 }
 
 /** Truncate text for table cells; returns an em dash when empty. */
@@ -151,9 +149,12 @@ export function extractWhatsAppPhone(contactInfo: string): string | null {
 /** Build an Indonesian WhatsApp order message for a purchase request. */
 export function buildPurchaseWhatsAppMessage(purchase: PurchaseRequest): string {
   const lines = purchase.items.map((item, index) => {
-    const unit = item.unit ?? "";
     const title = item.food_supply_title ?? "Bahan";
-    return `${index + 1}. ${item.quantity} ${unit} ${title}`.trim();
+    const quantityLabel = formatMeasurementQuantity(
+      item.quantity,
+      item.unit ?? "",
+    );
+    return `${index + 1}. ${quantityLabel} ${title}`.trim();
   });
 
   return [

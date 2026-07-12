@@ -413,6 +413,34 @@ describe("AdminMenusPage", () => {
     });
   });
 
+  it("applies scroll and max-height classes to the create dialog", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminMenusPage />);
+    await screen.findByText("Nasi Goreng");
+
+    await user.click(screen.getByRole("button", { name: "Add Menu" }));
+    const dialog = screen.getByRole("dialog");
+
+    expect(dialog).toHaveClass("max-h-[90vh]");
+    expect(dialog).toHaveClass("overflow-y-auto");
+    expect(dialog).toHaveClass("max-w-xl");
+  });
+
+  it("applies scroll and max-height classes to the edit dialog", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminMenusPage />);
+    await screen.findByText("Nasi Goreng");
+
+    await user.click(screen.getByLabelText("Edit menu"));
+    const dialog = screen.getByRole("dialog");
+
+    expect(dialog).toHaveClass("max-h-[90vh]");
+    expect(dialog).toHaveClass("overflow-y-auto");
+    expect(dialog).toHaveClass("max-w-xl");
+  });
+
   it("closes the dialog on cancel without saving", async () => {
     const user = userEvent.setup();
 

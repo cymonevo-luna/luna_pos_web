@@ -50,7 +50,13 @@ describe("formatStockQuantity", () => {
 
   it("strips unnecessary trailing zeros", () => {
     expect(formatStockQuantity(500.0, "ml")).toBe("500 ml");
-    expect(formatStockQuantity(2.5, "piece")).toBe("2.5 piece");
+    expect(formatStockQuantity(2.5, "piece")).toBe("2.5 pcs");
+  });
+
+  it("auto-converts grams and milliliters at or above 1000", () => {
+    expect(formatStockQuantity(1000, "gr")).toBe("1 kg");
+    expect(formatStockQuantity(1000, "ml")).toBe("1 ltr");
+    expect(formatStockQuantity(2000, "gr")).toBe("2 kg");
   });
 
   it("formats string whole numbers", () => {
@@ -137,6 +143,34 @@ describe("buildPurchaseWhatsAppMessage", () => {
     expect(message).toContain("1. 2 gr Beras");
     expect(message).toContain("Estimasi total: Rp 280");
     expect(message).toContain("Terima kasih.");
+  });
+
+  it("uses converted quantities in line items", () => {
+    const message = buildPurchaseWhatsAppMessage({
+      id: "pr-2",
+      supplier_id: "sup-1",
+      supplier_name: "Beras Supplier",
+      supplier_contact_info: "08123456789",
+      status: "PENDING",
+      items: [
+        {
+          id: "item-1",
+          food_supply_id: "fs-1",
+          food_supply_title: "Beras",
+          unit: "gr",
+          quantity: 2000,
+          price_quantity: 1000,
+          unit_price: 140,
+          price_amount: 280000,
+        },
+      ],
+      total_amount: 280000,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+
+    expect(message).toContain("1. 2 kg Beras");
+    expect(message).not.toContain("2000 gr");
   });
 });
 
