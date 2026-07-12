@@ -73,7 +73,8 @@ const ADMIN_ROUTE_RULES: AdminRouteRule[] = [
   { prefix: "/admin/store-settings", roles: ["manager"] as const },
   { prefix: "/admin/suppliers", roles: ["operational"] as const },
   { prefix: "/admin/purchases", roles: ["operational"] as const },
-  { prefix: "/admin/production-requests", roles: ["manager"] as const },
+  { prefix: "/admin/production-requests/new", roles: ["manager"] as const },
+  { prefix: "/admin/production-requests", roles: ["operational"] as const },
 ].map((rule) => ({
   prefix: rule.prefix,
   roles: [...rule.roles] as MerchantRole[],

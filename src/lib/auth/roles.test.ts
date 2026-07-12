@@ -58,6 +58,7 @@ describe("canAccessRoute", () => {
   it("blocks admin-only users from operational routes", () => {
     expect(canAccessRoute("/admin/suppliers", ["admin"])).toBe(false);
     expect(canAccessRoute("/admin/purchases", ["admin"])).toBe(false);
+    expect(canAccessRoute("/admin/production-requests", ["admin"])).toBe(false);
   });
 
   it("allows operational users on food-supplies routes", () => {
@@ -79,12 +80,18 @@ describe("canAccessRoute", () => {
   it("blocks manager users from operational routes", () => {
     expect(canAccessRoute("/admin/suppliers", ["manager"])).toBe(false);
     expect(canAccessRoute("/admin/purchases", ["manager"])).toBe(false);
+    expect(canAccessRoute("/admin/production-requests", ["manager"])).toBe(false);
+    expect(
+      canAccessRoute("/admin/production-requests/prod-1", ["manager"]),
+    ).toBe(false);
   });
 
-  it("allows manager users on production request routes", () => {
-    expect(canAccessRoute("/admin/production-requests", ["manager"])).toBe(true);
+  it("allows manager users on production request create route only", () => {
     expect(canAccessRoute("/admin/production-requests/new", ["manager"])).toBe(
       true,
+    );
+    expect(canAccessRoute("/admin/production-requests", ["manager"])).toBe(
+      false,
     );
   });
 
@@ -101,6 +108,12 @@ describe("canAccessRoute", () => {
   it("allows operational users on operational routes", () => {
     expect(canAccessRoute("/admin/purchases", ["operational"])).toBe(true);
     expect(canAccessRoute("/admin/suppliers/new", ["operational"])).toBe(true);
+    expect(canAccessRoute("/admin/production-requests", ["operational"])).toBe(
+      true,
+    );
+    expect(
+      canAccessRoute("/admin/production-requests/prod-1", ["operational"]),
+    ).toBe(true);
   });
 
   it("blocks operational users from admin routes", () => {
@@ -113,6 +126,12 @@ describe("canAccessRoute", () => {
     );
     expect(
       canAccessRoute("/admin/purchases", ["manager", "operational"]),
+    ).toBe(true);
+    expect(
+      canAccessRoute("/admin/production-requests", ["manager", "operational"]),
+    ).toBe(true);
+    expect(
+      canAccessRoute("/admin/production-requests/new", ["manager", "operational"]),
     ).toBe(true);
   });
 

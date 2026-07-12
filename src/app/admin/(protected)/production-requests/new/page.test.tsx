@@ -78,8 +78,8 @@ describe("AdminNewProductionRequestPage", () => {
     render(<AdminNewProductionRequestPage />);
 
     expect(
-      screen.getByRole("link", { name: /Back to production requests/i }),
-    ).toHaveAttribute("href", "/admin/production-requests");
+      screen.getByRole("link", { name: /Back to dashboard/i }),
+    ).toHaveAttribute("href", "/admin");
     expect(
       screen.getByRole("heading", { name: "New production request" }),
     ).toBeInTheDocument();
@@ -104,6 +104,6 @@ describe("AdminNewProductionRequestPage", () => {
       notes: "Morning batch",
     });
     expect(toast.success).toHaveBeenCalledWith("Production request created");
-    expect(push).toHaveBeenCalledWith("/admin/production-requests/pr-1");
+    expect(push).toHaveBeenCalledWith("/admin");
   });
 });

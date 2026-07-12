@@ -26,11 +26,11 @@ vi.mock("sonner", () => ({
   },
 }));
 
-const productionRequest: ProductionRequestSummary = {
+const request: ProductionRequestSummary = {
   id: "prod-1",
   status: "REQUESTED",
   is_fully_producible: true,
-  item_count: 3,
+  item_count: 2,
   created_by_username: "manager1",
   created_at: "2026-01-15T10:30:00Z",
   updated_at: "2026-01-15T10:30:00Z",
@@ -40,7 +40,7 @@ describe("AdminProductionRequestsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(productionRequestsAdminApi.list).mockResolvedValue({
-      data: [productionRequest],
+      data: [request],
       meta: { page: 1, per_page: 10, total: 1 },
     });
   });
@@ -48,11 +48,11 @@ describe("AdminProductionRequestsPage", () => {
   it("renders table headers and production request rows from the API", async () => {
     render(<AdminProductionRequestsPage />);
 
-    expect(await screen.findByText("manager1")).toBeInTheDocument();
+    expect(await screen.findByText("REQUESTED")).toBeInTheDocument();
+    expect(screen.getByText("manager1")).toBeInTheDocument();
     expect(screen.getByText("1 total")).toBeInTheDocument();
-    expect(screen.getByText("3")).toBeInTheDocument();
-    expect(screen.getByText("Producible")).toBeInTheDocument();
-    expect(screen.getAllByText("REQUESTED").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("Yes")).toBeInTheDocument();
     expect(
       screen.getByRole("columnheader", { name: "Created" }),
     ).toBeInTheDocument();
@@ -63,20 +63,11 @@ describe("AdminProductionRequestsPage", () => {
       screen.getByRole("columnheader", { name: "Items" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("columnheader", { name: "Producibility" }),
+      screen.getByRole("columnheader", { name: "Stock OK" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("columnheader", { name: "Created by" }),
     ).toBeInTheDocument();
-  });
-
-  it("links to the new production request page", async () => {
-    render(<AdminProductionRequestsPage />);
-    await screen.findByText("manager1");
-
-    expect(
-      screen.getByRole("link", { name: "New production request" }),
-    ).toHaveAttribute("href", "/admin/production-requests/new");
   });
 
   it("shows empty state when no production requests match", async () => {
@@ -96,18 +87,18 @@ describe("AdminProductionRequestsPage", () => {
     const user = userEvent.setup();
 
     render(<AdminProductionRequestsPage />);
-    await screen.findByText("manager1");
+    await screen.findByText("REQUESTED");
 
     await user.selectOptions(
       screen.getByLabelText("Filter by status"),
-      "REQUESTED",
+      "ACCEPTED",
     );
 
     await waitFor(() => {
       expect(productionRequestsAdminApi.list).toHaveBeenLastCalledWith({
         page: 1,
         perPage: 10,
-        status: "REQUESTED",
+        status: "ACCEPTED",
       });
     });
   });
@@ -123,26 +114,16 @@ describe("AdminProductionRequestsPage", () => {
     expect(mockPush).toHaveBeenCalledWith("/admin/production-requests/prod-1");
   });
 
-  it("shows Shortage badge when not fully producible", async () => {
-    vi.mocked(productionRequestsAdminApi.list).mockResolvedValue({
-      data: [{ ...productionRequest, is_fully_producible: false }],
-      meta: { page: 1, per_page: 10, total: 1 },
-    });
-
-    render(<AdminProductionRequestsPage />);
-
-    expect(await screen.findByText("Shortage")).toBeInTheDocument();
-  });
-
   it("shows em dash when created_by_username is null", async () => {
     vi.mocked(productionRequestsAdminApi.list).mockResolvedValue({
-      data: [{ ...productionRequest, created_by_username: null }],
+      data: [{ ...request, created_by_username: null }],
       meta: { page: 1, per_page: 10, total: 1 },
     });
 
     render(<AdminProductionRequestsPage />);
 
-    expect(await screen.findByText("—")).toBeInTheDocument();
+    expect(await screen.findByText("REQUESTED")).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
   });
 
   it("shows error toast when loading fails", async () => {
@@ -155,5 +136,16 @@ describe("AdminProductionRequestsPage", () => {
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Server error");
     });
+  });
+
+  it("shows No when is_fully_producible is false", async () => {
+    vi.mocked(productionRequestsAdminApi.list).mockResolvedValue({
+      data: [{ ...request, is_fully_producible: false }],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminProductionRequestsPage />);
+
+    expect(await screen.findByText("No")).toBeInTheDocument();
   });
 });

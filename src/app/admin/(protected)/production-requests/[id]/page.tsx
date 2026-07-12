@@ -1,7 +1,7 @@
 "use client";
 
 import { use } from "react";
-import { ProductionRequestDetailContent } from "./production-request-detail-content";
+import { ProductionRequestDetailContent } from "@/components/admin/production-request-detail-content";
 
 export default function AdminProductionRequestDetailPage({
   params,

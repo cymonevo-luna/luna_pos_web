@@ -57,6 +57,27 @@ function findDuplicateItemIndexes(items: ProductionRequestFormValues["items"]) {
   return duplicates;
 }
 
+function buildSelectedMenusFromDefaults(
+  items: ProductionRequestFormValues["items"],
+  preloadedMenus?: Pick<Menu, "id" | "title" | "category_name">[],
+): Record<number, Pick<Menu, "id" | "title" | "category_name">> {
+  const byId = new Map(
+    (preloadedMenus ?? []).map((menu) => [menu.id, menu]),
+  );
+  const selected: Record<number, Pick<Menu, "id" | "title" | "category_name">> =
+    {};
+
+  items.forEach((item, index) => {
+    if (!item.menu_id) return;
+    const menu = byId.get(item.menu_id);
+    if (menu) {
+      selected[index] = menu;
+    }
+  });
+
+  return selected;
+}
+
 function hasEstimatableItems(items: ProductionRequestFormValues["items"]) {
   return items.some(
     (item) =>
@@ -68,10 +89,13 @@ function hasEstimatableItems(items: ProductionRequestFormValues["items"]) {
 
 export interface ProductionRequestFormProps {
   defaultValues?: Partial<ProductionRequestFormValues>;
+  /** Pre-seed menu labels for edit flows (e.g. operational detail). */
+  preloadedMenus?: Pick<Menu, "id" | "title" | "category_name">[];
   onSubmit: (values: ProductionRequestFormValues) => void | Promise<void>;
-  onCancel: () => void;
+  onCancel?: () => void;
   isLoading?: boolean;
   submitLabel?: string;
+  showCancel?: boolean;
 }
 
 export interface ProductionRequestFormHandle {
@@ -85,17 +109,24 @@ export const ProductionRequestForm = React.forwardRef<
 >(function ProductionRequestForm(
   {
     defaultValues,
+    preloadedMenus,
     onSubmit,
     onCancel,
     isLoading = false,
     submitLabel = "Create production request",
+    showCancel = true,
   },
   ref,
 ) {
   const initialValuesRef = useRef(buildDefaultValues(defaultValues));
   const [selectedMenus, setSelectedMenus] = useState<
     Record<number, Pick<Menu, "id" | "title" | "category_name">>
-  >({});
+  >(() =>
+    buildSelectedMenusFromDefaults(
+      buildDefaultValues(defaultValues).items,
+      preloadedMenus,
+    ),
+  );
   const [estimate, setEstimate] = useState<ProductionRequestEstimateResponse | null>(
     null,
   );
@@ -129,10 +160,12 @@ export const ProductionRequestForm = React.forwardRef<
     const values = buildDefaultValues(defaultValues);
     initialValuesRef.current = values;
     reset(values);
-    setSelectedMenus({});
+    setSelectedMenus(
+      buildSelectedMenusFromDefaults(values.items, preloadedMenus),
+    );
     setEstimate(null);
     setEstimateError(null);
-  }, [defaultValues, reset]);
+  }, [defaultValues, preloadedMenus, reset]);
 
   const runEstimate = useCallback(async (items: ProductionRequestFormValues["items"]) => {
     if (!hasEstimatableItems(items)) {
@@ -205,7 +238,9 @@ export const ProductionRequestForm = React.forwardRef<
         ...values,
       });
       reset(nextValues);
-      setSelectedMenus({});
+      setSelectedMenus(
+        buildSelectedMenusFromDefaults(nextValues.items, preloadedMenus),
+      );
       setEstimate(null);
       setEstimateError(null);
     },
@@ -430,14 +465,16 @@ export const ProductionRequestForm = React.forwardRef<
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={isLoading}
-        >
-          Cancel
-        </Button>
+        {showCancel && onCancel ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={isLoading}
+          >
+            Cancel
+          </Button>
+        ) : null}
         <Button
           type="submit"
           isLoading={isLoading}

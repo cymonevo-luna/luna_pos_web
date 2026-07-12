@@ -26,11 +26,11 @@ export default function AdminNewProductionRequestPage() {
   const handleSubmit = async (values: ProductionRequestFormValues) => {
     setSaving(true);
     try {
-      const result = await productionRequestsAdminApi.create(
+      await productionRequestsAdminApi.create(
         productionRequestFormToPayload(values),
       );
       toast.success("Production request created");
-      router.push(`/admin/production-requests/${result.data.id}`);
+      router.push("/admin");
     } catch (err) {
       if (err instanceof ApiError && err.fields) {
         formRef.current?.applyServerErrors(err.fields);
@@ -48,11 +48,11 @@ export default function AdminNewProductionRequestPage() {
   return (
     <div className="max-w-3xl space-y-6">
       <Link
-        href="/admin/production-requests"
+        href="/admin"
         className={buttonVariants({ variant: "ghost", size: "sm" })}
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to production requests
+        Back to dashboard
       </Link>
 
       <Card>
@@ -63,7 +63,7 @@ export default function AdminNewProductionRequestPage() {
           <ProductionRequestForm
             ref={formRef}
             onSubmit={handleSubmit}
-            onCancel={() => router.push("/admin/production-requests")}
+            onCancel={() => router.push("/admin")}
             isLoading={saving}
             submitLabel="Create production request"
           />

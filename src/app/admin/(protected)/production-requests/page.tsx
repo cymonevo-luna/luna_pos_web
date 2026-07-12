@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { productionRequestsAdminApi } from "@/lib/api/production-requests";
 import { ApiError } from "@/lib/api/client";
 import type {
@@ -12,7 +11,6 @@ import type {
 } from "@/lib/api/types";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
-import { buttonVariants } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,7 +20,7 @@ import { Badge, type BadgeProps } from "@/components/ui/badge";
 const PER_PAGE = 10;
 
 const STATUS_OPTIONS = [
-  { value: "", label: "All" },
+  { value: "", label: "All statuses" },
   { value: "REQUESTED", label: "REQUESTED" },
   { value: "ACCEPTED", label: "ACCEPTED" },
   { value: "READY_TO_PICK", label: "READY_TO_PICK" },
@@ -34,11 +32,11 @@ function productionStatusBadgeVariant(
 ): NonNullable<BadgeProps["variant"]> {
   switch (status) {
     case "REQUESTED":
-      return "secondary";
-    case "ACCEPTED":
       return "default";
-    case "READY_TO_PICK":
+    case "ACCEPTED":
       return "warning";
+    case "READY_TO_PICK":
+      return "secondary";
     case "DONE":
       return "success";
     default:
@@ -95,22 +93,13 @@ export default function AdminProductionRequestsPage() {
           <h2 className="text-2xl font-semibold">Production requests</h2>
           <p className="text-muted-foreground">{total} total</p>
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Select
-            aria-label="Filter by status"
-            className="w-full sm:w-44"
-            options={STATUS_OPTIONS}
-            value={status}
-            onChange={(e) => handleStatusChange(e.target.value)}
-          />
-          <Link
-            href="/admin/production-requests/new"
-            className={buttonVariants()}
-          >
-            <Plus className="h-4 w-4" />
-            New production request
-          </Link>
-        </div>
+        <Select
+          aria-label="Filter by status"
+          className="w-full sm:w-44"
+          options={STATUS_OPTIONS}
+          value={status}
+          onChange={(e) => handleStatusChange(e.target.value)}
+        />
       </div>
 
       <Card className="overflow-hidden">
@@ -121,7 +110,7 @@ export default function AdminProductionRequestsPage() {
                 <th className="px-4 py-3 font-medium">Created</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Items</th>
-                <th className="px-4 py-3 font-medium">Producibility</th>
+                <th className="px-4 py-3 font-medium">Stock OK</th>
                 <th className="px-4 py-3 font-medium">Created by</th>
               </tr>
             </thead>
@@ -171,7 +160,7 @@ export default function AdminProductionRequestsPage() {
                           request.is_fully_producible ? "success" : "destructive"
                         }
                       >
-                        {request.is_fully_producible ? "Producible" : "Shortage"}
+                        {request.is_fully_producible ? "Yes" : "No"}
                       </Badge>
                     </td>
                     <td className="px-4 py-3">

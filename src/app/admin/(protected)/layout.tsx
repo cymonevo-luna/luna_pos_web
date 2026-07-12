@@ -1,6 +1,20 @@
 "use client";
 
-import { LayoutDashboard, Users, Package, Truck, ShoppingCart, Tags, UtensilsCrossed, Receipt, Calculator, ArrowLeft, Printer, Factory } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  Package,
+  Truck,
+  ShoppingCart,
+  ClipboardList,
+  Tags,
+  UtensilsCrossed,
+  Receipt,
+  Calculator,
+  ArrowLeft,
+  Printer,
+  Factory,
+} from "lucide-react";
 import {
   DashboardShell,
   type NavItem,
@@ -25,7 +39,8 @@ const allNavItems: NavItem[] = [
   { href: "/admin/store-settings", label: "Receipt Settings", icon: Printer, roles: ["manager"] },
   { href: "/admin/suppliers", label: "Suppliers", icon: Truck, roles: ["operational"] },
   { href: "/admin/purchases", label: "Purchases", icon: ShoppingCart, roles: ["operational"] },
-  { href: "/admin/production-requests", label: "Production", icon: Factory, roles: ["manager"] },
+  { href: "/admin/production-requests", label: "Production", icon: ClipboardList, roles: ["operational"] },
+  { href: "/admin/production-requests/new", label: "Production", icon: Factory, roles: ["manager"] },
   { href: "/dashboard", label: "Back to app", icon: ArrowLeft },
 ];
 
