@@ -48,6 +48,62 @@ export const foodSupplySchema = z.object({
 
 export type FoodSupplyFormValues = z.infer<typeof foodSupplySchema>;
 
+export const supplierFoodItemSchema = z.object({
+  food_supply_id: z.string().min(1, "Food supply is required"),
+  price: z
+    .number({ error: "Price is required" })
+    .int("Price must be a whole number")
+    .positive("Price must be greater than 0"),
+  quantity: z
+    .number({ error: "Quantity is required" })
+    .positive("Quantity must be greater than 0"),
+  unit: z.enum(["ml", "piece", "gr"], {
+    error: "Select a valid unit",
+  }),
+});
+
+export const supplierSchema = z
+  .object({
+    name: z
+      .string()
+      .min(2, "Name must be at least 2 characters")
+      .max(200, "Name is too long"),
+    phone_number: z
+      .string()
+      .trim()
+      .min(5, "Phone number must be at least 5 characters")
+      .max(30, "Phone number is too long"),
+    address: z
+      .string()
+      .min(2, "Address must be at least 2 characters")
+      .max(500, "Address is too long"),
+    supports_delivery: z.boolean(),
+    delivery_cost: z
+      .number({ error: "Delivery cost must be a number" })
+      .min(0, "Delivery cost cannot be negative")
+      .optional(),
+    food_items: z.array(supplierFoodItemSchema),
+  })
+  .superRefine((data, ctx) => {
+    if (data.supports_delivery) {
+      if (data.delivery_cost === undefined) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Delivery cost is required when delivery is supported",
+          path: ["delivery_cost"],
+        });
+      }
+    } else if (data.delivery_cost !== undefined && data.delivery_cost > 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Delivery cost must be 0 when delivery is not supported",
+        path: ["delivery_cost"],
+      });
+    }
+  });
+
+export type SupplierFormValues = z.infer<typeof supplierSchema>;
+
 export const categorySchema = z.object({
   name: z
     .string()
