@@ -170,4 +170,57 @@ describe("proxy", () => {
 
     expect(res.status).toBe(200);
   });
+
+  it("redirects manager-only users away from purchase requests", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["manager"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+
+    const res = await proxy(
+      requestFor("/admin/purchases", {
+        [config.cookies.accessToken]: access,
+      }),
+    );
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("/admin");
+  });
+
+  it("redirects admin-only users away from supplier routes", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["admin"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+
+    const res = await proxy(
+      requestFor("/admin/suppliers", {
+        [config.cookies.accessToken]: access,
+      }),
+    );
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("/admin/users");
+  });
+
+  it("allows operational users on supplier routes", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["operational"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+
+    const res = await proxy(
+      requestFor("/admin/suppliers", {
+        [config.cookies.accessToken]: access,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+  });
 });
