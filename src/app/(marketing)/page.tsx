@@ -5,6 +5,7 @@ import { PosAppSection } from "@/components/landing/pos-app-section";
 import { CtaSection } from "@/components/landing/cta-section";
 
 export const metadata: Metadata = {
+  title: "Luna POS",
   description:
     "Modern point-of-sale for restaurants and retail — web admin, inventory, COGS, and a native cashier app.",
 };
