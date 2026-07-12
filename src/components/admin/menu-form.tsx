@@ -1,9 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { useEffect, useImperativeHandle, useRef } from "react";
+import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ApiError } from "@/lib/api/client";
+import { uploadMenuPhoto, validateMenuPhotoFile } from "@/lib/api/uploads";
 import { menuSchema, type MenuFormValues } from "@/lib/validations";
 import { MENU_COGS_DEFAULTS } from "@/lib/menu-cogs";
 import { menuPhotoUrl } from "@/lib/utils";
@@ -70,12 +72,17 @@ export const MenuForm = React.forwardRef<MenuFormHandle, MenuFormProps>(
     ref,
   ) {
     const initialValuesRef = useRef(buildDefaultValues(defaultValues));
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [uploading, setUploading] = useState(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
 
     const {
       register,
       handleSubmit,
       reset,
       setError,
+      setValue,
+      clearErrors,
       watch,
       formState: { errors },
     } = useForm<MenuFormValues>({
@@ -127,6 +134,41 @@ export const MenuForm = React.forwardRef<MenuFormHandle, MenuFormProps>(
     }));
 
     const previewSrc = menuPhotoUrl(photoUrl);
+    const isBusy = isLoading || uploading;
+
+    const handleFileChange = async (
+      event: React.ChangeEvent<HTMLInputElement>,
+    ) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file) return;
+
+      const validationError = validateMenuPhotoFile(file);
+      if (validationError) {
+        setUploadError(validationError);
+        return;
+      }
+
+      setUploadError(null);
+      setUploading(true);
+      try {
+        const data = await uploadMenuPhoto(file);
+        setValue("photo_url", data.url, { shouldDirty: true });
+        clearErrors("photo_url");
+      } catch (err) {
+        setUploadError(
+          err instanceof ApiError ? err.message : "Failed to upload image",
+        );
+      } finally {
+        setUploading(false);
+      }
+    };
+
+    const handleRemoveImage = () => {
+      setValue("photo_url", "", { shouldDirty: true });
+      setUploadError(null);
+      clearErrors("photo_url");
+    };
 
     return (
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
@@ -167,19 +209,65 @@ export const MenuForm = React.forwardRef<MenuFormHandle, MenuFormProps>(
         </div>
 
         <div className="space-y-1.5">
+          <Label htmlFor="menu-photo-file">Menu photo</Label>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={fileInputRef}
+              id="menu-photo-file"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              onChange={handleFileChange}
+              disabled={isBusy}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              isLoading={uploading}
+              disabled={isBusy}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Choose image
+            </Button>
+            {photoUrl?.trim() ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={isBusy}
+                onClick={handleRemoveImage}
+              >
+                Remove image
+              </Button>
+            ) : null}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Upload a JPEG, PNG, or WebP image (max 5 MB). Or enter a URL below
+            as an optional fallback.
+          </p>
+          {uploadError ? (
+            <p className="text-sm text-destructive">{uploadError}</p>
+          ) : null}
+        </div>
+
+        <div className="space-y-1.5">
           <Label htmlFor="menu-photo-url">
             Photo URL{" "}
-            <span className="font-normal text-muted-foreground">(optional)</span>
+            <span className="font-normal text-muted-foreground">
+              (optional fallback)
+            </span>
           </Label>
           <Input
             id="menu-photo-url"
             type="url"
             autoComplete="off"
             placeholder="https://example.com/photo.jpg"
+            disabled={isBusy}
             {...register("photo_url")}
           />
           <p className="text-xs text-muted-foreground">
-            Leave empty to use default food photo
+            Leave empty to use the default food photo
           </p>
           {errors.photo_url && (
             <p className="text-sm text-destructive">{errors.photo_url.message}</p>
@@ -307,11 +395,11 @@ export const MenuForm = React.forwardRef<MenuFormHandle, MenuFormProps>(
             type="button"
             variant="outline"
             onClick={onCancel}
-            disabled={isLoading}
+            disabled={isBusy}
           >
             Cancel
           </Button>
-          <Button type="submit" isLoading={isLoading}>
+          <Button type="submit" isLoading={isBusy}>
             {submitLabel}
           </Button>
         </div>
