@@ -296,7 +296,7 @@ export interface PurchaseRequest {
   notes?: string | null;
   items: PurchaseRequestItem[];
   total_estimated_amount: number;
-  created_by?: string;
+  created_by_username?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -308,7 +308,7 @@ export interface PurchaseRequestSummary {
   status: PurchaseRequestStatus;
   item_count: number;
   total_estimated_amount: number;
-  created_by_username?: string;
+  created_by_username?: string | null;
   notes?: string | null;
   created_at: string;
   updated_at: string;

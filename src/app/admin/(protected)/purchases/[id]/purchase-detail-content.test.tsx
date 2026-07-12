@@ -27,7 +27,7 @@ const purchase: PurchaseRequest = {
   supplier_contact_info: "08123456789",
   status: "PENDING",
   notes: null,
-  created_by: "admin",
+  created_by_username: "admin",
   items: [
     {
       id: "item-1",
@@ -135,6 +135,24 @@ describe("AdminPurchaseDetailContent", () => {
       "title",
       "No WhatsApp number in contact info",
     );
+  });
+
+  it("shows Created by from created_by_username", async () => {
+    render(<AdminPurchaseDetailContent id="pr-1" />);
+
+    expect(await screen.findByText("Created by")).toBeInTheDocument();
+    expect(screen.getByText("admin")).toBeInTheDocument();
+  });
+
+  it("shows em dash fallback when created_by_username is null", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: { ...purchase, created_by_username: null },
+    });
+
+    render(<AdminPurchaseDetailContent id="pr-1" />);
+
+    expect(await screen.findByText("Created by")).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
   });
 
   it("shows an error card when the purchase request cannot be loaded", async () => {
