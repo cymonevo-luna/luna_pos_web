@@ -20,12 +20,13 @@ import {
   isClaimsValid,
   needsTokenRefresh,
 } from "@/lib/auth/session";
+import { clearAuthSession, sessionStore } from "@/lib/auth/session-store";
 import { tokenStore, decodeJwt } from "@/lib/auth/tokens";
-import type { Merchant, User } from "@/lib/api/types";
+import type { SessionMerchant, User } from "@/lib/api/types";
 
 interface AuthState {
   user: User | null;
-  merchant: Merchant | null;
+  merchant: SessionMerchant | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
@@ -38,9 +39,13 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
+function persistSession(user: User, merchant: SessionMerchant) {
+  sessionStore.set({ user, merchant });
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [merchant, setMerchant] = useState<Merchant | null>(null);
+  const [merchant, setMerchant] = useState<SessionMerchant | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const hydrate = useCallback(async () => {
@@ -49,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (needsTokenRefresh(access, refresh)) {
       if (!refresh) {
-        tokenStore.clear();
+        clearAuthSession();
         setUser(null);
         setMerchant(null);
         setIsLoading(false);
@@ -57,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       const tokens = await refreshTokenPair(refresh);
       if (!tokens) {
-        tokenStore.clear();
+        clearAuthSession();
         setUser(null);
         setMerchant(null);
         setIsLoading(false);
@@ -69,22 +74,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const claims = access ? decodeJwt(access) : null;
     if (!isClaimsValid(claims) || !claims) {
-      tokenStore.clear();
+      clearAuthSession();
       setUser(null);
       setMerchant(null);
       setIsLoading(false);
       return;
     }
+
+    const stored = sessionStore.get();
+    if (
+      stored &&
+      stored.user.id === claims.uid &&
+      stored.user.merchant_id === claims.merchant_id
+    ) {
+      setUser(stored.user);
+      setMerchant(stored.merchant);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const { data } = await usersApi.get(claims.uid);
+      const sessionMerchant =
+        stored?.merchant?.id === claims.merchant_id
+          ? stored.merchant
+          : { id: claims.merchant_id, name: stored?.merchant?.name ?? "" };
+      persistSession(data, sessionMerchant);
       setUser(data);
-      if (claims.merchant_id) {
-        setMerchant((current) =>
-          current?.id === claims.merchant_id ? current : null,
-        );
-      }
+      setMerchant(sessionMerchant);
     } catch {
-      tokenStore.clear();
+      clearAuthSession();
       setUser(null);
       setMerchant(null);
     } finally {
@@ -99,7 +118,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (payload: LoginPayload) => {
     const { data } = await authApi.login(payload);
     tokenStore.set(data.tokens.access_token, data.tokens.refresh_token);
+    persistSession(data.user, data.merchant);
     setUser(data.user);
+    setMerchant(data.merchant);
     return data.user;
   }, []);
 
@@ -110,22 +131,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const registerMerchant = useCallback(async (payload: MerchantRegisterPayload) => {
     const { data } = await merchantsApi.register(payload);
     tokenStore.set(data.tokens.access_token, data.tokens.refresh_token);
+    const sessionMerchant = { id: data.merchant.id, name: data.merchant.name };
+    persistSession(data.user, sessionMerchant);
     setUser(data.user);
-    setMerchant(data.merchant);
+    setMerchant(sessionMerchant);
     return data.user;
   }, []);
 
   const logout = useCallback(() => {
-    tokenStore.clear();
+    clearAuthSession();
     setUser(null);
     setMerchant(null);
   }, []);
 
   const refreshUser = useCallback(async () => {
-    if (!user) return;
+    if (!user || !merchant) return;
     const { data } = await usersApi.get(user.id);
+    persistSession(data, merchant);
     setUser(data);
-  }, [user]);
+  }, [user, merchant]);
 
   const value = useMemo<AuthState>(
     () => ({

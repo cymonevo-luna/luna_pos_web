@@ -30,7 +30,7 @@ vi.mock("@/components/layout/dashboard-shell", () => ({
 
 vi.mock("@/lib/auth/context", () => ({
   useAuth: () => ({
-    user: { id: "1", role: "admin", roles: ["admin"] },
+    user: { id: "1", roles: ["admin"], merchant_id: "merchant-1" },
   }),
 }));
 
@@ -38,7 +38,7 @@ describe("AdminProtectedLayout", () => {
   it("includes Suppliers in admin navigation for manager users", () => {
     vi.doMock("@/lib/auth/context", () => ({
       useAuth: () => ({
-        user: { id: "1", role: "admin", roles: ["admin", "manager"] },
+        user: { id: "1", roles: ["admin", "manager"], merchant_id: "merchant-1" },
       }),
     }));
 

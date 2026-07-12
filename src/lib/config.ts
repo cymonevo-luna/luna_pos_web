@@ -11,6 +11,11 @@ export const config = {
     accessToken: "nt_access_token",
     refreshToken: "nt_refresh_token",
   },
+  /** localStorage keys for user and merchant session context. */
+  session: {
+    user: "nt_user",
+    merchant: "nt_merchant",
+  },
 } as const;
 
 export type AppConfig = typeof config;

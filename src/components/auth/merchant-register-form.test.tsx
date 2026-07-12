@@ -64,8 +64,8 @@ describe("MerchantRegisterForm", () => {
     const user = userEvent.setup();
     registerMerchant.mockResolvedValue({
       id: "user-1",
-      role: "admin",
       roles: ["admin"],
+      merchant_id: "merchant-1",
     });
 
     render(<MerchantRegisterForm />);

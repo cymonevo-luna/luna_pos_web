@@ -8,6 +8,7 @@ import { profileSchema, type ProfileValues } from "@/lib/validations";
 import { useAuth } from "@/lib/auth/context";
 import { usersApi } from "@/lib/api/users";
 import { ApiError } from "@/lib/api/client";
+import { formatUserRoles, resolveUserRoles } from "@/lib/auth/roles";
 import { formatDate } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -71,8 +72,14 @@ export default function ProfilePage() {
           <div>
             <p className="flex items-center justify-center gap-2 text-lg font-semibold">
               {user.name}
-              <Badge variant={user.role === "admin" ? "success" : "secondary"}>
-                {user.role}
+              <Badge
+                variant={
+                  resolveUserRoles(user).includes("admin")
+                    ? "success"
+                    : "secondary"
+                }
+              >
+                {formatUserRoles(user.roles)}
               </Badge>
             </p>
             <p className="text-sm text-muted-foreground">{user.email}</p>

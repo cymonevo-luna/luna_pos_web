@@ -10,6 +10,7 @@ import { Mail, User as UserIcon, ShieldCheck } from "lucide-react";
 import { registerSchema, type RegisterValues } from "@/lib/validations";
 import { useAuth } from "@/lib/auth/context";
 import { ApiError } from "@/lib/api/client";
+import { getAuthenticatedLandingPath } from "@/lib/auth/roles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,7 +42,7 @@ export function RegisterForm({ variant = "user" }: RegisterFormProps) {
         password: values.password,
       });
       toast.success("Account created");
-      router.push(user.role === "admin" ? "/admin" : "/dashboard");
+      router.push(getAuthenticatedLandingPath(user));
       router.refresh();
     } catch (error) {
       const message =

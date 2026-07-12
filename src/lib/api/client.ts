@@ -1,5 +1,7 @@
 import { config } from "@/lib/config";
+import { redirectToLogin } from "@/lib/auth/redirect";
 import { refreshTokenPair } from "@/lib/auth/refresh";
+import { clearAuthSession } from "@/lib/auth/session-store";
 import { tokenStore } from "@/lib/auth/tokens";
 import type { Envelope, PageMeta } from "./types";
 
@@ -8,18 +10,21 @@ export class ApiError extends Error {
   code: string;
   status: number;
   fields?: Record<string, string>;
+  data?: unknown;
 
   constructor(
     status: number,
     code: string,
     message: string,
     fields?: Record<string, string>,
+    data?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.fields = fields;
+    this.data = data;
   }
 }
 
@@ -71,6 +76,7 @@ async function request<T>(
       err?.code ?? "error",
       err?.message ?? "Request failed",
       err?.fields,
+      json.data,
     );
   }
 
@@ -103,7 +109,8 @@ async function authorizedFetch(
     if (refreshed) {
       return authorizedFetch(path, { ...options, _retried: true });
     }
-    tokenStore.clear();
+    clearAuthSession();
+    redirectToLogin();
   }
 
   return res;

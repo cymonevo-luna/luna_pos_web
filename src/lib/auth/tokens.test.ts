@@ -10,10 +10,16 @@ function makeJwt(payload: Record<string, unknown>) {
 
 describe("decodeJwt", () => {
   it("decodes a valid payload", () => {
-    const token = makeJwt({ uid: "1", role: "admin", exp: 123 });
+    const token = makeJwt({
+      uid: "1",
+      roles: ["admin"],
+      merchant_id: "merchant-1",
+      exp: 123,
+    });
     const claims = decodeJwt(token);
     expect(claims?.uid).toBe("1");
-    expect(claims?.role).toBe("admin");
+    expect(claims?.roles).toEqual(["admin"]);
+    expect(claims?.merchant_id).toBe("merchant-1");
   });
 
   it("returns null for malformed tokens", () => {

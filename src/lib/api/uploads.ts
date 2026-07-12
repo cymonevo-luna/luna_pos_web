@@ -1,5 +1,7 @@
 import { config } from "@/lib/config";
+import { redirectToLogin } from "@/lib/auth/redirect";
 import { refreshTokenPair } from "@/lib/auth/refresh";
+import { clearAuthSession } from "@/lib/auth/session-store";
 import { tokenStore } from "@/lib/auth/tokens";
 import { ApiError } from "./client";
 import type { Envelope } from "./types";
@@ -65,7 +67,8 @@ async function uploadMenuPhotoRequest(
     if (refreshed) {
       return uploadMenuPhotoRequest(file, true);
     }
-    tokenStore.clear();
+    clearAuthSession();
+    redirectToLogin();
   }
 
   let json: Envelope<MenuPhotoUploadResult>;
