@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import {
   ShieldCheck,
   Palette,
@@ -7,12 +8,18 @@ import {
   Code2,
 } from "lucide-react";
 import { HeroSection } from "@/components/landing/hero-section";
+import { PosAppSection } from "@/components/landing/pos-app-section";
 import {
   Card,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
+export const metadata: Metadata = {
+  description:
+    "Modern point-of-sale for restaurants and retail — web admin, inventory, COGS, and a native cashier app.",
+};
 
 const features = [
   {
@@ -58,7 +65,7 @@ export default function HomePage() {
     <div>
       <HeroSection />
 
-      <section className="mx-auto max-w-6xl px-4 pb-24">
+      <section id="features" className="mx-auto max-w-6xl px-4 pb-24">
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((feature) => {
             const Icon = feature.icon;
@@ -76,6 +83,8 @@ export default function HomePage() {
           })}
         </div>
       </section>
+
+      <PosAppSection />
     </div>
   );
 }

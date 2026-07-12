@@ -7,7 +7,8 @@ import { useAuth } from "@/lib/auth/context";
 import { Logo } from "@/components/brand/logo";
 
 const navLinks = [
-  { href: "/", label: "Home" },
+  { href: "/#features", label: "Features" },
+  { href: "/#pos-app", label: "POS App" },
   { href: "/about", label: "About" },
 ];
 
