@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { menusAdminApi, menuFormToPayload } from "./menus";
-import { menuSchema } from "@/lib/validations";
+import {
+  menusAdminApi,
+  menuBasicFormToPayload,
+  menuCogsFormToPayload,
+  menuFullFormToPayload,
+  menuFormToPayload,
+} from "./menus";
+import { menuBasicSchema, menuCogsSchema, menuSchema } from "@/lib/validations";
 import { tokenStore } from "@/lib/auth/tokens";
 
 function jsonResponse(body: unknown, status = 200) {
@@ -9,6 +15,133 @@ function jsonResponse(body: unknown, status = 200) {
     headers: { "Content-Type": "application/json" },
   });
 }
+
+describe("menuBasicSchema", () => {
+  const base = {
+    title: "Nasi Goreng",
+    category_id: "cat-1",
+    available_stock: 10,
+    sell_price: 25000,
+  };
+
+  it("accepts a valid payload", () => {
+    expect(menuBasicSchema.safeParse(base).success).toBe(true);
+  });
+
+  it("accepts optional description and empty photo URL", () => {
+    expect(
+      menuBasicSchema.safeParse({
+        ...base,
+        description: "Spicy fried rice",
+        photo_url: "",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts a valid photo URL", () => {
+    expect(
+      menuBasicSchema.safeParse({
+        ...base,
+        photo_url: "https://example.com/food.jpg",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects an empty title", () => {
+    const result = menuBasicSchema.safeParse({ ...base, title: "" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.message.includes("Title"))).toBe(
+        true,
+      );
+    }
+  });
+
+  it("rejects a missing category", () => {
+    const result = menuBasicSchema.safeParse({ ...base, category_id: "" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((i) => i.message.includes("Category")),
+      ).toBe(true);
+    }
+  });
+
+  it("rejects negative available stock", () => {
+    const result = menuBasicSchema.safeParse({ ...base, available_stock: -1 });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((i) =>
+          i.message.includes("cannot be negative"),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("rejects non-positive sell price", () => {
+    const result = menuBasicSchema.safeParse({ ...base, sell_price: 0 });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((i) => i.message.includes("greater than 0")),
+      ).toBe(true);
+    }
+  });
+
+  it("rejects an invalid photo URL", () => {
+    const result = menuBasicSchema.safeParse({ ...base, photo_url: "not-a-url" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((i) => i.message.includes("valid URL")),
+      ).toBe(true);
+    }
+  });
+});
+
+describe("menuCogsSchema", () => {
+  const base = {
+    recipe_yield: 1,
+    margin_percent: 0,
+    vat_percent: 0,
+  };
+
+  it("accepts a valid payload", () => {
+    expect(menuCogsSchema.safeParse(base).success).toBe(true);
+  });
+
+  it("rejects recipe yield below 1", () => {
+    const result = menuCogsSchema.safeParse({ ...base, recipe_yield: 0 });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((i) =>
+          i.message.includes("Recipe yield must be at least 1"),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("rejects negative margin and VAT", () => {
+    expect(menuCogsSchema.safeParse({ ...base, margin_percent: -1 }).success).toBe(
+      false,
+    );
+    expect(menuCogsSchema.safeParse({ ...base, vat_percent: -1 }).success).toBe(
+      false,
+    );
+  });
+
+  it("accepts decimal margin and VAT values", () => {
+    expect(
+      menuCogsSchema.safeParse({
+        ...base,
+        margin_percent: 30.5,
+        vat_percent: 11.25,
+      }).success,
+    ).toBe(true);
+  });
+});
 
 describe("menuSchema", () => {
   const base = {
@@ -230,6 +363,75 @@ describe("menusAdminApi", () => {
 
     await menusAdminApi.delete("menu-1");
     expect(fetchMock).toHaveBeenCalled();
+  });
+});
+
+describe("menuBasicFormToPayload", () => {
+  it("maps basic fields only and omits COGS keys", () => {
+    const payload = menuBasicFormToPayload({
+      title: "Batch Soup",
+      description: "",
+      category_id: "cat-1",
+      photo_url: "",
+      available_stock: 10,
+      sell_price: 25000,
+    });
+
+    expect(payload).toEqual({
+      title: "Batch Soup",
+      category_id: "cat-1",
+      available_stock: 10,
+      sell_price: 25000,
+    });
+    expect(payload).not.toHaveProperty("recipe_yield");
+    expect(payload).not.toHaveProperty("margin_percent");
+    expect(payload).not.toHaveProperty("vat_percent");
+  });
+});
+
+describe("menuCogsFormToPayload", () => {
+  it("returns only COGS fields", () => {
+    expect(
+      menuCogsFormToPayload({
+        recipe_yield: 40,
+        margin_percent: 30,
+        vat_percent: 11,
+      }),
+    ).toEqual({
+      recipe_yield: 40,
+      margin_percent: 30,
+      vat_percent: 11,
+    });
+  });
+});
+
+describe("menuFullFormToPayload", () => {
+  it("merges basic and COGS payloads", () => {
+    expect(
+      menuFullFormToPayload(
+        {
+          title: "Batch Soup",
+          description: "",
+          category_id: "cat-1",
+          photo_url: "",
+          available_stock: 10,
+          sell_price: 25000,
+        },
+        {
+          recipe_yield: 40,
+          margin_percent: 30,
+          vat_percent: 11,
+        },
+      ),
+    ).toEqual({
+      title: "Batch Soup",
+      category_id: "cat-1",
+      available_stock: 10,
+      sell_price: 25000,
+      recipe_yield: 40,
+      margin_percent: 30,
+      vat_percent: 11,
+    });
   });
 });
 
