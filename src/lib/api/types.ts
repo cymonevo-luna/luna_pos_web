@@ -274,6 +274,7 @@ export interface PurchaseRequestSummary {
   status: PurchaseRequestStatus;
   item_count: number;
   total_amount: number;
+  created_by_username?: string;
   notes?: string | null;
   created_at: string;
   updated_at: string;
