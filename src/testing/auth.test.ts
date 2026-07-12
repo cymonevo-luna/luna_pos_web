@@ -22,9 +22,11 @@ const loginResult = {
     name: "Admin Test",
     role: "admin" as const,
     roles: ["admin" as const],
+    merchant_id: "merchant-1",
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   },
+  merchant: { id: "merchant-1", name: "Test Merchant" },
   tokens: {
     access_token: "access-token",
     refresh_token: "refresh-token",

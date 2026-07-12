@@ -2,12 +2,22 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Users, ArrowRight, ShieldCheck, Activity, Database } from "lucide-react";
+import {
+  Users,
+  ArrowRight,
+  Calculator,
+  Receipt,
+  Truck,
+  ShoppingCart,
+  UtensilsCrossed,
+  Tags,
+  Package,
+  Printer,
+} from "lucide-react";
 import { adminApi } from "@/lib/api/users";
+import { useRoles } from "@/lib/auth/use-roles";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StatCard } from "@/components/dashboard/stat-card";
-import { ActivityList } from "@/components/dashboard/activity-list";
 import {
   Card,
   CardContent,
@@ -16,86 +26,159 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-const recentActivity = [
-  { id: "1", title: "New user registered", time: "5m ago", color: "blue" as const },
-  { id: "2", title: "Role updated to admin", time: "1h ago", color: "purple" as const },
-  { id: "3", title: "User account deleted", time: "3h ago", color: "red" as const },
-  { id: "4", title: "Database backup completed", time: "6h ago", color: "green" as const },
+type OverviewCard = {
+  title: string;
+  description: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  roles: ("admin" | "manager" | "operational")[];
+};
+
+const overviewCards: OverviewCard[] = [
+  {
+    title: "User management",
+    description: "View, search, and manage merchant users.",
+    href: "/admin/users",
+    icon: Users,
+    roles: ["admin"],
+  },
+  {
+    title: "COGS",
+    description: "Review cost of goods sold and menu margins.",
+    href: "/admin/cogs",
+    icon: Calculator,
+    roles: ["manager"],
+  },
+  {
+    title: "Transactions",
+    description: "Browse transaction history and details.",
+    href: "/admin/transactions",
+    icon: Receipt,
+    roles: ["manager"],
+  },
+  {
+    title: "Menus",
+    description: "Manage menu items and formulas.",
+    href: "/admin/menus",
+    icon: UtensilsCrossed,
+    roles: ["manager"],
+  },
+  {
+    title: "Categories",
+    description: "Organize menu categories.",
+    href: "/admin/categories",
+    icon: Tags,
+    roles: ["manager"],
+  },
+  {
+    title: "Food supplies",
+    description: "Maintain ingredient inventory.",
+    href: "/admin/food-supplies",
+    icon: Package,
+    roles: ["manager"],
+  },
+  {
+    title: "Receipt settings",
+    description: "Configure store receipt layout.",
+    href: "/admin/store-settings",
+    icon: Printer,
+    roles: ["manager"],
+  },
+  {
+    title: "Suppliers",
+    description: "Manage supplier contacts and pricing.",
+    href: "/admin/suppliers",
+    icon: Truck,
+    roles: ["operational"],
+  },
+  {
+    title: "Purchase requests",
+    description: "Create and track purchase requests.",
+    href: "/admin/purchases",
+    icon: ShoppingCart,
+    roles: ["operational"],
+  },
 ];
 
 export default function AdminOverviewPage() {
-  const [total, setTotal] = useState<number | null>(null);
-  const [error, setError] = useState(false);
+  const { roles, hasAnyRole } = useRoles();
+  const [totalUsers, setTotalUsers] = useState<number | null>(null);
+  const [usersError, setUsersError] = useState(false);
+
+  const visibleCards = overviewCards.filter((card) => hasAnyRole(card.roles));
 
   useEffect(() => {
+    if (!roles.includes("admin")) return;
+
     adminApi
       .listUsers({ page: 1, perPage: 1 })
-      .then((res) => setTotal(res.meta?.total ?? 0))
-      .catch(() => setError(true));
-  }, []);
+      .then((res) => setTotalUsers(res.meta?.total ?? 0))
+      .catch(() => setUsersError(true));
+  }, [roles]);
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold">Overview</h2>
         <p className="text-sm text-muted-foreground">
-          Monitor and manage your application.
+          Quick access to the areas available for your account.
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {total === null && !error ? (
-          <Card className="p-4">
-            <Skeleton className="h-10 w-10 rounded-xl" />
-            <Skeleton className="mt-3 h-7 w-16" />
-            <Skeleton className="mt-2 h-4 w-20" />
-          </Card>
-        ) : (
-          <StatCard
-            label="Total users"
-            value={error ? "—" : (total ?? 0)}
-            icon={Users}
-            color="blue"
-            trend="+12%"
-          />
-        )}
-        <StatCard label="Admins" value={2} icon={ShieldCheck} color="purple" />
-        <StatCard
-          label="Active today"
-          value={18}
-          icon={Activity}
-          color="green"
-          trend="+8%"
-        />
-        <StatCard label="Storage" value="64%" icon={Database} color="amber" />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">Recent activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ActivityList items={recentActivity} />
-          </CardContent>
-        </Card>
-
+      {hasAnyRole(["admin"]) && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">User management</CardTitle>
-            <CardDescription>View, search, and remove users.</CardDescription>
+            <CardTitle className="text-base">Total users</CardTitle>
+            <CardDescription>Registered users in this merchant.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Link
-              href="/admin/users"
-              className={buttonVariants({ className: "w-full" })}
-            >
-              Manage users
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+            {totalUsers === null && !usersError ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <p className="text-3xl font-bold">
+                {usersError ? "—" : (totalUsers ?? 0)}
+              </p>
+            )}
           </CardContent>
         </Card>
-      </div>
+      )}
+
+      {visibleCards.length === 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">No admin areas</CardTitle>
+            <CardDescription>
+              Your account does not have access to any admin console sections.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {visibleCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <Card key={card.href}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Icon className="h-4 w-4 text-primary" />
+                    {card.title}
+                  </CardTitle>
+                  <CardDescription>{card.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link
+                    href={card.href}
+                    className={buttonVariants({ className: "w-full" })}
+                  >
+                    Open
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

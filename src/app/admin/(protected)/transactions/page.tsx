@@ -13,8 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
-import { TransactionSummaryChart } from "@/components/admin/transaction-summary-chart";
-
 const PER_PAGE = 10;
 
 const METHOD_OPTIONS = [
@@ -109,8 +107,6 @@ export default function AdminTransactionsPage() {
           />
         </div>
       </div>
-
-      <TransactionSummaryChart />
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">

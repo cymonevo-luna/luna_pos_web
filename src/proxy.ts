@@ -9,8 +9,11 @@ import {
 } from "@/lib/auth/session";
 import { decodeJwt } from "@/lib/auth/tokens";
 import {
+  canAccessRoute,
   getAuthenticatedLandingPath,
+  getUnauthorizedFallbackPath,
   hasMerchantAreaAccess,
+  resolveUserRoles,
 } from "@/lib/auth/roles";
 
 // Public auth pages (never require a session).
@@ -72,6 +75,15 @@ export async function proxy(request: NextRequest) {
 
   if (isAdminArea && !hasMerchantAreaAccess(claims)) {
     return withCookies(NextResponse.redirect(new URL("/dashboard", request.url)));
+  }
+
+  if (
+    isAdminArea &&
+    claims &&
+    !canAccessRoute(pathname, resolveUserRoles(claims))
+  ) {
+    const fallback = getUnauthorizedFallbackPath(claims);
+    return withCookies(NextResponse.redirect(new URL(fallback, request.url)));
   }
 
   return withCookies(NextResponse.next());
