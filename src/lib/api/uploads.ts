@@ -14,11 +14,14 @@ export const MENU_PHOTO_ALLOWED_TYPES = [
 
 export const MENU_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 
-export interface MenuPhotoUploadResult {
+export interface PhotoUploadResult {
   url: string;
   filename: string;
   size_bytes: number;
 }
+
+export type MenuPhotoUploadResult = PhotoUploadResult;
+export type PurchasePhotoUploadResult = PhotoUploadResult;
 
 /** Client-side validation before calling the upload API. */
 export function validateMenuPhotoFile(file: File): string | null {
@@ -100,4 +103,64 @@ export async function uploadMenuPhoto(
     throw new ApiError(400, "validation_error", validationError);
   }
   return uploadMenuPhotoRequest(file);
+}
+
+async function uploadPurchasePhotoRequest(
+  file: File,
+  _retried = false,
+): Promise<PurchasePhotoUploadResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const headers = new Headers();
+  const token = tokenStore.access;
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const res = await fetch(
+    `${config.apiBaseUrl}/api/admin/uploads/purchase-photo`,
+    {
+      method: "POST",
+      headers,
+      body: formData,
+    },
+  );
+
+  if (res.status === 401 && !_retried) {
+    const refreshed = await refreshTokens();
+    if (refreshed) {
+      return uploadPurchasePhotoRequest(file, true);
+    }
+    clearAuthSession();
+    redirectToLogin();
+  }
+
+  let json: Envelope<PurchasePhotoUploadResult>;
+  try {
+    json = (await res.json()) as Envelope<PurchasePhotoUploadResult>;
+  } catch {
+    throw new ApiError(res.status, "invalid_response", res.statusText);
+  }
+
+  if (!res.ok || json.success === false) {
+    const err = json.error;
+    throw new ApiError(
+      res.status,
+      err?.code ?? "error",
+      err?.message ?? "Upload failed",
+      err?.fields,
+    );
+  }
+
+  return json.data as PurchasePhotoUploadResult;
+}
+
+/** Upload a purchase proof photo and return the hosted URL for `photo_url`. */
+export async function uploadPurchasePhoto(
+  file: File,
+): Promise<PurchasePhotoUploadResult> {
+  const validationError = validateMenuPhotoFile(file);
+  if (validationError) {
+    throw new ApiError(400, "validation_error", validationError);
+  }
+  return uploadPurchasePhotoRequest(file);
 }
