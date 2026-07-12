@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event";
 import AdminSuppliersPage from "./page";
 import { suppliersAdminApi } from "@/lib/api/suppliers";
 import type { Supplier } from "@/lib/api/types";
-import { toast } from "sonner";
 
 vi.mock("@/lib/api/suppliers", () => ({
   suppliersAdminApi: {
