@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { cn, formatDate, formatRupiah, formatStockQuantity, displayDescription, menuPhotoUrl, initials } from "./utils";
+import {
+  cn,
+  formatDate,
+  formatRupiah,
+  formatStockQuantity,
+  displayDescription,
+  menuPhotoUrl,
+  initials,
+  computeSupplierUnitPrice,
+  formatSupplierUnitPrice,
+} from "./utils";
 
 describe("cn", () => {
   it("merges class names", () => {
@@ -73,6 +83,22 @@ describe("formatRupiah", () => {
   it("formats amounts with Indonesian grouping and no decimals", () => {
     expect(formatRupiah(35000)).toBe("Rp 35.000");
     expect(formatRupiah(25000)).toBe("Rp 25.000");
+  });
+});
+
+describe("computeSupplierUnitPrice", () => {
+  it("computes price_amount divided by price_quantity", () => {
+    expect(computeSupplierUnitPrice(140000, 1000)).toBe(140);
+  });
+
+  it("returns null for invalid quantities", () => {
+    expect(computeSupplierUnitPrice(140000, 0)).toBeNull();
+  });
+});
+
+describe("formatSupplierUnitPrice", () => {
+  it("formats computed unit price with unit suffix", () => {
+    expect(formatSupplierUnitPrice(140000, 1000, "gr")).toBe("Rp 140 / gr");
   });
 });
 

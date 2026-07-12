@@ -48,20 +48,6 @@ export const foodSupplySchema = z.object({
 
 export type FoodSupplyFormValues = z.infer<typeof foodSupplySchema>;
 
-export const supplierFoodItemSchema = z.object({
-  food_supply_id: z.string().min(1, "Food supply is required"),
-  price: z
-    .number({ error: "Price is required" })
-    .int("Price must be a whole number")
-    .positive("Price must be greater than 0"),
-  quantity: z
-    .number({ error: "Quantity is required" })
-    .positive("Quantity must be greater than 0"),
-  unit: z.enum(["ml", "piece", "gr"], {
-    error: "Select a valid unit",
-  }),
-});
-
 export const supplierSchema = z
   .object({
     name: z
@@ -82,7 +68,6 @@ export const supplierSchema = z
       .number({ error: "Delivery cost must be a number" })
       .min(0, "Delivery cost cannot be negative")
       .optional(),
-    food_items: z.array(supplierFoodItemSchema),
   })
   .superRefine((data, ctx) => {
     if (data.supports_delivery) {
@@ -103,6 +88,19 @@ export const supplierSchema = z
   });
 
 export type SupplierFormValues = z.infer<typeof supplierSchema>;
+
+export const supplierPriceSchema = z.object({
+  food_supply_id: z.string().min(1, "Food supply is required"),
+  price_amount: z
+    .number({ error: "Price amount is required" })
+    .int("Price amount must be a whole number")
+    .positive("Price amount must be greater than 0"),
+  price_quantity: z
+    .number({ error: "Price quantity is required" })
+    .positive("Price quantity must be greater than 0"),
+});
+
+export type SupplierPriceFormValues = z.infer<typeof supplierPriceSchema>;
 
 export const categorySchema = z.object({
   name: z

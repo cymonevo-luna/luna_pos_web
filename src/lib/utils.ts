@@ -66,6 +66,33 @@ export function formatRupiah(amount: number) {
   }).format(amount)}`;
 }
 
+/** Compute unit price from a supplier price quote (price_amount / price_quantity). */
+export function computeSupplierUnitPrice(
+  priceAmount: number,
+  priceQuantity: number,
+) {
+  if (
+    !Number.isFinite(priceAmount) ||
+    !Number.isFinite(priceQuantity) ||
+    priceQuantity <= 0
+  ) {
+    return null;
+  }
+  return priceAmount / priceQuantity;
+}
+
+/** Format a supplier unit price for display (e.g. Rp 140 / gr). */
+export function formatSupplierUnitPrice(
+  priceAmount: number,
+  priceQuantity: number,
+  unit: string,
+) {
+  const unitPrice = computeSupplierUnitPrice(priceAmount, priceQuantity);
+  if (unitPrice == null) return "—";
+  const formatted = Number.parseFloat(unitPrice.toFixed(4)).toString();
+  return `${formatRupiah(Number.parseFloat(formatted))} / ${unit}`;
+}
+
 /** Resolve a menu photo URL, falling back to the default food image. */
 export function menuPhotoUrl(photoUrl?: string | null) {
   const trimmed = photoUrl?.trim();

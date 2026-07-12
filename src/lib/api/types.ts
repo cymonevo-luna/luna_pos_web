@@ -60,12 +60,16 @@ export interface FoodSupply {
   updated_at: string;
 }
 
-export interface SupplierFoodItem {
+export interface SupplierPrice {
+  id: string;
   food_supply_id: string;
   food_supply_title?: string;
-  price: number;
-  quantity: number;
   unit: FoodSupplyUnit;
+  price_amount: number;
+  price_quantity: number;
+  unit_price?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Supplier {
@@ -75,7 +79,8 @@ export interface Supplier {
   address: string;
   supports_delivery: boolean;
   delivery_cost: number | null;
-  food_items: SupplierFoodItem[];
+  price_quotes: SupplierPrice[];
+  price_quotes_count?: number;
   created_at: string;
   updated_at: string;
 }

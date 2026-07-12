@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   suppliersAdminApi,
-  parseQuantity,
+  parseNumeric,
   normalizeSupplier,
+  supplierPriceFormToPayload,
 } from "./suppliers";
-import { supplierSchema } from "@/lib/validations";
+import { supplierSchema, supplierPriceSchema } from "@/lib/validations";
 import { tokenStore } from "@/lib/auth/tokens";
 
 function jsonResponse(body: unknown, status = 200) {
@@ -14,13 +15,6 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-const foodItem = {
-  food_supply_id: "fs-1",
-  price: 10000,
-  quantity: 2,
-  unit: "gr" as const,
-};
-
 describe("supplierSchema", () => {
   const base = {
     name: "Beras Supplier",
@@ -28,30 +22,10 @@ describe("supplierSchema", () => {
     address: "Jl. Pasar 12",
     supports_delivery: true,
     delivery_cost: 5000,
-    food_items: [foodItem],
   };
 
-  it("accepts a complete supplier with two food items and delivery enabled", () => {
-    const result = supplierSchema.safeParse({
-      ...base,
-      food_items: [
-        foodItem,
-        {
-          food_supply_id: "fs-2",
-          price: 25000,
-          quantity: 1.5,
-          unit: "ml",
-        },
-      ],
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("accepts an empty food_items array", () => {
-    const result = supplierSchema.safeParse({
-      ...base,
-      food_items: [],
-    });
+  it("accepts a complete supplier with delivery enabled", () => {
+    const result = supplierSchema.safeParse(base);
     expect(result.success).toBe(true);
   });
 
@@ -88,31 +62,8 @@ describe("supplierSchema", () => {
       phone_number: base.phone_number,
       address: base.address,
       supports_delivery: false,
-      food_items: [],
     });
     expect(result.success).toBe(true);
-  });
-
-  it("accepts supports_delivery false with zero delivery_cost", () => {
-    const result = supplierSchema.safeParse({
-      ...base,
-      supports_delivery: false,
-      delivery_cost: 0,
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("rejects invalid price on food items", () => {
-    const result = supplierSchema.safeParse({
-      ...base,
-      food_items: [{ ...foodItem, price: 0 }],
-    });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(
-        result.error.issues.some((issue) => issue.path.includes("price")),
-      ).toBe(true);
-    }
   });
 
   it("rejects a name shorter than 2 characters", () => {
@@ -122,13 +73,41 @@ describe("supplierSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+});
 
-  it("trims phone_number before length validation", () => {
-    const result = supplierSchema.safeParse({
-      ...base,
-      phone_number: "  08123  ",
+describe("supplierPriceSchema", () => {
+  it("accepts valid price quote values", () => {
+    const result = supplierPriceSchema.safeParse({
+      food_supply_id: "fs-1",
+      price_amount: 140000,
+      price_quantity: 1000,
     });
     expect(result.success).toBe(true);
+  });
+
+  it("rejects zero price_amount", () => {
+    const result = supplierPriceSchema.safeParse({
+      food_supply_id: "fs-1",
+      price_amount: 0,
+      price_quantity: 1000,
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("supplierPriceFormToPayload", () => {
+  it("maps form values to API payload", () => {
+    expect(
+      supplierPriceFormToPayload({
+        food_supply_id: "fs-1",
+        price_amount: 140000,
+        price_quantity: 1000,
+      }),
+    ).toEqual({
+      food_supply_id: "fs-1",
+      price_amount: 140000,
+      price_quantity: 1000,
+    });
   });
 });
 
@@ -168,7 +147,7 @@ describe("suppliersAdminApi", () => {
     expect(headers.get("Authorization")).toBe("Bearer token-abc");
   });
 
-  it("unwraps envelope responses for get, create, update, and delete", async () => {
+  it("unwraps envelope responses for supplier and price endpoints", async () => {
     const supplier = {
       id: "sup-1",
       name: "Beras Supplier",
@@ -176,18 +155,22 @@ describe("suppliersAdminApi", () => {
       address: "Jl. Pasar 12",
       supports_delivery: true,
       delivery_cost: 5000,
-      food_items: [
+      price_quotes: [
         {
+          id: "price-1",
           food_supply_id: "fs-1",
           food_supply_title: "Beras",
-          price: 10000,
-          quantity: 2,
+          price_amount: 140000,
+          price_quantity: 1000,
           unit: "gr" as const,
+          unit_price: 140,
         },
       ],
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
+
+    const price = supplier.price_quotes[0];
 
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
       async (input, init) => {
@@ -209,12 +192,30 @@ describe("suppliersAdminApi", () => {
         ) {
           return new Response(null, { status: 204 });
         }
+        if (
+          method === "POST" &&
+          url.endsWith("/api/admin/suppliers/sup-1/prices")
+        ) {
+          return jsonResponse({ success: true, data: price });
+        }
+        if (
+          method === "PUT" &&
+          url.endsWith("/api/admin/supplier-prices/price-1")
+        ) {
+          return jsonResponse({ success: true, data: price });
+        }
+        if (
+          method === "DELETE" &&
+          url.endsWith("/api/admin/supplier-prices/price-1")
+        ) {
+          return new Response(null, { status: 204 });
+        }
         return jsonResponse({ success: false }, 404);
       },
     );
 
     const got = await suppliersAdminApi.get("sup-1");
-    expect(got.data).toEqual(supplier);
+    expect(got.data.price_quotes[0]?.price_amount).toBe(140000);
 
     const created = await suppliersAdminApi.create({
       name: "Beras Supplier",
@@ -222,16 +223,8 @@ describe("suppliersAdminApi", () => {
       address: "Jl. Pasar 12",
       supports_delivery: true,
       delivery_cost: 5000,
-      food_items: [
-        {
-          food_supply_id: "fs-1",
-          price: 10000,
-          quantity: 2,
-          unit: "gr",
-        },
-      ],
     });
-    expect(created.data).toEqual(supplier);
+    expect(created.data).toMatchObject({ id: "sup-1" });
 
     const updated = await suppliersAdminApi.update("sup-1", {
       name: "Beras Supplier",
@@ -239,22 +232,30 @@ describe("suppliersAdminApi", () => {
       address: "Jl. Pasar 12",
       supports_delivery: true,
       delivery_cost: 5000,
-      food_items: [
-        {
-          food_supply_id: "fs-1",
-          price: 10000,
-          quantity: 2,
-          unit: "gr",
-        },
-      ],
     });
-    expect(updated.data).toEqual(supplier);
+    expect(updated.data).toMatchObject({ id: "sup-1" });
 
     await suppliersAdminApi.delete("sup-1");
+
+    const createdPrice = await suppliersAdminApi.createPrice("sup-1", {
+      food_supply_id: "fs-1",
+      price_amount: 140000,
+      price_quantity: 1000,
+    });
+    expect(createdPrice.data?.id).toBe("price-1");
+
+    const updatedPrice = await suppliersAdminApi.updatePrice("price-1", {
+      food_supply_id: "fs-1",
+      price_amount: 150000,
+      price_quantity: 1000,
+    });
+    expect(updatedPrice.data?.price_amount).toBe(140000);
+
+    await suppliersAdminApi.deletePrice("price-1");
     expect(fetchMock).toHaveBeenCalled();
   });
 
-  it("normalizes string quantity from list API", async () => {
+  it("normalizes string quantities from list API", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({
         success: true,
@@ -266,12 +267,13 @@ describe("suppliersAdminApi", () => {
             address: "Jl. Pasar 12",
             supports_delivery: false,
             delivery_cost: null,
-            food_items: [
+            price_quotes: [
               {
+                id: "price-1",
                 food_supply_id: "fs-1",
                 food_supply_title: "Beras",
-                price: 10000,
-                quantity: "5000",
+                price_amount: "140000",
+                price_quantity: "1000",
                 unit: "gr",
               },
             ],
@@ -284,64 +286,31 @@ describe("suppliersAdminApi", () => {
     );
 
     const result = await suppliersAdminApi.list();
-    expect(result.data[0]?.food_items[0]?.quantity).toBe(5000);
-    expect(typeof result.data[0]?.food_items[0]?.quantity).toBe("number");
-  });
-
-  it("normalizes string delivery_cost from create API", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      jsonResponse(
-        {
-          success: true,
-          data: {
-            id: "sup-2",
-            name: "Milk Supplier",
-            phone_number: "08123456789",
-            address: "Jl. Pasar 12",
-            supports_delivery: true,
-            delivery_cost: "7500",
-            food_items: [],
-            created_at: "2026-01-01T00:00:00Z",
-            updated_at: "2026-01-01T00:00:00Z",
-          },
-        },
-        201,
-      ),
-    );
-
-    const result = await suppliersAdminApi.create({
-      name: "Milk Supplier",
-      phone_number: "08123456789",
-      address: "Jl. Pasar 12",
-      supports_delivery: true,
-      delivery_cost: 7500,
-      food_items: [],
-    });
-    expect(result.data?.delivery_cost).toBe(7500);
-    expect(typeof result.data?.delivery_cost).toBe("number");
+    expect(result.data[0]?.price_quotes[0]?.price_quantity).toBe(1000);
+    expect(result.data[0]?.price_quotes_count).toBe(1);
   });
 });
 
-describe("parseQuantity", () => {
+describe("parseNumeric", () => {
   it("passes through finite numbers", () => {
-    expect(parseQuantity(5000)).toBe(5000);
-    expect(parseQuantity(2.5)).toBe(2.5);
+    expect(parseNumeric(5000)).toBe(5000);
+    expect(parseNumeric(2.5)).toBe(2.5);
   });
 
   it("parses numeric strings", () => {
-    expect(parseQuantity("5000")).toBe(5000);
-    expect(parseQuantity("2.5")).toBe(2.5);
+    expect(parseNumeric("5000")).toBe(5000);
+    expect(parseNumeric("2.5")).toBe(2.5);
   });
 
   it("returns 0 for null, undefined, and invalid values", () => {
-    expect(parseQuantity(null)).toBe(0);
-    expect(parseQuantity(undefined)).toBe(0);
-    expect(parseQuantity("not-a-number")).toBe(0);
+    expect(parseNumeric(null)).toBe(0);
+    expect(parseNumeric(undefined)).toBe(0);
+    expect(parseNumeric("not-a-number")).toBe(0);
   });
 });
 
 describe("normalizeSupplier", () => {
-  it("coerces string quantity to number", () => {
+  it("coerces string price fields to numbers", () => {
     const normalized = normalizeSupplier({
       id: "sup-1",
       name: "Beras Supplier",
@@ -349,18 +318,20 @@ describe("normalizeSupplier", () => {
       address: "Jl. Pasar 12",
       supports_delivery: false,
       delivery_cost: null,
-      food_items: [
+      price_quotes: [
         {
+          id: "price-1",
           food_supply_id: "fs-1",
           food_supply_title: "Beras",
-          price: 10000,
-          quantity: "5000",
+          price_amount: "140000",
+          price_quantity: "1000",
           unit: "gr",
         },
       ],
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     });
-    expect(normalized.food_items[0]?.quantity).toBe(5000);
+    expect(normalized.price_quotes[0]?.price_amount).toBe(140000);
+    expect(normalized.price_quotes_count).toBe(1);
   });
 });
