@@ -75,8 +75,8 @@ describe("MenuStockEstimationPanel", () => {
     expect(screen.getByTestId("stock-estimation-status-badge")).toHaveTextContent(
       "Sufficient",
     );
-    expect(screen.getByText("2000 gr")).toBeInTheDocument();
-    expect(screen.getByText("3000 gr")).toBeInTheDocument();
+    expect(screen.getByText("2 kg")).toBeInTheDocument();
+    expect(screen.getByText("3 kg")).toBeInTheDocument();
     expect(getMenuStockEstimation).toHaveBeenCalledWith("menu-1", 10);
   });
 
@@ -99,7 +99,7 @@ describe("MenuStockEstimationPanel", () => {
       screen.getByTestId("stock-estimation-limiting-ingredient"),
     ).toHaveTextContent("Limiting ingredient: Rice");
     expect(screen.getByTestId("stock-estimation-limiting-row")).toBeInTheDocument();
-    expect(screen.getByText("-8000 gr")).toBeInTheDocument();
+    expect(screen.getByText("-8 kg")).toBeInTheDocument();
   });
 
   it("shows informational message when menu has no formula", async () => {

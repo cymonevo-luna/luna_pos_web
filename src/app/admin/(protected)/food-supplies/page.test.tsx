@@ -59,6 +59,26 @@ describe("AdminFoodSuppliesPage", () => {
     expect(screen.getByText("1 total")).toBeInTheDocument();
   });
 
+  it("shows converted stock for large gram quantities", async () => {
+    vi.mocked(foodSuppliesAdminApi.list).mockResolvedValue({
+      data: [
+        {
+          ...supply,
+          title: "Rice",
+          stock_quantity: 2000,
+          unit: "gr",
+        },
+      ],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminFoodSuppliesPage />);
+
+    expect(await screen.findByText("Rice")).toBeInTheDocument();
+    expect(screen.getByText("2 kg")).toBeInTheDocument();
+    expect(screen.queryByText("2000 gr")).not.toBeInTheDocument();
+  });
+
   it("renders stock quantity when API returns it as a string", async () => {
     vi.mocked(foodSuppliesAdminApi.list).mockResolvedValue({
       data: [
