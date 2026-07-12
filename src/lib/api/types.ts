@@ -60,6 +60,26 @@ export interface FoodSupply {
   updated_at: string;
 }
 
+export interface SupplierFoodItem {
+  food_supply_id: string;
+  food_supply_title?: string;
+  price: number;
+  quantity: number;
+  unit: FoodSupplyUnit;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  phone_number: string;
+  address: string;
+  supports_delivery: boolean;
+  delivery_cost: number | null;
+  food_items: SupplierFoodItem[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Category {
   id: string;
   name: string;
