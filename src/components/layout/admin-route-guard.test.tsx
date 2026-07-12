@@ -51,4 +51,36 @@ describe("AdminRouteGuard", () => {
     expect(getByText("Protected content")).toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
   });
+
+  it("redirects admin-only users away from manager routes", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { id: "1", roles: ["admin"], merchant_id: "m-1" },
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(usePathname).mockReturnValue("/admin/cogs");
+
+    render(
+      <AdminRouteGuard>
+        <div>Protected content</div>
+      </AdminRouteGuard>,
+    );
+
+    await waitFor(() => {
+      expect(replace).toHaveBeenCalledWith("/admin/users");
+    });
+  });
+
+  it("redirects operational users away from receipt settings", async () => {
+    vi.mocked(usePathname).mockReturnValue("/admin/store-settings");
+
+    render(
+      <AdminRouteGuard>
+        <div>Protected content</div>
+      </AdminRouteGuard>,
+    );
+
+    await waitFor(() => {
+      expect(replace).toHaveBeenCalledWith("/admin/suppliers");
+    });
+  });
 });
