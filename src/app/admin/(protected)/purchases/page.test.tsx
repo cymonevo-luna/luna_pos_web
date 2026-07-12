@@ -32,7 +32,7 @@ const purchase: PurchaseRequestSummary = {
   supplier_name: "Beras Supplier",
   status: "PENDING",
   item_count: 2,
-  total_amount: 280000,
+  total_estimated_amount: 280000,
   created_by_username: "admin1",
   created_at: "2026-01-15T10:30:00Z",
   updated_at: "2026-01-15T10:30:00Z",
@@ -138,5 +138,45 @@ describe("AdminPurchasesPage", () => {
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Server error");
     });
+  });
+
+  it("shows formatted total estimation from total_estimated_amount", async () => {
+    render(<AdminPurchasesPage />);
+
+    expect(await screen.findByText("Rp 280.000")).toBeInTheDocument();
+    expect(screen.queryByText("Rp 0")).not.toBeInTheDocument();
+  });
+
+  it("renders Rp 0 when total_estimated_amount is zero", async () => {
+    vi.mocked(purchaseRequestsAdminApi.list).mockResolvedValue({
+      data: [{ ...purchase, total_estimated_amount: 0 }],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminPurchasesPage />);
+
+    expect(await screen.findByText("Rp 0")).toBeInTheDocument();
+  });
+
+  it("renders multiple rows with different total estimations", async () => {
+    const secondPurchase: PurchaseRequestSummary = {
+      ...purchase,
+      id: "pr-2",
+      supplier_name: "Sayur Supplier",
+      total_estimated_amount: 40000,
+    };
+
+    vi.mocked(purchaseRequestsAdminApi.list).mockResolvedValue({
+      data: [
+        { ...purchase, total_estimated_amount: 118000 },
+        secondPurchase,
+      ],
+      meta: { page: 1, per_page: 10, total: 2 },
+    });
+
+    render(<AdminPurchasesPage />);
+
+    expect(await screen.findByText("Rp 118.000")).toBeInTheDocument();
+    expect(screen.getByText("Rp 40.000")).toBeInTheDocument();
   });
 });
