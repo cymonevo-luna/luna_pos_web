@@ -191,84 +191,93 @@ export const MenuForm = React.forwardRef<MenuFormHandle, MenuFormProps>(
           )}
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="menu-photo-file">Menu photo</Label>
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              ref={fileInputRef}
-              id="menu-photo-file"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="sr-only"
-              onChange={handleFileChange}
-              disabled={isBusy}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              isLoading={uploading}
-              disabled={isBusy}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              Choose image
-            </Button>
-            {photoUrl?.trim() ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
+        <div
+          className="grid gap-4 sm:grid-cols-2"
+          data-testid="menu-photo-section"
+        >
+          <div className="space-y-4" data-testid="menu-photo-controls">
+            <div className="space-y-1.5">
+              <Label htmlFor="menu-photo-file">Menu photo</Label>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  id="menu-photo-file"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  onChange={handleFileChange}
+                  disabled={isBusy}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  isLoading={uploading}
+                  disabled={isBusy}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Choose image
+                </Button>
+                {photoUrl?.trim() ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={isBusy}
+                    onClick={handleRemoveImage}
+                  >
+                    Remove image
+                  </Button>
+                ) : null}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Upload a JPEG, PNG, or WebP image (max 5 MB). Or enter a URL
+                below as an optional fallback.
+              </p>
+              {uploadError ? (
+                <p className="text-sm text-destructive">{uploadError}</p>
+              ) : null}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="menu-photo-url">
+                Photo URL{" "}
+                <span className="font-normal text-muted-foreground">
+                  (optional fallback)
+                </span>
+              </Label>
+              <Input
+                id="menu-photo-url"
+                type="url"
+                autoComplete="off"
+                placeholder="https://example.com/photo.jpg"
                 disabled={isBusy}
-                onClick={handleRemoveImage}
-              >
-                Remove image
-              </Button>
-            ) : null}
+                {...register("photo_url")}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave empty to use the default food photo
+              </p>
+              {errors.photo_url && (
+                <p className="text-sm text-destructive">
+                  {errors.photo_url.message}
+                </p>
+              )}
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Upload a JPEG, PNG, or WebP image (max 5 MB). Or enter a URL below
-            as an optional fallback.
-          </p>
-          {uploadError ? (
-            <p className="text-sm text-destructive">{uploadError}</p>
-          ) : null}
-        </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="menu-photo-url">
-            Photo URL{" "}
-            <span className="font-normal text-muted-foreground">
-              (optional fallback)
-            </span>
-          </Label>
-          <Input
-            id="menu-photo-url"
-            type="url"
-            autoComplete="off"
-            placeholder="https://example.com/photo.jpg"
-            disabled={isBusy}
-            {...register("photo_url")}
-          />
-          <p className="text-xs text-muted-foreground">
-            Leave empty to use the default food photo
-          </p>
-          {errors.photo_url && (
-            <p className="text-sm text-destructive">{errors.photo_url.message}</p>
-          )}
-        </div>
-
-        <div className="space-y-1.5">
-          <Label>Photo preview</Label>
-          <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/30">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={previewSrc}
-              alt="Menu photo preview"
-              className="h-full w-full object-cover"
-              onError={(event) => {
-                event.currentTarget.src = menuPhotoUrl(null);
-              }}
-            />
+          <div className="space-y-1.5 sm:self-start" data-testid="menu-photo-preview">
+            <Label>Photo preview</Label>
+            <div className="flex aspect-square w-full max-w-[10rem] items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/30">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={previewSrc}
+                alt="Menu photo preview"
+                className="h-full w-full object-cover"
+                onError={(event) => {
+                  event.currentTarget.src = menuPhotoUrl(null);
+                }}
+              />
+            </div>
           </div>
         </div>
 
