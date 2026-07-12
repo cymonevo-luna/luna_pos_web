@@ -92,14 +92,20 @@ export function CogsDetailContent({ detail }: CogsDetailContentProps) {
 
       <div className="mt-6">
         <h4 className="mb-3 text-sm font-medium">Ingredient breakdown</h4>
-        {detail.status === "no_formula" || detail.ingredients.length === 0 ? (
+        {detail.status === "no_formula" ||
+        (detail.ingredients ?? []).length === 0 ? (
           <Card className="p-6 text-center text-muted-foreground">
             No ingredient formula configured for this menu.
           </Card>
         ) : (
           <div className="space-y-4">
             {detail.ingredients.map((ingredient) => (
-              <Card key={ingredient.food_supply_id} className="overflow-hidden">
+              <Card
+                key={
+                  ingredient.food_supply_id || ingredient.food_supply_title
+                }
+                className="overflow-hidden"
+              >
                 <div className="border-b border-border bg-muted/30 px-4 py-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-medium">{ingredient.food_supply_title}</p>
@@ -131,7 +137,7 @@ export function CogsDetailContent({ detail }: CogsDetailContentProps) {
                     </p>
                   )}
                 </div>
-                {ingredient.supplier_quotes.length > 0 ? (
+                {(ingredient.supplier_quotes ?? []).length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="border-b border-border bg-muted/50 text-left text-muted-foreground">
@@ -142,7 +148,7 @@ export function CogsDetailContent({ detail }: CogsDetailContentProps) {
                         </tr>
                       </thead>
                       <tbody>
-                        {ingredient.supplier_quotes.map((quote) => (
+                        {(ingredient.supplier_quotes ?? []).map((quote) => (
                           <tr
                             key={quote.supplier_id}
                             className={
