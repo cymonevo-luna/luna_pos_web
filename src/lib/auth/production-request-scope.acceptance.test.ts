@@ -1,0 +1,81 @@
+import { describe, it, expect } from "vitest";
+import { filterAdminNavItems } from "@/app/admin/(protected)/layout";
+import { canAccessRoute } from "@/lib/auth/roles";
+import type { NavItem } from "@/components/layout/dashboard-shell";
+
+const navItems: NavItem[] = [
+  { href: "/admin", label: "Overview", icon: () => null },
+  {
+    href: "/admin/production-requests",
+    label: "Production",
+    icon: () => null,
+    roles: ["operational"],
+  },
+  {
+    href: "/admin/production-requests/new",
+    label: "New production request",
+    icon: () => null,
+    roles: ["manager"],
+  },
+];
+
+/**
+ * Checklist coverage for POS-39-7 acceptance criteria.
+ */
+describe("POS-39-7 production request route guards and navigation", () => {
+  it("1. Operational nav includes production", () => {
+    expect(canAccessRoute("/admin/production-requests", ["operational"])).toBe(
+      true,
+    );
+    expect(
+      canAccessRoute("/admin/production-requests/prod-1", ["operational"]),
+    ).toBe(true);
+
+    const labels = filterAdminNavItems(navItems, ["operational"]).map(
+      (item) => item.label,
+    );
+    expect(labels).toContain("Production");
+  });
+
+  it("2. Manager blocked from production list", () => {
+    expect(canAccessRoute("/admin/production-requests", ["manager"])).toBe(
+      false,
+    );
+    expect(
+      canAccessRoute("/admin/production-requests/prod-1", ["manager"]),
+    ).toBe(false);
+    expect(canAccessRoute("/admin/production-requests/new", ["manager"])).toBe(
+      true,
+    );
+
+    const labels = filterAdminNavItems(navItems, ["manager"]).map(
+      (item) => item.label,
+    );
+    expect(labels).not.toContain("Production");
+    expect(labels).toContain("New production request");
+  });
+
+  it("3. Cashier blocked from admin production routes", () => {
+    expect(canAccessRoute("/admin/production-requests", ["cashier"])).toBe(
+      false,
+    );
+    expect(canAccessRoute("/admin/production-requests/new", ["cashier"])).toBe(
+      false,
+    );
+    expect(
+      canAccessRoute("/admin/production-requests/prod-1", ["cashier"]),
+    ).toBe(false);
+
+    const labels = filterAdminNavItems(navItems, ["cashier"]).map(
+      (item) => item.label,
+    );
+    expect(labels).not.toContain("Production");
+    expect(labels).not.toContain("New production request");
+  });
+
+  it("4. Operational blocked from manager create route", () => {
+    expect(
+      canAccessRoute("/admin/production-requests/new", ["operational"]),
+    ).toBe(false);
+  });
+});

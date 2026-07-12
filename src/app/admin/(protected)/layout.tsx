@@ -40,7 +40,7 @@ const allNavItems: NavItem[] = [
   { href: "/admin/suppliers", label: "Suppliers", icon: Truck, roles: ["operational"] },
   { href: "/admin/purchases", label: "Purchases", icon: ShoppingCart, roles: ["operational"] },
   { href: "/admin/production-requests", label: "Production", icon: ClipboardList, roles: ["operational"] },
-  { href: "/admin/production-requests/new", label: "Production", icon: Factory, roles: ["manager"] },
+  { href: "/admin/production-requests/new", label: "New production request", icon: Factory, roles: ["manager"] },
   { href: "/dashboard", label: "Back to app", icon: ArrowLeft },
 ];
 

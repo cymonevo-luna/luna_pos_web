@@ -8,6 +8,8 @@ import {
   Tags,
   Package,
   Printer,
+  Factory,
+  ClipboardList,
 } from "lucide-react";
 import type { MerchantRole } from "@/lib/api/types";
 
@@ -82,5 +84,19 @@ export const overviewCards: OverviewCard[] = [
     href: "/admin/purchases",
     icon: ShoppingCart,
     roles: ["operational"],
+  },
+  {
+    title: "Production requests",
+    description: "Review and approve production requests.",
+    href: "/admin/production-requests",
+    icon: ClipboardList,
+    roles: ["operational"],
+  },
+  {
+    title: "New production request",
+    description: "Submit a production request with stock estimation.",
+    href: "/admin/production-requests/new",
+    icon: Factory,
+    roles: ["manager"],
   },
 ];
