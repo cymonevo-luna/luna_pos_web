@@ -190,7 +190,7 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
               <CardHeader className="pb-2">
                 <CardDescription>Total estimate</CardDescription>
                 <CardTitle className="text-xl">
-                  {formatRupiah(purchase.total_amount)}
+                  {formatRupiah(purchase.total_estimated_amount)}
                 </CardTitle>
               </CardHeader>
             </Card>
@@ -278,7 +278,7 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                       </td>
                       <td className="px-4 py-3">{displayItemUnitPrice(item)}</td>
                       <td className="px-4 py-3">
-                        {formatRupiah(item.price_amount)}
+                        {formatRupiah(item.line_estimated_amount)}
                       </td>
                     </tr>
                   ))}
@@ -292,7 +292,7 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                       Total estimate
                     </td>
                     <td className="px-4 py-3 font-semibold">
-                      {formatRupiah(purchase.total_amount)}
+                      {formatRupiah(purchase.total_estimated_amount)}
                     </td>
                   </tr>
                 </tfoot>

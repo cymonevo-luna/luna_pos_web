@@ -163,7 +163,7 @@ export function buildPurchaseWhatsAppMessage(purchase: PurchaseRequest): string 
     "Kami ingin memesan bahan berikut:",
     ...lines,
     "",
-    `Estimasi total: ${formatRupiah(purchase.total_amount)}`,
+    `Estimasi total: ${formatRupiah(purchase.total_estimated_amount)}`,
     "",
     "Terima kasih.",
   ].join("\n");
