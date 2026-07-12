@@ -52,6 +52,7 @@ describe("canAccessRoute", () => {
   it("blocks admin-only users from manager routes", () => {
     expect(canAccessRoute("/admin/cogs", ["admin"])).toBe(false);
     expect(canAccessRoute("/admin/transactions", ["admin"])).toBe(false);
+    expect(canAccessRoute("/admin/store-settings", ["admin"])).toBe(false);
   });
 
   it("allows manager users on manager routes", () => {
