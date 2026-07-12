@@ -6,8 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiError } from "@/lib/api/client";
 import { uploadMenuPhoto, validateMenuPhotoFile } from "@/lib/api/uploads";
-import { menuSchema, type MenuFormValues } from "@/lib/validations";
-import { MENU_COGS_DEFAULTS } from "@/lib/menu-cogs";
+import { menuBasicSchema, type MenuBasicFormValues } from "@/lib/validations";
 import { menuPhotoUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,8 +20,8 @@ export interface MenuCategoryOption {
 }
 
 function buildDefaultValues(
-  defaultValues?: Partial<MenuFormValues>,
-): MenuFormValues {
+  defaultValues?: Partial<MenuBasicFormValues>,
+): MenuBasicFormValues {
   return {
     title: defaultValues?.title ?? "",
     description: defaultValues?.description ?? "",
@@ -30,10 +29,6 @@ function buildDefaultValues(
     photo_url: defaultValues?.photo_url ?? "",
     available_stock: defaultValues?.available_stock ?? Number.NaN,
     sell_price: defaultValues?.sell_price ?? Number.NaN,
-    recipe_yield: defaultValues?.recipe_yield ?? MENU_COGS_DEFAULTS.recipe_yield,
-    margin_percent:
-      defaultValues?.margin_percent ?? MENU_COGS_DEFAULTS.margin_percent,
-    vat_percent: defaultValues?.vat_percent ?? MENU_COGS_DEFAULTS.vat_percent,
   };
 }
 
@@ -45,17 +40,16 @@ function blockDecimalInput(event: React.KeyboardEvent<HTMLInputElement>) {
 
 export interface MenuFormProps {
   categories: MenuCategoryOption[];
-  defaultValues?: Partial<MenuFormValues>;
-  onSubmit: (values: MenuFormValues) => void | Promise<void>;
+  defaultValues?: Partial<MenuBasicFormValues>;
+  onSubmit: (values: MenuBasicFormValues) => void | Promise<void>;
   onCancel: () => void;
-  onRecipeYieldChange?: (recipeYield: number) => void;
   isLoading?: boolean;
   submitLabel?: string;
 }
 
 export interface MenuFormHandle {
   applyServerErrors: (fields: Record<string, string>) => void;
-  reset: (values?: Partial<MenuFormValues>) => void;
+  reset: (values?: Partial<MenuBasicFormValues>) => void;
 }
 
 export const MenuForm = React.forwardRef<MenuFormHandle, MenuFormProps>(
@@ -65,7 +59,6 @@ export const MenuForm = React.forwardRef<MenuFormHandle, MenuFormProps>(
       defaultValues,
       onSubmit,
       onCancel,
-      onRecipeYieldChange,
       isLoading = false,
       submitLabel = "Save",
     },
@@ -85,19 +78,12 @@ export const MenuForm = React.forwardRef<MenuFormHandle, MenuFormProps>(
       clearErrors,
       watch,
       formState: { errors },
-    } = useForm<MenuFormValues>({
-      resolver: zodResolver(menuSchema),
+    } = useForm<MenuBasicFormValues>({
+      resolver: zodResolver(menuBasicSchema),
       defaultValues: initialValuesRef.current,
     });
 
     const photoUrl = watch("photo_url");
-    const recipeYield = watch("recipe_yield");
-
-    useEffect(() => {
-      if (onRecipeYieldChange && Number.isFinite(recipeYield)) {
-        onRecipeYieldChange(recipeYield);
-      }
-    }, [onRecipeYieldChange, recipeYield]);
 
     useEffect(() => {
       const values = buildDefaultValues(defaultValues);
@@ -114,16 +100,13 @@ export const MenuForm = React.forwardRef<MenuFormHandle, MenuFormProps>(
             field === "category_id" ||
             field === "photo_url" ||
             field === "available_stock" ||
-            field === "sell_price" ||
-            field === "recipe_yield" ||
-            field === "margin_percent" ||
-            field === "vat_percent"
+            field === "sell_price"
           ) {
             setError(field, { message });
           }
         }
       },
-      reset(values?: Partial<MenuFormValues>) {
+      reset(values?: Partial<MenuBasicFormValues>) {
         reset(buildDefaultValues({ ...initialValuesRef.current, ...values }));
       },
     }));
@@ -323,71 +306,6 @@ export const MenuForm = React.forwardRef<MenuFormHandle, MenuFormProps>(
               {errors.sell_price.message}
             </p>
           )}
-        </div>
-
-        <div className="space-y-3 rounded-xl border border-border p-4">
-          <p className="text-sm font-medium">COGS configuration</p>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="menu-recipe-yield">Recipe yield</Label>
-            <Input
-              id="menu-recipe-yield"
-              type="number"
-              step="1"
-              min="1"
-              inputMode="numeric"
-              onKeyDown={blockDecimalInput}
-              {...register("recipe_yield", { valueAsNumber: true })}
-            />
-            <p className="text-xs text-muted-foreground">
-              Number of portions produced by the ingredient quantities below
-            </p>
-            {errors.recipe_yield && (
-              <p className="text-sm text-destructive">
-                {errors.recipe_yield.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="menu-margin-percent">Margin %</Label>
-            <Input
-              id="menu-margin-percent"
-              type="number"
-              step="0.01"
-              min="0"
-              inputMode="decimal"
-              {...register("margin_percent", { valueAsNumber: true })}
-            />
-            <p className="text-xs text-muted-foreground">
-              Markup on COGS (30 = sell at 130% of cost)
-            </p>
-            {errors.margin_percent && (
-              <p className="text-sm text-destructive">
-                {errors.margin_percent.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="menu-vat-percent">VAT %</Label>
-            <Input
-              id="menu-vat-percent"
-              type="number"
-              step="0.01"
-              min="0"
-              inputMode="decimal"
-              {...register("vat_percent", { valueAsNumber: true })}
-            />
-            <p className="text-xs text-muted-foreground">
-              VAT added on top of price after margin
-            </p>
-            {errors.vat_percent && (
-              <p className="text-sm text-destructive">
-                {errors.vat_percent.message}
-              </p>
-            )}
-          </div>
         </div>
 
         <div className="flex justify-end gap-2 pt-2">

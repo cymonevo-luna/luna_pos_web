@@ -1,6 +1,10 @@
 import { api } from "./client";
 import type { Menu } from "./types";
-import type { MenuFormValues } from "@/lib/validations";
+import type {
+  MenuBasicFormValues,
+  MenuCogsFormValues,
+  MenuFormValues,
+} from "@/lib/validations";
 
 export interface ListMenusParams {
   page?: number;
@@ -23,16 +27,28 @@ export interface CreateMenuPayload {
 
 export type UpdateMenuPayload = CreateMenuPayload;
 
-/** Map form values to an API payload, omitting blank optional fields. */
-export function menuFormToPayload(values: MenuFormValues): CreateMenuPayload {
-  const payload: CreateMenuPayload = {
+export type MenuBasicPayload = Pick<
+  CreateMenuPayload,
+  "title" | "category_id" | "available_stock" | "sell_price"
+> & {
+  description?: string | null;
+  photo_url?: string | null;
+};
+
+export type MenuCogsPayload = Pick<
+  CreateMenuPayload,
+  "recipe_yield" | "margin_percent" | "vat_percent"
+>;
+
+/** Map basic menu form values to an API payload, omitting blank optional fields. */
+export function menuBasicFormToPayload(
+  values: MenuBasicFormValues,
+): MenuBasicPayload {
+  const payload: MenuBasicPayload = {
     title: values.title.trim(),
     category_id: values.category_id,
     available_stock: values.available_stock,
     sell_price: values.sell_price,
-    recipe_yield: values.recipe_yield,
-    margin_percent: values.margin_percent,
-    vat_percent: values.vat_percent,
   };
 
   const description = values.description?.trim();
@@ -46,6 +62,33 @@ export function menuFormToPayload(values: MenuFormValues): CreateMenuPayload {
   }
 
   return payload;
+}
+
+/** Map COGS form values to an API payload. */
+export function menuCogsFormToPayload(
+  values: MenuCogsFormValues,
+): MenuCogsPayload {
+  return {
+    recipe_yield: values.recipe_yield,
+    margin_percent: values.margin_percent,
+    vat_percent: values.vat_percent,
+  };
+}
+
+/** Merge basic and COGS payloads for full menu create/update requests. */
+export function menuFullFormToPayload(
+  basic: MenuBasicFormValues,
+  cogs: MenuCogsFormValues,
+): CreateMenuPayload {
+  return {
+    ...menuBasicFormToPayload(basic),
+    ...menuCogsFormToPayload(cogs),
+  };
+}
+
+/** Map combined form values to an API payload, omitting blank optional fields. */
+export function menuFormToPayload(values: MenuFormValues): CreateMenuPayload {
+  return menuFullFormToPayload(values, values);
 }
 
 export const menusAdminApi = {

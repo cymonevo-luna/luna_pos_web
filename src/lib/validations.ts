@@ -112,7 +112,7 @@ export const categorySchema = z.object({
 
 export type CategoryFormValues = z.infer<typeof categorySchema>;
 
-export const menuSchema = z.object({
+export const menuBasicSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(200, "Title is too long"),
   description: z
     .string()
@@ -136,6 +136,9 @@ export const menuSchema = z.object({
     .number({ error: "Sell price is required" })
     .int("Sell price must be a whole number")
     .positive("Sell price must be greater than 0"),
+});
+
+export const menuCogsSchema = z.object({
   recipe_yield: z
     .number({ error: "Recipe yield is required" })
     .int("Recipe yield must be a whole number")
@@ -148,6 +151,10 @@ export const menuSchema = z.object({
     .min(0, "VAT cannot be negative"),
 });
 
+export const menuSchema = menuBasicSchema.merge(menuCogsSchema);
+
+export type MenuBasicFormValues = z.infer<typeof menuBasicSchema>;
+export type MenuCogsFormValues = z.infer<typeof menuCogsSchema>;
 export type MenuFormValues = z.infer<typeof menuSchema>;
 
 export const storeSettingsSchema = z.object({
