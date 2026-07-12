@@ -9,6 +9,7 @@ import {
   Zap,
   Code2,
 } from "lucide-react";
+import { PosAppSection } from "@/components/landing/pos-app-section";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -112,6 +113,8 @@ export default function HomePage() {
           })}
         </div>
       </section>
+
+      <PosAppSection />
     </div>
   );
 }
