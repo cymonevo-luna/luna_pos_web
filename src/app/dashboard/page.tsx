@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ListTodo, CheckCircle2, Clock, ArrowRight, Plus } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth/context";
 import { isCashierOnlyUser } from "@/lib/auth/roles";
+import { useRoles } from "@/lib/auth/use-roles";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GreetingCard } from "@/components/dashboard/greeting-card";
-import { StatCard } from "@/components/dashboard/stat-card";
+import { DashboardSummaryStats } from "@/components/dashboard/dashboard-summary-stats";
 import { ActivityList } from "@/components/dashboard/activity-list";
 import {
   Card,
@@ -30,41 +31,22 @@ const recentActivity = [
 
 export default function DashboardHomePage() {
   const { user, isAdmin } = useAuth();
+  const { roles, hasAnyRole } = useRoles();
   if (!user) return null;
 
   const firstName = user.name.split(" ")[0];
+  const showOverview = hasAnyRole(["manager", "admin", "operational"]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <GreetingCard name={firstName} />
 
-      <section>
-        <h2 className="mb-3 text-base font-semibold">Overview</h2>
-        <div className="grid grid-cols-3 gap-3">
-          <StatCard
-            label="Total Tasks"
-            value={24}
-            icon={ListTodo}
-            color="blue"
-            trend="+12%"
-          />
-          <StatCard
-            label="Completed"
-            value={16}
-            icon={CheckCircle2}
-            color="green"
-            trend="+8%"
-          />
-          <StatCard
-            label="In Progress"
-            value={8}
-            icon={Clock}
-            color="amber"
-            trend="-4%"
-            trendUp={false}
-          />
-        </div>
-      </section>
+      {showOverview && (
+        <section>
+          <h2 className="mb-3 text-base font-semibold">Overview</h2>
+          <DashboardSummaryStats roles={roles} />
+        </section>
+      )}
 
       <Card>
         <CardHeader className="flex-row items-center justify-between">

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Zap } from "lucide-react";
 import { FeaturesSection } from "@/components/landing/features-section";
+import { PosAppSection } from "@/components/landing/pos-app-section";
 import { buttonVariants } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -43,6 +44,7 @@ export default function HomePage() {
       </section>
 
       <FeaturesSection />
+      <PosAppSection />
     </div>
   );
 }

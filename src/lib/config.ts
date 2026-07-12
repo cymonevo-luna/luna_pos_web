@@ -6,6 +6,7 @@
 export const config = {
   appName: process.env.NEXT_PUBLIC_APP_NAME ?? "Next Template",
   apiBaseUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080",
+  posAppDownloadUrl: process.env.NEXT_PUBLIC_POS_APP_DOWNLOAD_URL ?? "",
   /** Cookie names used to persist the auth session on the client. */
   cookies: {
     accessToken: "nt_access_token",
