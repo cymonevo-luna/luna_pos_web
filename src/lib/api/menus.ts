@@ -16,6 +16,9 @@ export interface CreateMenuPayload {
   photo_url?: string | null;
   available_stock: number;
   sell_price: number;
+  recipe_yield: number;
+  margin_percent: number;
+  vat_percent: number;
 }
 
 export type UpdateMenuPayload = CreateMenuPayload;
@@ -27,6 +30,9 @@ export function menuFormToPayload(values: MenuFormValues): CreateMenuPayload {
     category_id: values.category_id,
     available_stock: values.available_stock,
     sell_price: values.sell_price,
+    recipe_yield: values.recipe_yield,
+    margin_percent: values.margin_percent,
+    vat_percent: values.vat_percent,
   };
 
   const description = values.description?.trim();

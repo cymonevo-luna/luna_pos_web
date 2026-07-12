@@ -8,6 +8,7 @@ import {
 } from "@/lib/api/menu-ingredients";
 import { ApiError } from "@/lib/api/client";
 import { toast } from "sonner";
+import { MENU_INGREDIENT_QUANTITY_HELP } from "@/lib/menu-cogs";
 
 vi.mock("next/link", () => ({
   default: ({
@@ -102,6 +103,43 @@ describe("MenuIngredientsForm", () => {
         ],
       },
     });
+  });
+
+  it("shows recipe yield batch help text", async () => {
+    render(<MenuIngredientsForm menuId="menu-1" />);
+
+    expect(await screen.findByText(MENU_INGREDIENT_QUANTITY_HELP)).toBeInTheDocument();
+  });
+
+  it("shows per-portion preview when recipe yield is greater than 1", async () => {
+    vi.mocked(getMenuIngredients).mockResolvedValue({
+      data: {
+        menu_id: "menu-1",
+        ingredients: [
+          {
+            food_supply_id: "supply-2",
+            quantity_per_unit: 2000,
+            food_supply_title: "Flour",
+            food_supply_unit: "gr",
+            food_supply_stock_quantity: 5000,
+          },
+        ],
+      },
+    });
+
+    render(<MenuIngredientsForm menuId="menu-1" recipeYield={40} />);
+    await screen.findByLabelText("Ingredient 1");
+
+    expect(screen.getByTestId("per-portion-preview")).toHaveTextContent(
+      "50 gr per portion",
+    );
+  });
+
+  it("hides per-portion preview when recipe yield is 1", async () => {
+    render(<MenuIngredientsForm menuId="menu-1" recipeYield={1} />);
+    await screen.findByLabelText("Ingredient 1");
+
+    expect(screen.queryByTestId("per-portion-preview")).not.toBeInTheDocument();
   });
 
   it("loads and renders existing ingredients", async () => {

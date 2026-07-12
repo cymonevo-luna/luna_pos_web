@@ -82,6 +82,16 @@ export const menuSchema = z.object({
     .number({ error: "Sell price is required" })
     .int("Sell price must be a whole number")
     .positive("Sell price must be greater than 0"),
+  recipe_yield: z
+    .number({ error: "Recipe yield is required" })
+    .int("Recipe yield must be a whole number")
+    .min(1, "Recipe yield must be at least 1"),
+  margin_percent: z
+    .number({ error: "Margin is required" })
+    .min(0, "Margin cannot be negative"),
+  vat_percent: z
+    .number({ error: "VAT is required" })
+    .min(0, "VAT cannot be negative"),
 });
 
 export type MenuFormValues = z.infer<typeof menuSchema>;
