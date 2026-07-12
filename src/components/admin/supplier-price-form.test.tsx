@@ -53,7 +53,7 @@ describe("SupplierPriceForm", () => {
 
     await user.selectOptions(screen.getByLabelText("Food supply"), "fs-1");
 
-    expect(screen.getByLabelText("Unit")).toHaveValue("Gram");
+    expect(screen.getByLabelText("Unit")).toHaveValue("gr");
   });
 
   it("shows computed unit price preview", async () => {

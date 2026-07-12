@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRef } from "react";
 import {
@@ -8,6 +8,44 @@ import {
 } from "./food-supply-form";
 
 describe("FoodSupplyForm", () => {
+  it("renders short unit labels in the dropdown", () => {
+    render(
+      <FoodSupplyForm onSubmit={() => {}} onCancel={() => {}} />,
+    );
+
+    const unitSelect = screen.getByLabelText("Unit");
+    expect(within(unitSelect).getByRole("option", { name: "ml" })).toBeInTheDocument();
+    expect(within(unitSelect).getByRole("option", { name: "gr" })).toBeInTheDocument();
+    expect(within(unitSelect).getByRole("option", { name: "pcs" })).toBeInTheDocument();
+  });
+
+  it("submits unit piece when pcs is selected", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <FoodSupplyForm
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+        submitLabel="Add supply"
+      />,
+    );
+
+    await user.type(screen.getByLabelText("Title"), "Eggs");
+    await user.type(screen.getByLabelText("Stock quantity"), "12");
+    await user.selectOptions(screen.getByLabelText("Unit"), "piece");
+    await user.click(screen.getByRole("button", { name: "Add supply" }));
+
+    await waitFor(() => {
+      expect(onSubmit.mock.calls[0]?.[0]).toEqual({
+        title: "Eggs",
+        description: "",
+        stock_quantity: 12,
+        unit: "piece",
+      });
+    });
+  });
+
   it("submits valid values", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();

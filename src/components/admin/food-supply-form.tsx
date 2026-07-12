@@ -13,12 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-
-const UNIT_OPTIONS = [
-  { value: "ml", label: "Millilitre" },
-  { value: "piece", label: "Piece" },
-  { value: "gr", label: "Gram" },
-] as const;
+import { UNIT_OPTIONS } from "@/lib/units";
 
 function buildDefaultValues(
   defaultValues?: Partial<FoodSupplyFormValues>,
@@ -152,8 +147,8 @@ export const FoodSupplyForm = React.forwardRef<
           {...register("unit")}
         />
         <p className="text-xs text-muted-foreground">
-          Use millilitres (ml) for liquids, grams (gr) for dry ingredients, and
-          piece for countable items such as eggs or bottles.
+          Use ml for liquids, gr for dry ingredients, and pcs for countable
+          items such as eggs or bottles.
         </p>
         {errors.unit && (
           <p className="text-sm text-destructive">{errors.unit.message}</p>

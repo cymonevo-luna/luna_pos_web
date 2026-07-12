@@ -8,18 +8,13 @@ import {
   supplierPriceSchema,
   type SupplierPriceFormValues,
 } from "@/lib/validations";
-import type { FoodSupply, FoodSupplyUnit } from "@/lib/api/types";
+import type { FoodSupply } from "@/lib/api/types";
+import { formatUnitLabel } from "@/lib/units";
 import { formatSupplierUnitPrice } from "@/lib/utils";
 import { FoodSupplyPicker } from "@/components/admin/food-supply-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-const UNIT_LABELS: Record<FoodSupplyUnit, string> = {
-  ml: "Millilitre",
-  piece: "Piece",
-  gr: "Gram",
-};
 
 function buildDefaultValues(
   defaultValues?: Partial<SupplierPriceFormValues>,
@@ -112,7 +107,7 @@ export const SupplierPriceForm = React.forwardRef<
   }));
 
   const unitLabel = selectedSupply
-    ? UNIT_LABELS[selectedSupply.unit] ?? selectedSupply.unit
+    ? formatUnitLabel(selectedSupply.unit)
     : "—";
 
   const unitPricePreview =

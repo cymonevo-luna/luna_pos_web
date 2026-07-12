@@ -129,6 +129,21 @@ describe("AdminFoodSuppliesPage", () => {
     });
   });
 
+  it("shows short unit labels in the create dialog", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminFoodSuppliesPage />);
+    await screen.findByText("Olive oil");
+
+    await user.click(screen.getAllByRole("button", { name: "Add supply" })[0]);
+    const dialog = screen.getByRole("dialog");
+    const unitSelect = within(dialog).getByLabelText("Unit");
+
+    expect(within(unitSelect).getByRole("option", { name: "ml" })).toBeInTheDocument();
+    expect(within(unitSelect).getByRole("option", { name: "gr" })).toBeInTheDocument();
+    expect(within(unitSelect).getByRole("option", { name: "pcs" })).toBeInTheDocument();
+  });
+
   it("creates a supply from the dialog", async () => {
     const user = userEvent.setup();
     vi.mocked(foodSuppliesAdminApi.create).mockResolvedValue({
