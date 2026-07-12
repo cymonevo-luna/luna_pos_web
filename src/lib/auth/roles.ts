@@ -1,7 +1,26 @@
 import type { JwtPayload } from "@/lib/auth/tokens";
 import type { MerchantRole, User } from "@/lib/api/types";
 
-const MERCHANT_AREA_ROLES: MerchantRole[] = ["admin", "manager", "operational"];
+const MERCHANT_AREA_ROLES: MerchantRole[] = [
+  "admin",
+  "manager",
+  "operational",
+];
+
+/** Roles an admin can assign when creating or editing users. */
+export const ASSIGNABLE_ROLES: MerchantRole[] = [
+  "admin",
+  "manager",
+  "cashier",
+  "operational",
+];
+
+const ROLE_LABELS: Record<MerchantRole, string> = {
+  admin: "Admin",
+  manager: "Manager",
+  cashier: "Cashier",
+  operational: "Operational",
+};
 
 type RoleSource = Pick<User, "roles"> | JwtPayload | null | undefined;
 
@@ -93,8 +112,28 @@ export function getAuthenticatedLandingPath(source: RoleSource): string {
   return "/admin";
 }
 
+export function formatRoleLabel(role: MerchantRole): string {
+  return ROLE_LABELS[role];
+}
+
 export function formatUserRoles(roles: MerchantRole[]): string {
-  return roles.join(", ");
+  return roles.map(formatRoleLabel).join(", ");
+}
+
+export function countAdmins(users: Pick<User, "roles">[]): number {
+  return users.filter((user) => hasRole(user, "admin")).length;
+}
+
+/** True when removing admin from this user would leave the merchant with none. */
+export function wouldRemoveLastAdmin(
+  user: Pick<User, "id" | "roles">,
+  nextRoles: MerchantRole[],
+  allUsers: Pick<User, "id" | "roles">[],
+): boolean {
+  if (!hasRole(user, "admin") || nextRoles.includes("admin")) {
+    return false;
+  }
+  return countAdmins(allUsers) <= 1;
 }
 
 export function canAccessNavRoles(

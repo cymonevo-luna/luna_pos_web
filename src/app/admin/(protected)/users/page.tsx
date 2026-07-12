@@ -1,22 +1,51 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Search, Trash2, ChevronLeft, ChevronRight, Eye } from "lucide-react";
-import { adminApi } from "@/lib/api/users";
+import {
+  Search,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Plus,
+  Pencil,
+} from "lucide-react";
+import {
+  adminApi,
+  adminUserCreateFormToPayload,
+  adminUserRolesFormToPayload,
+} from "@/lib/api/users";
 import { ApiError } from "@/lib/api/client";
 import type { User } from "@/lib/api/types";
+import type {
+  AdminUserCreateFormValues,
+  AdminUserRolesFormValues,
+} from "@/lib/validations";
 import { formatDate } from "@/lib/utils";
-import { formatUserRoles, resolveUserRoles } from "@/lib/auth/roles";
 import { useAuth } from "@/lib/auth/context";
 import { toast } from "sonner";
+import {
+  AdminUserCreateForm,
+  type AdminUserCreateFormHandle,
+} from "@/components/admin/user-create-form";
+import {
+  AdminUserRolesForm,
+  type AdminUserRolesFormHandle,
+} from "@/components/admin/user-roles-form";
+import { UserRoleBadges } from "@/components/admin/user-role-badges";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
+import { Dialog, DialogTitle } from "@/components/ui/dialog";
 
 const PER_PAGE = 10;
+
+type UserDialogState =
+  | { mode: "create" }
+  | { mode: "edit-roles"; user: User }
+  | null;
 
 export default function AdminUsersPage() {
   const { user: currentUser } = useAuth();
@@ -29,6 +58,10 @@ export default function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [dialog, setDialog] = useState<UserDialogState>(null);
+  const [saving, setSaving] = useState(false);
+  const createFormRef = useRef<AdminUserCreateFormHandle>(null);
+  const rolesFormRef = useRef<AdminUserRolesFormHandle>(null);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -60,17 +93,68 @@ export default function AdminUsersPage() {
     void load();
   }, [load]);
 
+  const closeDialog = () => {
+    if (saving) return;
+    setDialog(null);
+  };
+
+  const handleCreateSubmit = async (values: AdminUserCreateFormValues) => {
+    setSaving(true);
+    try {
+      await adminApi.createUser(adminUserCreateFormToPayload(values));
+      toast.success("User created");
+      setDialog(null);
+      void load();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.fields) {
+          createFormRef.current?.applyServerErrors(err.fields);
+        }
+        toast.error(err.message);
+      } else {
+        toast.error("Failed to create user");
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRolesSubmit = async (values: AdminUserRolesFormValues) => {
+    if (!dialog || dialog.mode !== "edit-roles") return;
+    setSaving(true);
+    try {
+      await adminApi.updateUserRoles(
+        dialog.user.id,
+        adminUserRolesFormToPayload(values),
+      );
+      toast.success("Roles updated");
+      setDialog(null);
+      void load();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.fields) {
+          rolesFormRef.current?.applyServerErrors(err.fields);
+        }
+        toast.error(err.message);
+      } else {
+        toast.error("Failed to update roles");
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!pendingDelete) return;
     setDeleting(true);
     try {
       await adminApi.deleteUser(pendingDelete.id);
-      toast.success("User deleted");
+      toast.success("User removed from merchant");
       setPendingDelete(null);
       void load();
     } catch (err) {
       toast.error(
-        err instanceof ApiError ? err.message : "Failed to delete user",
+        err instanceof ApiError ? err.message : "Failed to remove user",
       );
     } finally {
       setDeleting(false);
@@ -86,14 +170,20 @@ export default function AdminUsersPage() {
           <h2 className="text-2xl font-semibold">Users</h2>
           <p className="text-muted-foreground">{total} total</p>
         </div>
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by name or email"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by name or email"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Button onClick={() => setDialog({ mode: "create" })}>
+            <Plus className="h-4 w-4" />
+            Create user
+          </Button>
         </div>
       </div>
 
@@ -104,8 +194,8 @@ export default function AdminUsersPage() {
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Role</th>
-                <th className="px-4 py-3 font-medium">Joined</th>
+                <th className="px-4 py-3 font-medium">Roles</th>
+                <th className="px-4 py-3 font-medium">Created</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
@@ -149,15 +239,7 @@ export default function AdminUsersPage() {
                       {u.email}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge
-                        variant={
-                          resolveUserRoles(u).includes("admin")
-                            ? "success"
-                            : "secondary"
-                        }
-                      >
-                        {formatUserRoles(u.roles)}
-                      </Badge>
+                      <UserRoleBadges roles={u.roles} />
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {formatDate(u.created_at)}
@@ -174,8 +256,17 @@ export default function AdminUsersPage() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8"
+                          aria-label="Edit roles"
+                          onClick={() => setDialog({ mode: "edit-roles", user: u })}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-8 w-8 text-destructive"
-                          aria-label="Delete user"
+                          aria-label="Remove user"
                           disabled={u.id === currentUser?.id}
                           onClick={() => setPendingDelete(u)}
                         >
@@ -217,16 +308,45 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
+      <Dialog open={dialog?.mode === "create"} onClose={closeDialog}>
+        <DialogTitle>Create user</DialogTitle>
+        <AdminUserCreateForm
+          ref={createFormRef}
+          onSubmit={handleCreateSubmit}
+          onCancel={closeDialog}
+          isLoading={saving}
+        />
+      </Dialog>
+
+      <Dialog
+        open={dialog?.mode === "edit-roles"}
+        onClose={closeDialog}
+        className="max-w-lg"
+      >
+        <DialogTitle>Edit roles</DialogTitle>
+        {dialog?.mode === "edit-roles" && (
+          <AdminUserRolesForm
+            ref={rolesFormRef}
+            user={dialog.user}
+            allUsers={users}
+            defaultValues={{ roles: dialog.user.roles }}
+            onSubmit={handleRolesSubmit}
+            onCancel={closeDialog}
+            isLoading={saving}
+          />
+        )}
+      </Dialog>
+
       {pendingDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <Card className="w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold">Delete user</h3>
+            <h3 className="text-lg font-semibold">Remove user</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Are you sure you want to delete{" "}
+              Are you sure you want to remove{" "}
               <span className="font-medium text-foreground">
                 {pendingDelete.name}
-              </span>
-              ? This action cannot be undone.
+              </span>{" "}
+              from this merchant? This action cannot be undone.
             </p>
             <div className="mt-6 flex justify-end gap-2">
               <Button
@@ -241,7 +361,7 @@ export default function AdminUsersPage() {
                 onClick={handleDelete}
                 isLoading={deleting}
               >
-                Delete
+                Remove
               </Button>
             </div>
           </Card>

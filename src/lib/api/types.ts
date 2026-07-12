@@ -3,8 +3,12 @@
  * Every endpoint returns the same `Envelope` shape.
  */
 
-/** Merchant-scoped roles returned after login and registration. */
-export type MerchantRole = "admin" | "manager" | "operational";
+/** Roles assignable to merchant users (admin UI + API). */
+export type MerchantRole =
+  | "admin"
+  | "manager"
+  | "cashier"
+  | "operational";
 
 /** Merchant summary persisted in the auth session. */
 export interface SessionMerchant {

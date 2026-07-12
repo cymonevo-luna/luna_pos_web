@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
+import type { MerchantRole } from "@/lib/api/types";
 import {
   canAccessNavRoles,
   canAccessRoute,
+  countAdmins,
   formatUserRoles,
   getAuthenticatedLandingPath,
   getUnauthorizedFallbackPath,
@@ -10,6 +12,7 @@ import {
   isAdminOnlyUser,
   isCashierOnlyUser,
   resolveUserRoles,
+  wouldRemoveLastAdmin,
 } from "./roles";
 
 describe("resolveUserRoles", () => {
@@ -138,10 +141,31 @@ describe("isCashierOnlyUser", () => {
 });
 
 describe("formatUserRoles", () => {
-  it("joins roles for display", () => {
+  it("joins role labels for display", () => {
     expect(formatUserRoles(["manager", "operational"])).toBe(
-      "manager, operational",
+      "Manager, Operational",
     );
+  });
+});
+
+describe("countAdmins and wouldRemoveLastAdmin", () => {
+  const users = [
+    { id: "admin-1", roles: ["admin"] as MerchantRole[] },
+    { id: "cashier-1", roles: ["cashier"] as MerchantRole[] },
+  ];
+
+  it("counts admin users", () => {
+    expect(countAdmins(users)).toBe(1);
+  });
+
+  it("detects removing the last admin", () => {
+    expect(
+      wouldRemoveLastAdmin(
+        { id: "admin-1", roles: ["admin"] },
+        ["manager"],
+        [{ id: "admin-1", roles: ["admin"] }],
+      ),
+    ).toBe(true);
   });
 });
 
