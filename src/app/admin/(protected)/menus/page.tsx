@@ -20,6 +20,7 @@ import { formatRupiah, menuPhotoUrl } from "@/lib/utils";
 import { toast } from "sonner";
 import { MenuForm, type MenuFormHandle } from "@/components/admin/menu-form";
 import { MenuIngredientsForm } from "@/components/admin/menu-ingredients-form";
+import { MenuStockEstimationPanel } from "@/components/admin/menu-stock-estimation-panel";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -399,11 +400,17 @@ export default function AdminMenusPage() {
               submitLabel={dialog.mode === "edit" ? "Save changes" : "Add Menu"}
             />
             {dialog.mode === "edit" ? (
-              <MenuIngredientsForm
-                menuId={dialog.menu.id}
-                recipeYield={recipeYield}
-                disabled={saving}
-              />
+              <>
+                <MenuIngredientsForm
+                  menuId={dialog.menu.id}
+                  recipeYield={recipeYield}
+                  disabled={saving}
+                />
+                <MenuStockEstimationPanel
+                  menuId={dialog.menu.id}
+                  disabled={saving}
+                />
+              </>
             ) : (
               <div className="text-muted-foreground border-t border-border pt-4 text-sm">
                 Save the menu first to add an ingredient formula.
