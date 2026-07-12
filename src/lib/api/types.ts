@@ -5,11 +5,25 @@
 
 export type Role = "admin" | "user";
 
+/** Merchant-scoped roles returned after merchant registration. */
+export type MerchantRole = "admin" | "manager" | "operational";
+
+export interface Merchant {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface User {
   id: string;
   email: string;
   name: string;
   role: Role;
+  roles?: MerchantRole[];
+  merchant_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -42,6 +56,12 @@ export interface Envelope<T> {
 export interface LoginResult {
   tokens: TokenPair;
   user: User;
+}
+
+export interface MerchantRegisterResult {
+  tokens: TokenPair;
+  user: User;
+  merchant: Merchant;
 }
 
 export interface RefreshResult {

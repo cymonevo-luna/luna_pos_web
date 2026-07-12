@@ -8,6 +8,10 @@ import {
   resolveSessionClaims,
 } from "@/lib/auth/session";
 import { decodeJwt } from "@/lib/auth/tokens";
+import {
+  getAuthenticatedLandingPath,
+  hasMerchantAreaAccess,
+} from "@/lib/auth/roles";
 
 // Public auth pages (never require a session).
 const AUTH_ROUTES = ["/login", "/register", "/admin/login", "/admin/register"];
@@ -51,7 +55,7 @@ export async function proxy(request: NextRequest) {
 
   // Send authenticated users away from the auth pages.
   if (isAuthed && isAuthRoute(pathname)) {
-    const target = claims?.role === "admin" ? "/admin" : "/dashboard";
+    const target = getAuthenticatedLandingPath(claims);
     return withCookies(NextResponse.redirect(new URL(target, request.url)));
   }
 
@@ -66,7 +70,7 @@ export async function proxy(request: NextRequest) {
     return redirectToLogin(isAdminArea ? "/admin/login" : "/login");
   }
 
-  if (isAdminArea && claims?.role !== "admin") {
+  if (isAdminArea && !hasMerchantAreaAccess(claims)) {
     return withCookies(NextResponse.redirect(new URL("/dashboard", request.url)));
   }
 

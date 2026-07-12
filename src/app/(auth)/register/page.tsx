@@ -1,5 +1,5 @@
-import { RegisterForm } from "@/components/auth/register-form";
+import { MerchantRegisterForm } from "@/components/auth/merchant-register-form";
 
 export default function RegisterPage() {
-  return <RegisterForm variant="user" />;
+  return <MerchantRegisterForm />;
 }

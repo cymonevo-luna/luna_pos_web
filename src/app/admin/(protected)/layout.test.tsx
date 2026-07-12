@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import AdminProtectedLayout from "./layout";
+import AdminProtectedLayout, { filterAdminNavItems } from "./layout";
+import type { NavItem } from "@/components/layout/dashboard-shell";
 
 vi.mock("@/components/layout/require-auth", () => ({
   RequireAuth: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -27,41 +28,67 @@ vi.mock("@/components/layout/dashboard-shell", () => ({
   ),
 }));
 
+vi.mock("@/lib/auth/context", () => ({
+  useAuth: () => ({
+    user: { id: "1", role: "admin", roles: ["admin"] },
+  }),
+}));
+
 describe("AdminProtectedLayout", () => {
-  it("includes Suppliers in admin navigation", () => {
+  it("includes Suppliers in admin navigation for manager users", () => {
+    vi.doMock("@/lib/auth/context", () => ({
+      useAuth: () => ({
+        user: { id: "1", role: "admin", roles: ["admin", "manager"] },
+      }),
+    }));
+
+    const items: NavItem[] = [
+      { href: "/admin/users", label: "Users", icon: () => null, roles: ["admin"] },
+      {
+        href: "/admin/suppliers",
+        label: "Suppliers",
+        icon: () => null,
+        roles: ["manager", "operational"],
+      },
+    ];
+
+    expect(
+      filterAdminNavItems(items, ["admin", "manager"]).some(
+        (item) => item.label === "Suppliers",
+      ),
+    ).toBe(true);
+  });
+
+  it("hides operational navigation for admin-only users", () => {
     render(
       <AdminProtectedLayout>
         <div>Page content</div>
       </AdminProtectedLayout>,
     );
 
-    const link = screen.getByRole("link", { name: "Suppliers" });
-    expect(link).toHaveAttribute("href", "/admin/suppliers");
+    expect(screen.getByRole("link", { name: "Users" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Suppliers" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Menus" })).not.toBeInTheDocument();
   });
 
-  it("includes Purchases in admin navigation", () => {
-    render(
-      <AdminProtectedLayout>
-        <div>Page content</div>
-      </AdminProtectedLayout>,
-    );
+  it("includes COGS in admin navigation for manager users", () => {
+    const items: NavItem[] = [
+      {
+        href: "/admin/cogs",
+        label: "COGS",
+        icon: () => null,
+        roles: ["manager", "operational"],
+      },
+    ];
 
-    const link = screen.getByRole("link", { name: "Purchases" });
-    expect(link).toHaveAttribute("href", "/admin/purchases");
+    expect(
+      filterAdminNavItems(items, ["admin", "manager"]).some(
+        (item) => item.label === "COGS",
+      ),
+    ).toBe(true);
   });
 
-  it("includes COGS in admin navigation", () => {
-    render(
-      <AdminProtectedLayout>
-        <div>Page content</div>
-      </AdminProtectedLayout>,
-    );
-
-    const link = screen.getByRole("link", { name: "COGS" });
-    expect(link).toHaveAttribute("href", "/admin/cogs");
-  });
-
-  it("includes Receipt Settings in admin navigation", () => {
+  it("includes Receipt Settings for admin-only users", () => {
     render(
       <AdminProtectedLayout>
         <div>Page content</div>

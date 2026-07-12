@@ -16,6 +16,7 @@ export interface NavItem {
   href: string;
   label: string;
   icon: ComponentType<{ className?: string }>;
+  roles?: import("@/lib/api/types").MerchantRole[];
 }
 
 interface DashboardShellProps {
