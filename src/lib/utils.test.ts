@@ -9,6 +9,7 @@ import {
   initials,
   computeSupplierUnitPrice,
   formatSupplierUnitPrice,
+  estimateLineAmount,
   extractWhatsAppPhone,
   buildPurchaseWhatsAppMessage,
 } from "./utils";
@@ -152,6 +153,18 @@ describe("computeSupplierUnitPrice", () => {
 describe("formatSupplierUnitPrice", () => {
   it("formats computed unit price with unit suffix", () => {
     expect(formatSupplierUnitPrice(140000, 1000, "gr")).toBe("Rp 140 / gr");
+  });
+});
+
+describe("estimateLineAmount", () => {
+  it("computes line total with half-up rounding", () => {
+    expect(estimateLineAmount(140000, 1000, 1000)).toBe(140000);
+    expect(estimateLineAmount(140000, 1000, 2)).toBe(280);
+  });
+
+  it("returns zero for invalid inputs", () => {
+    expect(estimateLineAmount(140000, 0, 1000)).toBe(0);
+    expect(estimateLineAmount(140000, 1000, 0)).toBe(0);
   });
 });
 
