@@ -10,11 +10,11 @@ import {
   Plus,
   Pencil,
 } from "lucide-react";
-import { menusAdminApi, menuFormToPayload } from "@/lib/api/menus";
+import { menusAdminApi, menuFullFormToPayload } from "@/lib/api/menus";
 import { categoriesAdminApi } from "@/lib/api/categories";
 import { ApiError } from "@/lib/api/client";
 import type { Category, Menu } from "@/lib/api/types";
-import type { MenuFormValues } from "@/lib/validations";
+import type { MenuBasicFormValues, MenuCogsFormValues } from "@/lib/validations";
 import { MENU_COGS_DEFAULTS } from "@/lib/menu-cogs";
 import { formatRupiah, menuPhotoUrl } from "@/lib/utils";
 import { toast } from "sonner";
@@ -36,7 +36,7 @@ type MenuDialogState =
   | { mode: "edit"; menu: Menu }
   | null;
 
-function menuToFormValues(menu: Menu): Partial<MenuFormValues> {
+function menuToFormValues(menu: Menu): Partial<MenuBasicFormValues> {
   return {
     title: menu.title,
     description: menu.description ?? "",
@@ -44,6 +44,11 @@ function menuToFormValues(menu: Menu): Partial<MenuFormValues> {
     photo_url: menu.photo_url ?? "",
     available_stock: menu.available_stock,
     sell_price: menu.sell_price,
+  };
+}
+
+function menuToCogsValues(menu: Menu): MenuCogsFormValues {
+  return {
     recipe_yield: menu.recipe_yield ?? MENU_COGS_DEFAULTS.recipe_yield,
     margin_percent: menu.margin_percent ?? MENU_COGS_DEFAULTS.margin_percent,
     vat_percent: menu.vat_percent ?? MENU_COGS_DEFAULTS.vat_percent,
@@ -182,11 +187,15 @@ export default function AdminMenusPage() {
     setDialog(nextDialog);
   };
 
-  const handleFormSubmit = async (values: MenuFormValues) => {
+  const handleFormSubmit = async (values: MenuBasicFormValues) => {
     if (!dialog) return;
     setSaving(true);
     try {
-      const payload = menuFormToPayload(values);
+      const cogs =
+        dialog.mode === "create"
+          ? MENU_COGS_DEFAULTS
+          : menuToCogsValues(dialog.menu);
+      const payload = menuFullFormToPayload(values, cogs);
       if (dialog.mode === "create") {
         await menusAdminApi.create(payload);
         toast.success("Menu created");
@@ -395,7 +404,6 @@ export default function AdminMenusPage() {
               defaultValues={formDefaultValues}
               onSubmit={handleFormSubmit}
               onCancel={closeDialog}
-              onRecipeYieldChange={setRecipeYield}
               isLoading={saving}
               submitLabel={dialog.mode === "edit" ? "Save changes" : "Add Menu"}
             />
