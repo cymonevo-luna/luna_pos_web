@@ -1,22 +1,30 @@
 import { api, type ApiResult } from "./client";
-import type { Supplier, SupplierFoodItem } from "./types";
-import type { SupplierFormValues } from "@/lib/validations";
+import type { Supplier, SupplierPrice } from "./types";
+import type {
+  SupplierFormValues,
+  SupplierPriceFormValues,
+} from "@/lib/validations";
 
 /** Wire format from the Go backend (`decimal.Decimal` marshals as JSON string). */
-interface SupplierFoodItemRaw extends Omit<SupplierFoodItem, "quantity"> {
-  quantity: number | string;
+interface SupplierPriceRaw
+  extends Omit<SupplierPrice, "price_amount" | "price_quantity" | "unit_price"> {
+  price_amount: number | string;
+  price_quantity: number | string;
+  unit_price?: number | string;
 }
 
-interface SupplierRaw extends Omit<Supplier, "food_items" | "delivery_cost"> {
-  food_items: SupplierFoodItemRaw[];
+interface SupplierRaw
+  extends Omit<Supplier, "price_quotes" | "delivery_cost" | "price_quotes_count"> {
+  price_quotes?: SupplierPriceRaw[];
   delivery_cost: number | string | null;
+  price_quotes_count?: number;
 }
 
 /**
- * Coerce API `quantity` (number or numeric string) to a finite number.
- * Null/undefined and non-numeric values fall back to `0` so UI formatters never crash.
+ * Coerce API numeric values (number or numeric string) to a finite number.
+ * Null/undefined and non-numeric values fall back to `0`.
  */
-export function parseQuantity(value: unknown): number {
+export function parseNumeric(value: unknown): number {
   if (value == null) return 0;
   const n = typeof value === "number" ? value : Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -28,18 +36,24 @@ function parseDeliveryCost(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function normalizeFoodItem(raw: SupplierFoodItemRaw): SupplierFoodItem {
+function normalizePrice(raw: SupplierPriceRaw): SupplierPrice {
   return {
     ...raw,
-    quantity: parseQuantity(raw.quantity),
+    price_amount: parseNumeric(raw.price_amount),
+    price_quantity: parseNumeric(raw.price_quantity),
+    unit_price:
+      raw.unit_price == null ? undefined : parseNumeric(raw.unit_price),
   };
 }
 
 export function normalizeSupplier(raw: SupplierRaw): Supplier {
+  const priceQuotes = (raw.price_quotes ?? []).map(normalizePrice);
   return {
     ...raw,
     delivery_cost: parseDeliveryCost(raw.delivery_cost),
-    food_items: raw.food_items.map(normalizeFoodItem),
+    price_quotes: priceQuotes,
+    price_quotes_count:
+      raw.price_quotes_count ?? priceQuotes.length,
   };
 }
 
@@ -61,17 +75,19 @@ function normalizeItemResult(
   };
 }
 
+function normalizePriceResult(
+  result: ApiResult<SupplierPriceRaw>,
+): ApiResult<SupplierPrice> {
+  return {
+    ...result,
+    data: normalizePrice(result.data),
+  };
+}
+
 export interface ListSuppliersParams {
   page?: number;
   perPage?: number;
   search?: string;
-}
-
-export interface SupplierFoodItemPayload {
-  food_supply_id: string;
-  price: number;
-  quantity: number;
-  unit: SupplierFoodItem["unit"];
 }
 
 export interface CreateSupplierPayload {
@@ -80,10 +96,17 @@ export interface CreateSupplierPayload {
   address: string;
   supports_delivery: boolean;
   delivery_cost: number;
-  food_items: SupplierFoodItemPayload[];
 }
 
 export type UpdateSupplierPayload = CreateSupplierPayload;
+
+export interface CreateSupplierPricePayload {
+  food_supply_id: string;
+  price_amount: number;
+  price_quantity: number;
+}
+
+export type UpdateSupplierPricePayload = CreateSupplierPricePayload;
 
 /** Map form values to an API payload. */
 export function supplierFormToPayload(
@@ -95,12 +118,17 @@ export function supplierFormToPayload(
     address: values.address,
     supports_delivery: values.supports_delivery,
     delivery_cost: values.supports_delivery ? (values.delivery_cost ?? 0) : 0,
-    food_items: values.food_items.map((item) => ({
-      food_supply_id: item.food_supply_id,
-      price: item.price,
-      quantity: item.quantity,
-      unit: item.unit,
-    })),
+  };
+}
+
+/** Map price form values to an API payload. */
+export function supplierPriceFormToPayload(
+  values: SupplierPriceFormValues,
+): CreateSupplierPricePayload {
+  return {
+    food_supply_id: values.food_supply_id,
+    price_amount: values.price_amount,
+    price_quantity: values.price_quantity,
   };
 }
 
@@ -143,4 +171,23 @@ export const suppliersAdminApi = {
   },
 
   delete: (id: string) => api.delete<void>(`/api/admin/suppliers/${id}`),
+
+  createPrice: async (supplierId: string, payload: CreateSupplierPricePayload) => {
+    const result = await api.post<SupplierPriceRaw>(
+      `/api/admin/suppliers/${supplierId}/prices`,
+      payload,
+    );
+    return normalizePriceResult(result);
+  },
+
+  updatePrice: async (priceId: string, payload: UpdateSupplierPricePayload) => {
+    const result = await api.put<SupplierPriceRaw>(
+      `/api/admin/supplier-prices/${priceId}`,
+      payload,
+    );
+    return normalizePriceResult(result);
+  },
+
+  deletePrice: (priceId: string) =>
+    api.delete<void>(`/api/admin/supplier-prices/${priceId}`),
 };
