@@ -8,12 +8,21 @@ export function SiteFooter() {
         <p>
           © {new Date().getFullYear()} {config.appName}. All rights reserved.
         </p>
-        <div className="flex gap-6">
+        <div className="flex flex-wrap justify-center gap-6">
+          <Link href="/#features" className="hover:text-foreground">
+            Features
+          </Link>
+          <Link href="/#pos-app" className="hover:text-foreground">
+            POS App
+          </Link>
           <Link href="/about" className="hover:text-foreground">
             About
           </Link>
           <Link href="/login" className="hover:text-foreground">
             Sign in
+          </Link>
+          <Link href="/register" className="hover:text-foreground">
+            Register
           </Link>
         </div>
       </div>
