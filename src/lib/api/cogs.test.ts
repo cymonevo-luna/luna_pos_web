@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { cogsAdminApi, downloadCogsCsv } from "./cogs";
 import { tokenStore } from "@/lib/auth/tokens";
+import {
+  backendDetailFixture,
+  backendSummaryFixture,
+} from "./cogs-mapper.fixtures";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -44,32 +48,45 @@ describe("cogsAdminApi", () => {
     expect(headers.get("Authorization")).toBe("Bearer token-abc");
   });
 
-  it("fetches COGS detail for a menu", async () => {
-    const detail = {
-      menu_id: "menu-1",
+  it("normalizes backend-shaped COGS list responses", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: [backendSummaryFixture],
+        meta: { page: 1, per_page: 10, total: 1 },
+      }),
+    );
+
+    const res = await cogsAdminApi.list();
+    expect(res.data[0]).toEqual({
+      menu_id: "menu-rendang-uuid",
       title: "Rendang",
-      category_id: "cat-1",
+      category_id: "",
       category_name: "Main",
       cogs_per_piece: 15000,
       margin_percent: 30,
-      vat_percent: 10,
+      vat_percent: 11,
       price_after_margin: 19500,
-      price_after_vat: 21450,
+      price_after_vat: 21645,
       recommended_offline: 22000,
       recommended_online: 26400,
       sell_price: 25000,
       status: "complete",
-      recipe_yield: 10,
-      ingredients: [],
-      total_cogs: 150000,
-    };
+    });
+  });
 
+  it("normalizes backend-shaped COGS detail for a menu", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      jsonResponse({ success: true, data: detail }),
+      jsonResponse({ success: true, data: backendDetailFixture }),
     );
 
-    const res = await cogsAdminApi.get("menu-1");
-    expect(res.data).toEqual(detail);
+    const res = await cogsAdminApi.get("menu-rendang-uuid");
+    expect(res.data.title).toBe("Rendang");
+    expect(res.data.status).toBe("complete");
+    expect(res.data.ingredients).toHaveLength(2);
+    expect(res.data.ingredients[0]!.supplier_quotes).toHaveLength(2);
+    expect(res.data.ingredients[0]!.supplier_quotes[1]!.selected).toBe(true);
+    expect(res.data.total_cogs).toBe(600000);
   });
 
   it("downloads CSV export as a blob", async () => {

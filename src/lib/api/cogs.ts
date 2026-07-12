@@ -1,4 +1,10 @@
-import { api } from "./client";
+import { api, type ApiResult } from "./client";
+import {
+  normalizeCogsMenuDetail,
+  normalizeCogsMenuSummary,
+  type CogsMenuDetailRaw,
+  type CogsMenuSummaryRaw,
+} from "./cogs-mapper";
 import type { CogsMenuDetail, CogsMenuSummary } from "./types";
 
 export interface ListCogsParams {
@@ -8,8 +14,26 @@ export interface ListCogsParams {
   categoryId?: string;
 }
 
+function normalizeListResult(
+  result: ApiResult<CogsMenuSummaryRaw[]>,
+): ApiResult<CogsMenuSummary[]> {
+  return {
+    ...result,
+    data: result.data.map(normalizeCogsMenuSummary),
+  };
+}
+
+function normalizeDetailResult(
+  result: ApiResult<CogsMenuDetailRaw>,
+): ApiResult<CogsMenuDetail> {
+  return {
+    ...result,
+    data: normalizeCogsMenuDetail(result.data),
+  };
+}
+
 export const cogsAdminApi = {
-  list: ({
+  list: async ({
     page = 1,
     perPage = 10,
     search = "",
@@ -21,11 +45,18 @@ export const cogsAdminApi = {
     });
     if (search) params.set("search", search);
     if (categoryId) params.set("category_id", categoryId);
-    return api.get<CogsMenuSummary[]>(`/api/admin/cogs?${params.toString()}`);
+    const result = await api.get<CogsMenuSummaryRaw[]>(
+      `/api/admin/cogs?${params.toString()}`,
+    );
+    return normalizeListResult(result);
   },
 
-  get: (menuId: string) =>
-    api.get<CogsMenuDetail>(`/api/admin/cogs/${menuId}`),
+  get: async (menuId: string) => {
+    const result = await api.get<CogsMenuDetailRaw>(
+      `/api/admin/cogs/${menuId}`,
+    );
+    return normalizeDetailResult(result);
+  },
 
   exportCsv: () => api.downloadBlob("/api/admin/cogs/export"),
 };
