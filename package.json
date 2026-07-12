@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verify:production-login": "node scripts/verify-production-login.mjs",
     "format": "prettier --write ."
   },
   "dependencies": {

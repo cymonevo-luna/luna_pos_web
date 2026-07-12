@@ -7,9 +7,11 @@ RUN npm ci
 
 FROM node:24-alpine AS builder
 WORKDIR /app
-# Public env vars are inlined at build time, so they must be provided here.
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_APP_NAME
+# Public env vars are inlined at build time. Defaults match .env.production so
+# production images target pos-api even when build-args are omitted; compose
+# and refresh-daemon.sh can still override via --build-arg.
+ARG NEXT_PUBLIC_API_URL=https://pos-api.cymonevo.com
+ARG NEXT_PUBLIC_APP_NAME=Luna POS
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME
 ENV NEXT_TELEMETRY_DISABLED=1
