@@ -236,3 +236,45 @@ export interface StoreSettings {
   phone: string;
   thank_you_note: string;
 }
+
+export type PurchaseRequestStatus =
+  | "PENDING"
+  | "REQUESTED"
+  | "PAID"
+  | "DELIVERED";
+
+export interface PurchaseRequestItem {
+  id: string;
+  food_supply_id: string;
+  food_supply_title?: string;
+  unit?: FoodSupplyUnit;
+  quantity: number;
+  price_quantity: number;
+  unit_price: number;
+  price_amount: number;
+}
+
+export interface PurchaseRequest {
+  id: string;
+  supplier_id: string;
+  supplier_name: string;
+  supplier_contact_info: string;
+  status: PurchaseRequestStatus;
+  notes?: string | null;
+  items: PurchaseRequestItem[];
+  total_amount: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PurchaseRequestSummary {
+  id: string;
+  supplier_id: string;
+  supplier_name: string;
+  status: PurchaseRequestStatus;
+  item_count: number;
+  total_amount: number;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
