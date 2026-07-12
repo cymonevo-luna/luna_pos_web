@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { config } from "@/lib/config";
+import type { PurchaseRequest } from "@/lib/api/types";
 
 /** Merge conditional class names and resolve Tailwind conflicts. */
 export function cn(...inputs: ClassValue[]) {
@@ -105,6 +106,45 @@ export function menuPhotoUrl(photoUrl?: string | null) {
     return `${config.apiBaseUrl}${trimmed}`;
   }
   return trimmed;
+}
+
+/** Extract a WhatsApp-ready phone number from free-form supplier contact info. */
+export function extractWhatsAppPhone(contactInfo: string): string | null {
+  const trimmed = contactInfo.trim();
+  if (!trimmed) return null;
+
+  const digits = trimmed.replace(/\D/g, "");
+  if (!digits) return null;
+
+  if (digits.startsWith("08") && digits.length >= 10 && digits.length <= 13) {
+    return `62${digits.slice(1)}`;
+  }
+
+  if (digits.startsWith("62") && digits.length >= 10 && digits.length <= 15) {
+    return digits;
+  }
+
+  return null;
+}
+
+/** Build an Indonesian WhatsApp order message for a purchase request. */
+export function buildPurchaseWhatsAppMessage(purchase: PurchaseRequest): string {
+  const lines = purchase.items.map((item, index) => {
+    const unit = item.unit ?? "";
+    const title = item.food_supply_title ?? "Bahan";
+    return `${index + 1}. ${item.quantity} ${unit} ${title}`.trim();
+  });
+
+  return [
+    `Halo ${purchase.supplier_name},`,
+    "",
+    "Kami ingin memesan bahan berikut:",
+    ...lines,
+    "",
+    `Estimasi total: ${formatRupiah(purchase.total_amount)}`,
+    "",
+    "Terima kasih.",
+  ].join("\n");
 }
 
 /** Produce up-to-two-character initials from a name for avatars. */
