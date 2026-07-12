@@ -83,4 +83,22 @@ describe("AdminRouteGuard", () => {
       expect(replace).toHaveBeenCalledWith("/admin/suppliers");
     });
   });
+
+  it("redirects manager users away from production request list", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { id: "1", roles: ["manager"], merchant_id: "m-1" },
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(usePathname).mockReturnValue("/admin/production-requests");
+
+    render(
+      <AdminRouteGuard>
+        <div>Protected content</div>
+      </AdminRouteGuard>,
+    );
+
+    await waitFor(() => {
+      expect(replace).toHaveBeenCalledWith("/admin");
+    });
+  });
 });
