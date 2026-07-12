@@ -170,6 +170,7 @@ describe("AdminCogsPage", () => {
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("heading", { name: "Rendang" })).toBeInTheDocument();
     expect(within(dialog).getByText("Beef")).toBeInTheDocument();
+    expect(within(dialog).getByText(/Batch:/)).toHaveTextContent("1 kg");
     expect(within(dialog).getByText(/Selected supplier \(highest price\)/)).toBeInTheDocument();
     expect(within(dialog).getByText("Yes")).toBeInTheDocument();
     expect(cogsAdminApi.get).toHaveBeenCalledWith("menu-rendang");
