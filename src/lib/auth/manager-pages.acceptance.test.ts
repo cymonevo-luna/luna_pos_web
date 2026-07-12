@@ -90,6 +90,7 @@ describe("POS-18-12 manager-scoped page guards", () => {
       "/admin/menus/menu-1/ingredients",
       "/admin/production-requests",
       "/admin/production-requests/new",
+      "/admin/production-requests/pr-qa-1",
     ];
     for (const route of managerOnlyRoutes) {
       expect(canAccessRoute(route, ["manager"])).toBe(true);
