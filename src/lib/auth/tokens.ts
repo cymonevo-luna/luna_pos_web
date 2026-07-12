@@ -1,5 +1,5 @@
 import { config } from "@/lib/config";
-import type { Role } from "@/lib/api/types";
+import type { MerchantRole, Role } from "@/lib/api/types";
 import {
   ACCESS_COOKIE_MAX_AGE,
   REFRESH_COOKIE_MAX_AGE,
@@ -56,6 +56,8 @@ export interface JwtPayload {
   uid: string;
   email: string;
   role: Role;
+  roles?: MerchantRole[];
+  merchant_id?: string;
   typ: string;
   exp: number;
 }

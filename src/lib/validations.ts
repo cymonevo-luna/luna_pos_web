@@ -28,6 +28,42 @@ export type LoginValues = z.infer<typeof loginSchema>;
 export type RegisterValues = z.infer<typeof registerSchema>;
 export type ProfileValues = z.infer<typeof profileSchema>;
 
+export const merchantRegisterSchema = z
+  .object({
+    merchant_name: z
+      .string()
+      .trim()
+      .min(1, "Merchant name is required")
+      .max(200, "Merchant name is too long"),
+    address: z
+      .string()
+      .trim()
+      .min(1, "Address is required")
+      .max(500, "Address is too long"),
+    phone: z
+      .string()
+      .trim()
+      .min(1, "Phone number is required")
+      .max(30, "Phone number is too long"),
+    admin_email: z.string().email("Enter a valid email address"),
+    admin_name: z
+      .string()
+      .trim()
+      .min(2, "Admin name must be at least 2 characters")
+      .max(120, "Admin name is too long"),
+    admin_password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .max(72, "Password is too long"),
+    confirm_password: z.string().min(1, "Confirm your password"),
+  })
+  .refine((data) => data.admin_password === data.confirm_password, {
+    message: "Passwords do not match",
+    path: ["confirm_password"],
+  });
+
+export type MerchantRegisterValues = z.infer<typeof merchantRegisterSchema>;
+
 export const foodSupplySchema = z.object({
   title: z
     .string()

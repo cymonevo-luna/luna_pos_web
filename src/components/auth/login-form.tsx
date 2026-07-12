@@ -10,6 +10,7 @@ import { Mail, ShieldCheck } from "lucide-react";
 import { loginSchema, type LoginValues } from "@/lib/validations";
 import { useAuth } from "@/lib/auth/context";
 import { ApiError } from "@/lib/api/client";
+import { getAuthenticatedLandingPath } from "@/lib/auth/roles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,7 +39,7 @@ export function LoginForm({ variant = "user" }: LoginFormProps) {
     try {
       const user = await login(values);
 
-      if (isAdmin && user.role !== "admin") {
+      if (isAdmin && user.role !== "admin" && !user.roles?.includes("admin")) {
         logout();
         toast.error("This account does not have admin access.");
         return;
@@ -46,9 +47,7 @@ export function LoginForm({ variant = "user" }: LoginFormProps) {
 
       toast.success(`Welcome back, ${user.name}`);
       const redirect = searchParams.get("redirect");
-      router.push(
-        redirect ?? (user.role === "admin" ? "/admin" : "/dashboard"),
-      );
+      router.push(redirect ?? getAuthenticatedLandingPath(user));
       router.refresh();
     } catch (error) {
       const message =
@@ -148,7 +147,7 @@ export function LoginForm({ variant = "user" }: LoginFormProps) {
           href={isAdmin ? "/admin/register" : "/register"}
           className="font-medium text-primary hover:underline"
         >
-          Register
+          {isAdmin ? "Register" : "Register your merchant"}
         </Link>
       </p>
     </div>
