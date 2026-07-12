@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:integration": "RUN_INTEGRATION_TESTS=1 vitest run src/testing/auth.integration.test.ts",
+    "test:integration:watch": "RUN_INTEGRATION_TESTS=1 vitest src/testing/auth.integration.test.ts",
     "format": "prettier --write ."
   },
   "dependencies": {

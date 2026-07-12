@@ -3,14 +3,24 @@ import { config } from "@/lib/config";
 import { TEST_ACCOUNTS, type TestAccountRole } from "@/testing/accounts";
 import { loginAsTestAccount } from "@/testing/auth";
 
-async function isApiReachable(): Promise<boolean> {
+async function assertApiReachable(): Promise<void> {
   try {
     const res = await fetch(`${config.apiBaseUrl}/healthz`, {
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(5000),
     });
-    return res.ok;
-  } catch {
-    return false;
+    if (!res.ok) {
+      throw new Error(
+        `API health check failed at ${config.apiBaseUrl}/healthz (HTTP ${res.status}). ` +
+          "Start luna_pos_service with `make docker-up` in the sibling repo.",
+      );
+    }
+  } catch (error) {
+    const detail =
+      error instanceof Error ? error.message : "unknown connection error";
+    throw new Error(
+      `API unreachable at ${config.apiBaseUrl}/healthz: ${detail}. ` +
+        "Start luna_pos_service with `make docker-up` in the sibling repo.",
+    );
   }
 }
 
@@ -19,11 +29,9 @@ async function isApiReachable(): Promise<boolean> {
  * Set RUN_INTEGRATION_TESTS=1 and ensure NEXT_PUBLIC_API_URL points at the API.
  */
 describe("POS-20-2 dedicated test account login (live API)", () => {
-  let apiReachable = false;
-
   beforeAll(async () => {
     if (process.env.RUN_INTEGRATION_TESTS === "1") {
-      apiReachable = await isApiReachable();
+      await assertApiReachable();
     }
   });
 
@@ -36,12 +44,6 @@ describe("POS-20-2 dedicated test account login (live API)", () => {
 
   it.each(roles)("logs in as %s with seeded credentials", async (role) => {
     if (process.env.RUN_INTEGRATION_TESTS !== "1") {
-      return;
-    }
-    if (!apiReachable) {
-      console.warn(
-        `Skipping live login test for ${role}: API not reachable at ${config.apiBaseUrl}`,
-      );
       return;
     }
 
