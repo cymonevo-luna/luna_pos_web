@@ -7,9 +7,9 @@ import { adminApi } from "@/lib/api/users";
 import { ApiError } from "@/lib/api/client";
 import type { User } from "@/lib/api/types";
 import { formatDate, initials } from "@/lib/utils";
-import { formatUserRoles, resolveUserRoles } from "@/lib/auth/roles";
+import { UserRoleBadges } from "@/components/admin/user-role-badges";
+import { formatUserRoles } from "@/lib/auth/roles";
 import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
@@ -72,15 +72,7 @@ export default function AdminUserDetailPage({
               <div>
                 <CardTitle className="flex items-center gap-2">
                   {user.name}
-                  <Badge
-                    variant={
-                      resolveUserRoles(user).includes("admin")
-                        ? "success"
-                        : "secondary"
-                    }
-                  >
-                    {formatUserRoles(user.roles)}
-                  </Badge>
+                  <UserRoleBadges roles={user.roles} />
                 </CardTitle>
                 <CardDescription>{user.email}</CardDescription>
               </div>

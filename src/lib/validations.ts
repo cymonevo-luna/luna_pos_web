@@ -243,3 +243,34 @@ export const purchaseRequestSchema = z.object({
 });
 
 export type PurchaseRequestFormValues = z.infer<typeof purchaseRequestSchema>;
+
+const assignableRoleSchema = z.enum(
+  ["admin", "manager", "cashier", "operational"],
+  { error: "Select a valid role" },
+);
+
+export const adminUserCreateSchema = z.object({
+  email: z.string().email("Enter a valid email address"),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters")
+    .max(120, "Name is too long"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(72, "Password is too long"),
+  roles: z
+    .array(assignableRoleSchema)
+    .min(1, "Select at least one role"),
+});
+
+export type AdminUserCreateFormValues = z.infer<typeof adminUserCreateSchema>;
+
+export const adminUserRolesSchema = z.object({
+  roles: z
+    .array(assignableRoleSchema)
+    .min(1, "Select at least one role"),
+});
+
+export type AdminUserRolesFormValues = z.infer<typeof adminUserRolesSchema>;

@@ -1,10 +1,44 @@
 import { api } from "./client";
-import type { User } from "./types";
+import type { MerchantRole, User } from "./types";
+import type {
+  AdminUserCreateFormValues,
+  AdminUserRolesFormValues,
+} from "@/lib/validations";
 
 export interface ListUsersParams {
   page?: number;
   perPage?: number;
   search?: string;
+}
+
+export interface CreateUserPayload {
+  email: string;
+  name: string;
+  password: string;
+  roles: MerchantRole[];
+}
+
+export interface UpdateUserRolesPayload {
+  roles: MerchantRole[];
+}
+
+export function adminUserCreateFormToPayload(
+  values: AdminUserCreateFormValues,
+): CreateUserPayload {
+  return {
+    email: values.email.trim(),
+    name: values.name.trim(),
+    password: values.password,
+    roles: values.roles,
+  };
+}
+
+export function adminUserRolesFormToPayload(
+  values: AdminUserRolesFormValues,
+): UpdateUserRolesPayload {
+  return {
+    roles: values.roles,
+  };
 }
 
 export const usersApi = {
@@ -25,6 +59,12 @@ export const adminApi = {
   },
 
   getUser: (id: string) => api.get<User>(`/api/admin/users/${id}`),
+
+  createUser: (payload: CreateUserPayload) =>
+    api.post<User>("/api/admin/users", payload),
+
+  updateUserRoles: (id: string, payload: UpdateUserRolesPayload) =>
+    api.put<User>(`/api/admin/users/${id}/roles`, payload),
 
   deleteUser: (id: string) => api.delete<void>(`/api/admin/users/${id}`),
 };
