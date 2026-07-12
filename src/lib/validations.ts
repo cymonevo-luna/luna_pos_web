@@ -179,3 +179,24 @@ export const storeSettingsSchema = z.object({
 });
 
 export type StoreSettingsFormValues = z.infer<typeof storeSettingsSchema>;
+
+export const purchaseRequestLineItemSchema = z.object({
+  food_supply_id: z.string().min(1, "Food supply is required"),
+  quantity: z
+    .number({ error: "Quantity is required" })
+    .positive("Quantity must be greater than 0"),
+});
+
+export const purchaseRequestSchema = z.object({
+  supplier_id: z.string().min(1, "Supplier is required"),
+  items: z
+    .array(purchaseRequestLineItemSchema)
+    .min(1, "Add at least one line item"),
+  notes: z
+    .string()
+    .max(2000, "Notes are too long")
+    .optional()
+    .or(z.literal("")),
+});
+
+export type PurchaseRequestFormValues = z.infer<typeof purchaseRequestSchema>;
