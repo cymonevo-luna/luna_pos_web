@@ -81,6 +81,28 @@ describe("canAccessRoute", () => {
     expect(canAccessRoute("/admin/suppliers", ["manager"])).toBe(false);
     expect(canAccessRoute("/admin/purchases", ["manager"])).toBe(false);
     expect(canAccessRoute("/admin/production-requests", ["manager"])).toBe(false);
+    expect(
+      canAccessRoute("/admin/production-requests/prod-1", ["manager"]),
+    ).toBe(false);
+  });
+
+  it("allows manager users on production request create route only", () => {
+    expect(canAccessRoute("/admin/production-requests/new", ["manager"])).toBe(
+      true,
+    );
+    expect(canAccessRoute("/admin/production-requests", ["manager"])).toBe(
+      false,
+    );
+  });
+
+  it("blocks operational and cashier users from production request routes", () => {
+    expect(canAccessRoute("/admin/production-requests/new", ["operational"])).toBe(
+      false,
+    );
+    expect(canAccessRoute("/admin/production-requests/new", ["cashier"] as never)).toBe(
+      false,
+    );
+    expect(canAccessRoute("/admin/production-requests", ["admin"])).toBe(false);
   });
 
   it("allows operational users on operational routes", () => {
@@ -107,6 +129,9 @@ describe("canAccessRoute", () => {
     ).toBe(true);
     expect(
       canAccessRoute("/admin/production-requests", ["manager", "operational"]),
+    ).toBe(true);
+    expect(
+      canAccessRoute("/admin/production-requests/new", ["manager", "operational"]),
     ).toBe(true);
   });
 

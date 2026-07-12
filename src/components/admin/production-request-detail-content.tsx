@@ -381,6 +381,7 @@ export function ProductionRequestDetailContent({ id }: { id: string }) {
     request?.items.map((item) => ({
       id: item.menu_id,
       title: item.menu_title,
+      category_name: "",
     })) ?? [];
 
   return (
@@ -485,7 +486,7 @@ export function ProductionRequestDetailContent({ id }: { id: string }) {
                 <ProductionRequestForm
                   key={request.updated_at}
                   defaultValues={formDefaultValues}
-                  menus={menuOptions}
+                  preloadedMenus={menuOptions}
                   onSubmit={handleSave}
                   isLoading={saving}
                   submitLabel="Save changes"
