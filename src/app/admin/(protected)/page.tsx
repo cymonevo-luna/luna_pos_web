@@ -18,6 +18,7 @@ import { adminApi } from "@/lib/api/users";
 import { useRoles } from "@/lib/auth/use-roles";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RecentTransactionsPanel } from "@/components/dashboard/recent-transactions-panel";
 import {
   Card,
   CardContent,
@@ -124,6 +125,8 @@ export default function AdminOverviewPage() {
           Quick access to the areas available for your account.
         </p>
       </div>
+
+      <RecentTransactionsPanel />
 
       {hasAnyRole(["admin"]) && (
         <Card>
