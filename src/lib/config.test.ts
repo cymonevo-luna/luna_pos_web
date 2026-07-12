@@ -40,4 +40,8 @@ describe("config", () => {
     const { config: reloaded } = await import("./config");
     expect(reloaded.apiBaseUrl).toBe("https://pos-api.cymonevo.com");
   });
+
+  it("resolves the production API URL without trailing slash", () => {
+    expect(config.apiBaseUrl).not.toMatch(/\/$/);
+  });
 });

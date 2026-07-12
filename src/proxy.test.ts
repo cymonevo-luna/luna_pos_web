@@ -87,4 +87,37 @@ describe("proxy", () => {
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toContain("/login");
   });
+
+  it("redirects unauthenticated admin routes to /admin/login", async () => {
+    const res = await proxy(requestFor("/admin/users"));
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("/admin/login");
+    expect(res.headers.get("location")).toContain("redirect=%2Fadmin%2Fusers");
+  });
+
+  it("redirects authenticated admin users away from /admin/login", async () => {
+    const access = makeJwt({ uid: "1", role: "admin", exp: futureExp });
+
+    const res = await proxy(
+      requestFor("/admin/login", {
+        [config.cookies.accessToken]: access,
+      }),
+    );
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("/admin");
+  });
+
+  it("blocks non-admin users from admin routes", async () => {
+    const access = makeJwt({ uid: "1", role: "user", exp: futureExp });
+
+    const res = await proxy(
+      requestFor("/admin/users", {
+        [config.cookies.accessToken]: access,
+      }),
+    );
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("/dashboard");
+  });
 });

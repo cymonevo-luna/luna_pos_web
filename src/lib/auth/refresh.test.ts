@@ -40,6 +40,27 @@ describe("refreshTokenPair", () => {
     expect(await refreshTokenPair("refresh-1")).toBeNull();
   });
 
+  it("omits credentials on refresh requests", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          tokens: {
+            access_token: "new-access",
+            refresh_token: "new-refresh",
+            expires_in: 900,
+          },
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await refreshTokenPair("refresh-1");
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(init?.credentials).toBe("omit");
+  });
+
   it("dedupes concurrent refresh calls", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
