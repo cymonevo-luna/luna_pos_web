@@ -49,4 +49,15 @@ describe("AdminProtectedLayout", () => {
     const link = screen.getByRole("link", { name: "COGS" });
     expect(link).toHaveAttribute("href", "/admin/cogs");
   });
+
+  it("includes Receipt Settings in admin navigation", () => {
+    render(
+      <AdminProtectedLayout>
+        <div>Page content</div>
+      </AdminProtectedLayout>,
+    );
+
+    const link = screen.getByRole("link", { name: "Receipt Settings" });
+    expect(link).toHaveAttribute("href", "/admin/store-settings");
+  });
 });

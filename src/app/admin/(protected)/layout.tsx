@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, Users, Package, Truck, Tags, UtensilsCrossed, Receipt, Calculator, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Users, Package, Truck, Tags, UtensilsCrossed, Receipt, Calculator, ArrowLeft, Printer } from "lucide-react";
 import {
   DashboardShell,
   type NavItem,
@@ -16,6 +16,7 @@ const navItems: NavItem[] = [
   { href: "/admin/menus", label: "Menus", icon: UtensilsCrossed },
   { href: "/admin/cogs", label: "COGS", icon: Calculator },
   { href: "/admin/transactions", label: "Transactions", icon: Receipt },
+  { href: "/admin/store-settings", label: "Receipt Settings", icon: Printer },
   { href: "/dashboard", label: "Back to app", icon: ArrowLeft },
 ];
 
