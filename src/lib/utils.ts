@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { config } from "@/lib/config";
 
 /** Merge conditional class names and resolve Tailwind conflicts. */
 export function cn(...inputs: ClassValue[]) {
@@ -96,7 +97,14 @@ export function formatSupplierUnitPrice(
 /** Resolve a menu photo URL, falling back to the default food image. */
 export function menuPhotoUrl(photoUrl?: string | null) {
   const trimmed = photoUrl?.trim();
-  return trimmed || DEFAULT_FOOD_PHOTO_URL;
+  if (!trimmed) return DEFAULT_FOOD_PHOTO_URL;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("/static/")) {
+    return `${config.apiBaseUrl}${trimmed}`;
+  }
+  return trimmed;
 }
 
 /** Produce up-to-two-character initials from a name for avatars. */
