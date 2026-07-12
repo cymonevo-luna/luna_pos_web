@@ -10,6 +10,8 @@ import {
   computeSupplierUnitPrice,
   formatSupplierUnitPrice,
   estimateLineAmount,
+  extractWhatsAppPhone,
+  buildPurchaseWhatsAppMessage,
 } from "./utils";
 import { config } from "./config";
 
@@ -85,6 +87,56 @@ describe("formatRupiah", () => {
   it("formats amounts with Indonesian grouping and no decimals", () => {
     expect(formatRupiah(35000)).toBe("Rp 35.000");
     expect(formatRupiah(25000)).toBe("Rp 25.000");
+  });
+});
+
+describe("extractWhatsAppPhone", () => {
+  it("converts Indonesian mobile numbers starting with 08 to 62 format", () => {
+    expect(extractWhatsAppPhone("08123456789")).toBe("628123456789");
+    expect(extractWhatsAppPhone("0812-3456-789")).toBe("628123456789");
+  });
+
+  it("keeps numbers that already use the 62 country code", () => {
+    expect(extractWhatsAppPhone("628123456789")).toBe("628123456789");
+    expect(extractWhatsAppPhone("+62 812 3456 789")).toBe("628123456789");
+  });
+
+  it("returns null when contact info has no plausible phone", () => {
+    expect(extractWhatsAppPhone("supplier@example.com")).toBeNull();
+    expect(extractWhatsAppPhone("")).toBeNull();
+    expect(extractWhatsAppPhone("   ")).toBeNull();
+  });
+});
+
+describe("buildPurchaseWhatsAppMessage", () => {
+  it("builds an Indonesian order template with items and total", () => {
+    const message = buildPurchaseWhatsAppMessage({
+      id: "pr-1",
+      supplier_id: "sup-1",
+      supplier_name: "Beras Supplier",
+      supplier_contact_info: "08123456789",
+      status: "PENDING",
+      items: [
+        {
+          id: "item-1",
+          food_supply_id: "fs-1",
+          food_supply_title: "Beras",
+          unit: "gr",
+          quantity: 2,
+          price_quantity: 1000,
+          unit_price: 140,
+          price_amount: 280,
+        },
+      ],
+      total_amount: 280,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+
+    expect(message).toContain("Halo Beras Supplier,");
+    expect(message).toContain("1. 2 gr Beras");
+    expect(message).toContain("Estimasi total: Rp 280");
+    expect(message).toContain("Terima kasih.");
   });
 });
 
