@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { AdminPurchaseDetailContent } from "./purchase-detail-content";
 import { purchaseRequestsAdminApi } from "@/lib/api/purchase-requests";
 import type { PurchaseRequest } from "@/lib/api/types";
+import { config } from "@/lib/config";
 import { toast } from "sonner";
 
 vi.mock("@/lib/api/purchase-requests", () => ({
@@ -53,6 +54,7 @@ const purchase: PurchaseRequest = {
     },
   ],
   total_estimated_amount: 118000,
+  status_history: [],
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
@@ -165,5 +167,113 @@ describe("AdminPurchaseDetailContent", () => {
     expect(
       await screen.findByText("Failed to load purchase request"),
     ).toBeInTheDocument();
+  });
+
+  it("renders Status History above Line items in DOM order", async () => {
+    render(<AdminPurchaseDetailContent id="pr-1" />);
+
+    const statusHistoryHeading = await screen.findByRole("heading", {
+      name: "Status History",
+    });
+    const lineItemsHeading = screen.getByRole("heading", {
+      name: "Line items",
+    });
+
+    expect(
+      statusHistoryHeading.compareDocumentPosition(lineItemsHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("renders status history rows with transition, username, and timestamp", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        status_history: [
+          {
+            id: "hist-1",
+            from_status: null,
+            to_status: "PENDING",
+            changed_by_username: "admin",
+            photo_url: null,
+            created_at: "2026-01-01T08:00:00Z",
+          },
+          {
+            id: "hist-2",
+            from_status: "PENDING",
+            to_status: "REQUESTED",
+            changed_by_username: "manager",
+            photo_url: null,
+            created_at: "2026-01-02T09:30:00Z",
+          },
+        ],
+      },
+    });
+
+    render(<AdminPurchaseDetailContent id="pr-1" />);
+
+    const statusHistoryHeading = await screen.findByRole("heading", {
+      name: "Status History",
+    });
+    const statusHistorySection = statusHistoryHeading.closest(
+      ".rounded-2xl",
+    ) as HTMLElement;
+
+    expect(
+      within(statusHistorySection).getByText("PENDING"),
+    ).toBeInTheDocument();
+    expect(
+      within(statusHistorySection).getByText("PENDING → REQUESTED"),
+    ).toBeInTheDocument();
+    expect(within(statusHistorySection).getByText("manager")).toBeInTheDocument();
+    expect(
+      within(statusHistorySection).getByText("Jan 2, 2026, 09:30 AM"),
+    ).toBeInTheDocument();
+  });
+
+  it("renders a clickable photo link for history entries with photo_url", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        status_history: [
+          {
+            id: "hist-paid",
+            from_status: "REQUESTED",
+            to_status: "PAID",
+            changed_by_username: "cashier",
+            photo_url: "/static/uploads/receipts/receipt.jpg",
+            created_at: "2026-01-03T10:00:00Z",
+          },
+          {
+            id: "hist-delivered",
+            from_status: "PAID",
+            to_status: "DELIVERED",
+            changed_by_username: "operational",
+            photo_url: "/static/uploads/packages/package.jpg",
+            created_at: "2026-01-04T11:00:00Z",
+          },
+        ],
+      },
+    });
+
+    render(<AdminPurchaseDetailContent id="pr-1" />);
+
+    const receiptLink = await screen.findByRole("link", { name: "Receipt photo" });
+    expect(receiptLink).toHaveAttribute(
+      "href",
+      `${config.apiBaseUrl}/static/uploads/receipts/receipt.jpg`,
+    );
+
+    const packageLink = screen.getByRole("link", { name: "Package photo" });
+    expect(packageLink).toHaveAttribute(
+      "href",
+      `${config.apiBaseUrl}/static/uploads/packages/package.jpg`,
+    );
+  });
+
+  it("shows empty state when status history is empty", async () => {
+    render(<AdminPurchaseDetailContent id="pr-1" />);
+
+    expect(await screen.findByText("No status history yet")).toBeInTheDocument();
   });
 });

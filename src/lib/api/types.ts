@@ -287,6 +287,15 @@ export interface PurchaseRequestItem {
   line_estimated_amount: number;
 }
 
+export interface PurchaseRequestStatusHistoryEntry {
+  id: string;
+  from_status: string | null;
+  to_status: string;
+  changed_by_username: string;
+  photo_url: string | null;
+  created_at: string;
+}
+
 export interface PurchaseRequest {
   id: string;
   supplier_id: string;
@@ -295,6 +304,7 @@ export interface PurchaseRequest {
   status: PurchaseRequestStatus;
   notes?: string | null;
   items: PurchaseRequestItem[];
+  status_history: PurchaseRequestStatusHistoryEntry[];
   total_estimated_amount: number;
   created_by_username?: string | null;
   created_at: string;

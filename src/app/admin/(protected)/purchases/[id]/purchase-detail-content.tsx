@@ -9,6 +9,7 @@ import type {
   PurchaseRequest,
   PurchaseRequestItem,
   PurchaseRequestStatus,
+  PurchaseRequestStatusHistoryEntry,
 } from "@/lib/api/types";
 import {
   buildPurchaseWhatsAppMessage,
@@ -17,6 +18,7 @@ import {
   formatRupiah,
   formatStockQuantity,
   formatSupplierUnitPrice,
+  menuPhotoUrl,
 } from "@/lib/utils";
 import { toast } from "sonner";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
@@ -67,6 +69,19 @@ function displayItemUnitPrice(item: PurchaseRequestItem) {
     item.price_quantity,
     unit || "unit",
   );
+}
+
+function formatStatusHistoryLabel(entry: PurchaseRequestStatusHistoryEntry) {
+  if (entry.from_status?.trim()) {
+    return `${entry.from_status} → ${entry.to_status}`;
+  }
+  return entry.to_status;
+}
+
+function statusHistoryPhotoAltText(toStatus: string) {
+  if (toStatus === "PAID") return "Receipt photo";
+  if (toStatus === "DELIVERED") return "Package photo";
+  return "Status photo";
 }
 
 export function AdminPurchaseDetailContent({ id }: { id: string }) {
@@ -245,6 +260,75 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
               </CardContent>
             </Card>
           ) : null}
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Status History</CardTitle>
+              <CardDescription>
+                Chronological record of status changes for this purchase request.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {purchase.status_history.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No status history yet
+                </p>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {purchase.status_history.map((entry) => {
+                    const resolvedPhotoUrl = entry.photo_url?.trim()
+                      ? menuPhotoUrl(entry.photo_url)
+                      : null;
+
+                    return (
+                      <li
+                        key={entry.id}
+                        className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge
+                              variant={purchaseStatusBadgeVariant(
+                                entry.to_status as PurchaseRequestStatus,
+                              )}
+                            >
+                              {formatStatusHistoryLabel(entry)}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {entry.changed_by_username}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-start gap-2 sm:items-end">
+                          <time
+                            className="text-sm text-muted-foreground"
+                            dateTime={entry.created_at}
+                          >
+                            {formatDateTime(entry.created_at)}
+                          </time>
+                          {resolvedPhotoUrl ? (
+                            <a
+                              href={resolvedPhotoUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block overflow-hidden rounded-md border border-border"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={resolvedPhotoUrl}
+                                alt={statusHistoryPhotoAltText(entry.to_status)}
+                                className="h-20 w-20 object-cover"
+                              />
+                            </a>
+                          ) : null}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
 
           <Card className="overflow-hidden">
             <CardHeader>
