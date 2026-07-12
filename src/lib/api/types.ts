@@ -156,3 +156,49 @@ export interface TransactionSummary {
   period: TransactionSummaryPeriod;
   buckets: TransactionSummaryBucket[];
 }
+
+export type CogsStatus = "complete" | "missing_prices" | "no_formula";
+
+/** Summary row returned by GET /api/admin/cogs. */
+export interface CogsMenuSummary {
+  menu_id: string;
+  title: string;
+  category_id: string;
+  category_name: string;
+  cogs_per_piece: number | null;
+  margin_percent: number;
+  vat_percent: number;
+  price_after_margin: number | null;
+  price_after_vat: number | null;
+  recommended_offline: number | null;
+  recommended_online: number | null;
+  sell_price: number;
+  status: CogsStatus;
+}
+
+export interface CogsSupplierQuote {
+  supplier_id: string;
+  supplier_name: string;
+  unit_price: number;
+  selected: boolean;
+}
+
+export interface CogsIngredientBreakdown {
+  food_supply_id: string;
+  food_supply_title: string;
+  quantity_batch: number;
+  quantity_per_piece: number;
+  unit: FoodSupplyUnit;
+  selected_supplier_id: string | null;
+  selected_supplier_name: string | null;
+  selected_unit_price: number | null;
+  supplier_quotes: CogsSupplierQuote[];
+  line_cost: number | null;
+}
+
+/** Full breakdown returned by GET /api/admin/cogs/{menu_id}. */
+export interface CogsMenuDetail extends CogsMenuSummary {
+  recipe_yield: number;
+  ingredients: CogsIngredientBreakdown[];
+  total_cogs: number | null;
+}
