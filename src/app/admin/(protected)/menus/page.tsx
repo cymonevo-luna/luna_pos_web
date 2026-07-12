@@ -397,7 +397,7 @@ export default function AdminMenusPage() {
       <Dialog
         open={dialog !== null}
         onClose={closeDialog}
-        className="max-w-lg"
+        className="max-h-[90vh] max-w-xl overflow-y-auto"
       >
         <DialogTitle>{dialogTitle}</DialogTitle>
         {dialog && (
