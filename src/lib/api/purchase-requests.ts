@@ -157,11 +157,22 @@ export const purchaseRequestsAdminApi = {
     return normalizeItemResult(result);
   },
 
-  updateStatus: async (id: string, status: PurchaseRequestStatus) => {
+  updateStatus: async (
+    id: string,
+    payload: UpdatePurchaseStatusPayload,
+  ) => {
     const result = await api.patch<PurchaseRequestRaw>(
       `/api/admin/purchase-requests/${id}/status`,
-      { status },
+      payload,
     );
     return normalizeItemResult(result);
   },
 };
+
+export interface UpdatePurchaseStatusPayload {
+  status: PurchaseRequestStatus;
+  photo_url?: string;
+}
+
+/** Advance purchase request status (optionally with proof photo URL). */
+export const updatePurchaseStatus = purchaseRequestsAdminApi.updateStatus;

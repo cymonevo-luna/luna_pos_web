@@ -243,12 +243,56 @@ describe("purchaseRequestsAdminApi", () => {
     expect(created.data).toMatchObject({ id: "pr-1" });
     expect(created.data.total_estimated_amount).toBe(118000);
 
-    const updated = await purchaseRequestsAdminApi.updateStatus(
-      "pr-1",
-      "REQUESTED",
-    );
+    const updated = await purchaseRequestsAdminApi.updateStatus("pr-1", {
+      status: "REQUESTED",
+    });
     expect(updated.data.status).toBe("REQUESTED");
     expect(updated.data.total_estimated_amount).toBe(118000);
+    expect(fetchMock).toHaveBeenCalled();
+  });
+
+  it("sends photo_url when provided for status update", async () => {
+    const purchaseRequest = {
+      id: "pr-1",
+      supplier_id: "sup-1",
+      supplier_name: "Beras Supplier",
+      supplier_contact_info: "08123456789",
+      status: "REQUESTED" as const,
+      notes: null,
+      items: [],
+      total_estimated_amount: "118000",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    };
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async (input, init) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+
+        if (
+          method === "PATCH" &&
+          url.endsWith("/api/admin/purchase-requests/pr-1/status")
+        ) {
+          const body = JSON.parse(String(init?.body));
+          expect(body).toEqual({
+            status: "PAID",
+            photo_url: "https://cdn.example.com/receipt.jpg",
+          });
+          return jsonResponse({
+            success: true,
+            data: { ...purchaseRequest, status: "PAID" },
+          });
+        }
+        return jsonResponse({ success: false }, 404);
+      },
+    );
+
+    const updated = await purchaseRequestsAdminApi.updateStatus("pr-1", {
+      status: "PAID",
+      photo_url: "https://cdn.example.com/receipt.jpg",
+    });
+    expect(updated.data.status).toBe("PAID");
     expect(fetchMock).toHaveBeenCalled();
   });
 

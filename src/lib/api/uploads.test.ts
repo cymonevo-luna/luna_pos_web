@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   uploadMenuPhoto,
+  uploadPurchasePhoto,
   validateMenuPhotoFile,
   MENU_PHOTO_MAX_BYTES,
 } from "./uploads";
@@ -164,5 +165,49 @@ describe("uploadMenuPhoto", () => {
     );
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(tokenStore.access).toBe("new");
+  });
+});
+
+describe("uploadPurchasePhoto", () => {
+  beforeEach(() => {
+    tokenStore.clear();
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("uploads with FormData to the purchase-photo endpoint", async () => {
+    tokenStore.set("token-abc", "refresh-abc");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: {
+          url: "http://localhost:8080/static/uploads/purchases/receipt.webp",
+          filename: "receipt.webp",
+          size_bytes: 1024,
+        },
+      }),
+    );
+
+    const file = createImageFile("receipt.webp", "image/webp");
+    const result = await uploadPurchasePhoto(file);
+
+    expect(result).toEqual({
+      url: "http://localhost:8080/static/uploads/purchases/receipt.webp",
+      filename: "receipt.webp",
+      size_bytes: 1024,
+    });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://localhost:8080/api/admin/uploads/purchase-photo");
+    expect(init?.method).toBe("POST");
+
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer token-abc");
+
+    const body = init?.body as FormData;
+    expect(body.get("file")).toBe(file);
   });
 });
