@@ -128,6 +128,18 @@ describe("AdminPurchasesPage", () => {
     expect(mockPush).toHaveBeenCalledWith("/admin/purchases/pr-1");
   });
 
+  it("shows em dash when created_by_username is null", async () => {
+    vi.mocked(purchaseRequestsAdminApi.list).mockResolvedValue({
+      data: [{ ...purchase, created_by_username: null }],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminPurchasesPage />);
+
+    expect(await screen.findByText("Beras Supplier")).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
+  });
+
   it("shows error toast when loading fails", async () => {
     vi.mocked(purchaseRequestsAdminApi.list).mockRejectedValue(
       new ApiError(500, "server_error", "Server error"),

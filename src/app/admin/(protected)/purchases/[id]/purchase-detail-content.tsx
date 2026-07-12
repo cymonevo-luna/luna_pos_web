@@ -206,7 +206,7 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
               <CardHeader className="pb-2">
                 <CardDescription>Created by</CardDescription>
                 <CardTitle className="text-xl">
-                  {purchase.created_by?.trim() || "—"}
+                  {purchase.created_by_username?.trim() || "—"}
                 </CardTitle>
               </CardHeader>
             </Card>
