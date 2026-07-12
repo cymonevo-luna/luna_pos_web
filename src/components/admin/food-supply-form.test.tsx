@@ -17,6 +17,22 @@ describe("FoodSupplyForm", () => {
     expect(within(unitSelect).getByRole("option", { name: "ml" })).toBeInTheDocument();
     expect(within(unitSelect).getByRole("option", { name: "gr" })).toBeInTheDocument();
     expect(within(unitSelect).getByRole("option", { name: "pcs" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Millilitre" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Gram" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Piece" })).not.toBeInTheDocument();
+  });
+
+  it("shows helper text with short unit labels", () => {
+    render(
+      <FoodSupplyForm onSubmit={() => {}} onCancel={() => {}} />,
+    );
+
+    const helperText = screen.getByText(/Use ml for liquids/);
+    expect(helperText).toHaveTextContent("ml");
+    expect(helperText).toHaveTextContent("gr");
+    expect(helperText).toHaveTextContent("pcs");
+    expect(helperText).not.toHaveTextContent("millilitres");
+    expect(helperText).not.toHaveTextContent("grams");
   });
 
   it("submits unit piece when pcs is selected", async () => {
