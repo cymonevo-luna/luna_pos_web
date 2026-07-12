@@ -323,6 +323,33 @@ describe("suppliersAdminApi", () => {
     expect(fetchMock).toHaveBeenCalled();
   });
 
+  it("normalizes list items that only expose price_quotes_count", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: [
+          {
+            id: "sup-1",
+            name: "Beras Supplier",
+            phone_number: "08123456789",
+            address: "Jl. Pasar 12",
+            supports_delivery: true,
+            delivery_cost: "15000",
+            price_quotes_count: 4,
+            created_at: "2026-01-01T00:00:00Z",
+            updated_at: "2026-01-15T00:00:00Z",
+          },
+        ],
+        meta: { page: 1, per_page: 10, total: 1 },
+      }),
+    );
+
+    const result = await suppliersAdminApi.list();
+    expect(result.data[0]?.price_quotes).toEqual([]);
+    expect(result.data[0]?.price_quotes_count).toBe(4);
+    expect(result.data[0]?.delivery_cost).toBe(15000);
+  });
+
   it("normalizes string quantities from list API", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({
