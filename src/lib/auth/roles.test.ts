@@ -81,6 +81,23 @@ describe("canAccessRoute", () => {
     expect(canAccessRoute("/admin/purchases", ["manager"])).toBe(false);
   });
 
+  it("allows manager users on production request routes", () => {
+    expect(canAccessRoute("/admin/production-requests", ["manager"])).toBe(true);
+    expect(canAccessRoute("/admin/production-requests/new", ["manager"])).toBe(
+      true,
+    );
+  });
+
+  it("blocks operational and cashier users from production request routes", () => {
+    expect(canAccessRoute("/admin/production-requests/new", ["operational"])).toBe(
+      false,
+    );
+    expect(canAccessRoute("/admin/production-requests/new", ["cashier"] as never)).toBe(
+      false,
+    );
+    expect(canAccessRoute("/admin/production-requests", ["admin"])).toBe(false);
+  });
+
   it("allows operational users on operational routes", () => {
     expect(canAccessRoute("/admin/purchases", ["operational"])).toBe(true);
     expect(canAccessRoute("/admin/suppliers/new", ["operational"])).toBe(true);
