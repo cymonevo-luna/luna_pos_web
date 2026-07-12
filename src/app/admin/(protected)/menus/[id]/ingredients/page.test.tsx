@@ -24,25 +24,16 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-vi.mock("@/lib/api/menus", () => ({
-  menusAdminApi: {
-    get: vi.fn(),
-    update: vi.fn(),
-  },
-  menuFullFormToPayload: vi.fn((basic, cogs) => ({
-    title: basic.title.trim(),
-    category_id: basic.category_id,
-    available_stock: basic.available_stock,
-    sell_price: basic.sell_price,
-    recipe_yield: cogs.recipe_yield,
-    margin_percent: cogs.margin_percent,
-    vat_percent: cogs.vat_percent,
-    ...(basic.description?.trim()
-      ? { description: basic.description.trim() }
-      : {}),
-    ...(basic.photo_url?.trim() ? { photo_url: basic.photo_url.trim() } : {}),
-  })),
-}));
+vi.mock("@/lib/api/menus", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api/menus")>();
+  return {
+    ...actual,
+    menusAdminApi: {
+      get: vi.fn(),
+      update: vi.fn(),
+    },
+  };
+});
 
 vi.mock("@/lib/api/cogs", () => ({
   cogsAdminApi: {
@@ -186,6 +177,46 @@ describe("AdminMenuIngredientsContent", () => {
         vat_percent: 0,
       });
     });
+    expect(toast.success).toHaveBeenCalledWith("COGS settings saved");
+  });
+
+  it("saves COGS settings without photo_url when menu has default image", async () => {
+    const user = userEvent.setup();
+    const menuWithDefaultPhoto: Menu = {
+      ...menu,
+      photo_url: "/static/default-food.png",
+    };
+
+    vi.mocked(menusAdminApi.get).mockResolvedValue({ data: menuWithDefaultPhoto });
+    vi.mocked(menusAdminApi.update).mockResolvedValue({
+      data: { ...menuWithDefaultPhoto, margin_percent: 25 },
+    });
+
+    renderPage();
+    await screen.findByRole("heading", {
+      name: "Ingredients — Nasi Goreng",
+    });
+
+    await user.clear(screen.getByLabelText("Margin %"));
+    await user.type(screen.getByLabelText("Margin %"), "25");
+    await user.click(
+      screen.getByRole("button", { name: "Save COGS settings" }),
+    );
+
+    await waitFor(() => {
+      expect(menusAdminApi.update).toHaveBeenCalledWith("menu-1", {
+        title: "Nasi Goreng",
+        description: "Spicy fried rice",
+        category_id: "cat-1",
+        available_stock: 10,
+        sell_price: 25000,
+        recipe_yield: 1,
+        margin_percent: 25,
+        vat_percent: 0,
+      });
+    });
+    const payload = vi.mocked(menusAdminApi.update).mock.calls[0]?.[1];
+    expect(payload).not.toHaveProperty("photo_url");
     expect(toast.success).toHaveBeenCalledWith("COGS settings saved");
   });
 
