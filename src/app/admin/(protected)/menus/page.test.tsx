@@ -62,6 +62,15 @@ vi.mock("@/components/admin/menu-ingredients-form", () => ({
   ),
 }));
 
+vi.mock("@/components/admin/menu-stock-estimation-panel", () => ({
+  MenuStockEstimationPanel: ({ menuId }: { menuId: string }) => (
+    <section aria-label="Stock estimation">
+      <h4>Stock Estimation</h4>
+      <span>estimation:{menuId}</span>
+    </section>
+  ),
+}));
+
 vi.mock("sonner", () => ({
   toast: {
     success: vi.fn(),
@@ -436,6 +445,8 @@ describe("AdminMenusPage", () => {
     expect(screen.getByText("menu:menu-1")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add ingredient" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save ingredients" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Stock estimation" })).toBeInTheDocument();
+    expect(screen.getByText("estimation:menu-1")).toBeInTheDocument();
   });
 
   it("shows helper text on create instead of ingredients editor", async () => {

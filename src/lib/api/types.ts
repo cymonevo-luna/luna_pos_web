@@ -120,6 +120,26 @@ export interface FormulaResponse {
   ingredients: MenuIngredient[];
 }
 
+export interface StockEstimationIngredient {
+  food_supply_title: string;
+  unit: FoodSupplyUnit;
+  quantity_per_unit: number;
+  required_quantity: number;
+  current_stock_quantity: number;
+  remaining_after: number;
+  is_sufficient: boolean;
+}
+
+export interface StockEstimationResponse {
+  has_formula: boolean;
+  requested_quantity: number;
+  max_producible?: number;
+  is_fully_producible?: boolean;
+  limiting_ingredient_title?: string | null;
+  message?: string;
+  ingredients?: StockEstimationIngredient[];
+}
+
 export type TransactionMethod = "OFFLINE";
 
 export type TransactionSummaryPeriod = "daily" | "weekly" | "monthly";
