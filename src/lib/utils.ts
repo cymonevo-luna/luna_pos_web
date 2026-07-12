@@ -94,6 +94,27 @@ export function formatSupplierUnitPrice(
   return `${formatRupiah(Number.parseFloat(formatted))} / ${unit}`;
 }
 
+/**
+ * Estimate a purchase line total using the same half-up rounding as the backend:
+ * Math.round(quantity * price_amount / price_quantity).
+ */
+export function estimateLineAmount(
+  priceAmount: number,
+  priceQuantity: number,
+  quantity: number,
+) {
+  if (
+    !Number.isFinite(priceAmount) ||
+    !Number.isFinite(priceQuantity) ||
+    !Number.isFinite(quantity) ||
+    priceQuantity <= 0 ||
+    quantity <= 0
+  ) {
+    return 0;
+  }
+  return Math.round((quantity * priceAmount) / priceQuantity);
+}
+
 /** Resolve a menu photo URL, falling back to the default food image. */
 export function menuPhotoUrl(photoUrl?: string | null) {
   const trimmed = photoUrl?.trim();
