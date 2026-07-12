@@ -20,6 +20,7 @@ describe("normalizeApiBaseUrl", () => {
 
 describe("config", () => {
   afterEach(() => {
+    vi.unstubAllEnvs();
     delete process.env.NEXT_PUBLIC_API_URL;
   });
 
@@ -27,11 +28,20 @@ describe("config", () => {
     expect(config.apiFetchInit.credentials).toBe("omit");
   });
 
-  it("falls back when NEXT_PUBLIC_API_URL is empty", async () => {
-    process.env.NEXT_PUBLIC_API_URL = "   ";
+  it("falls back to localhost in development when NEXT_PUBLIC_API_URL is empty", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "   ");
     vi.resetModules();
     const { config: reloaded } = await import("./config");
     expect(reloaded.apiBaseUrl).toBe("http://localhost:8080");
+  });
+
+  it("falls back to pos-api in production when NEXT_PUBLIC_API_URL is empty", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "   ");
+    vi.resetModules();
+    const { config: reloaded } = await import("./config");
+    expect(reloaded.apiBaseUrl).toBe("https://pos-api.cymonevo.com");
   });
 
   it("normalizes NEXT_PUBLIC_API_URL from the environment", async () => {

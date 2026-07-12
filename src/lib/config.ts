@@ -4,16 +4,23 @@
  * Go backend (go_template) on localhost:8080.
  */
 
-const DEFAULT_API_BASE_URL = "http://localhost:8080";
+const DEV_API_BASE_URL = "http://localhost:8080";
+const PRODUCTION_API_BASE_URL = "https://pos-api.cymonevo.com";
 
 /** Strip trailing slashes so `${apiBaseUrl}${path}` never double-slashes. */
 export function normalizeApiBaseUrl(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
+function defaultApiBaseUrl(): string {
+  return process.env.NODE_ENV === "production"
+    ? PRODUCTION_API_BASE_URL
+    : DEV_API_BASE_URL;
+}
+
 function resolveApiBaseUrl(): string {
   const raw = process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (!raw) return DEFAULT_API_BASE_URL;
+  if (!raw) return defaultApiBaseUrl();
   return normalizeApiBaseUrl(raw);
 }
 
