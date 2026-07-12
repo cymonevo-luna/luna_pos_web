@@ -46,7 +46,7 @@ export default function AdminProtectedLayout({
   return (
     <RequireAuth admin>
       <AdminRouteGuard>
-        <DashboardShell navItems={navItems} title="Admin Console">
+        <DashboardShell navItems={navItems} title="POS Dashboard">
           {children}
         </DashboardShell>
       </AdminRouteGuard>
