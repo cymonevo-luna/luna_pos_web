@@ -9,19 +9,22 @@ import {
   ChevronRight,
   Plus,
   Pencil,
+  ChefHat,
 } from "lucide-react";
-import { menusAdminApi, menuFullFormToPayload } from "@/lib/api/menus";
+import {
+  menusAdminApi,
+  menuBasicFormToPayload,
+  menuFullFormToPayload,
+} from "@/lib/api/menus";
 import { categoriesAdminApi } from "@/lib/api/categories";
 import { ApiError } from "@/lib/api/client";
 import type { Category, Menu } from "@/lib/api/types";
-import type { MenuBasicFormValues, MenuCogsFormValues } from "@/lib/validations";
+import type { MenuBasicFormValues } from "@/lib/validations";
 import { MENU_COGS_DEFAULTS } from "@/lib/menu-cogs";
 import { formatRupiah, menuPhotoUrl } from "@/lib/utils";
 import { toast } from "sonner";
 import { MenuForm, type MenuFormHandle } from "@/components/admin/menu-form";
-import { MenuIngredientsForm } from "@/components/admin/menu-ingredients-form";
-import { MenuStockEstimationPanel } from "@/components/admin/menu-stock-estimation-panel";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -44,14 +47,6 @@ function menuToFormValues(menu: Menu): Partial<MenuBasicFormValues> {
     photo_url: menu.photo_url ?? "",
     available_stock: menu.available_stock,
     sell_price: menu.sell_price,
-  };
-}
-
-function menuToCogsValues(menu: Menu): MenuCogsFormValues {
-  return {
-    recipe_yield: menu.recipe_yield ?? MENU_COGS_DEFAULTS.recipe_yield,
-    margin_percent: menu.margin_percent ?? MENU_COGS_DEFAULTS.margin_percent,
-    vat_percent: menu.vat_percent ?? MENU_COGS_DEFAULTS.vat_percent,
   };
 }
 
@@ -86,9 +81,6 @@ export default function AdminMenusPage() {
   const [deleting, setDeleting] = useState(false);
   const [dialog, setDialog] = useState<MenuDialogState>(null);
   const [saving, setSaving] = useState(false);
-  const [recipeYield, setRecipeYield] = useState<number>(
-    MENU_COGS_DEFAULTS.recipe_yield,
-  );
   const formRef = useRef<MenuFormHandle>(null);
 
   const hasCategories = categories.length > 0;
@@ -177,13 +169,6 @@ export default function AdminMenusPage() {
   };
 
   const openDialog = (nextDialog: MenuDialogState) => {
-    if (nextDialog?.mode === "edit") {
-      setRecipeYield(
-        nextDialog.menu.recipe_yield ?? MENU_COGS_DEFAULTS.recipe_yield,
-      );
-    } else {
-      setRecipeYield(MENU_COGS_DEFAULTS.recipe_yield);
-    }
     setDialog(nextDialog);
   };
 
@@ -191,11 +176,20 @@ export default function AdminMenusPage() {
     if (!dialog) return;
     setSaving(true);
     try {
-      const cogs =
+      const payload =
         dialog.mode === "create"
-          ? MENU_COGS_DEFAULTS
-          : menuToCogsValues(dialog.menu);
-      const payload = menuFullFormToPayload(values, cogs);
+          ? {
+              ...menuBasicFormToPayload(values),
+              ...MENU_COGS_DEFAULTS,
+            }
+          : menuFullFormToPayload(values, {
+              recipe_yield:
+                dialog.menu.recipe_yield ?? MENU_COGS_DEFAULTS.recipe_yield,
+              margin_percent:
+                dialog.menu.margin_percent ?? MENU_COGS_DEFAULTS.margin_percent,
+              vat_percent:
+                dialog.menu.vat_percent ?? MENU_COGS_DEFAULTS.vat_percent,
+            });
       if (dialog.mode === "create") {
         await menusAdminApi.create(payload);
         toast.success("Menu created");
@@ -335,6 +329,17 @@ export default function AdminMenusPage() {
                     <td className="px-4 py-3">{formatRupiah(menu.sell_price)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
+                        <Link
+                          href={`/admin/menus/${menu.id}/ingredients`}
+                          className={buttonVariants({
+                            variant: "ghost",
+                            size: "icon",
+                            className: "h-8 w-8",
+                          })}
+                          aria-label="Manage ingredients"
+                        >
+                          <ChefHat className="h-4 w-4" />
+                        </Link>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -392,7 +397,7 @@ export default function AdminMenusPage() {
       <Dialog
         open={dialog !== null}
         onClose={closeDialog}
-        className={dialog?.mode === "edit" ? "max-w-3xl" : "max-w-lg"}
+        className="max-w-lg"
       >
         <DialogTitle>{dialogTitle}</DialogTitle>
         {dialog && (
@@ -407,21 +412,10 @@ export default function AdminMenusPage() {
               isLoading={saving}
               submitLabel={dialog.mode === "edit" ? "Save changes" : "Add Menu"}
             />
-            {dialog.mode === "edit" ? (
-              <>
-                <MenuIngredientsForm
-                  menuId={dialog.menu.id}
-                  recipeYield={recipeYield}
-                  disabled={saving}
-                />
-                <MenuStockEstimationPanel
-                  menuId={dialog.menu.id}
-                  disabled={saving}
-                />
-              </>
-            ) : (
+            {dialog.mode === "create" && (
               <div className="text-muted-foreground border-t border-border pt-4 text-sm">
-                Save the menu first to add an ingredient formula.
+                After saving, use Manage ingredients in the menu list to
+                configure the formula.
               </div>
             )}
           </>
