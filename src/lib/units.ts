@@ -6,6 +6,12 @@ export const FOOD_SUPPLY_UNIT_LABELS: Record<FoodSupplyUnit, string> = {
   piece: "pcs",
 };
 
+export const UNIT_OPTIONS = [
+  { value: "ml" as const, label: FOOD_SUPPLY_UNIT_LABELS.ml },
+  { value: "gr" as const, label: FOOD_SUPPLY_UNIT_LABELS.gr },
+  { value: "piece" as const, label: FOOD_SUPPLY_UNIT_LABELS.piece },
+] as const;
+
 const CONVERTED_UNIT_SUFFIX: Partial<Record<FoodSupplyUnit, string>> = {
   gr: "kg",
   ml: "ltr",
