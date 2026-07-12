@@ -15,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CtaSection } from "@/components/landing/cta-section";
 
 const features = [
   {
@@ -106,6 +107,8 @@ export default function HomePage() {
           })}
         </div>
       </section>
+
+      <CtaSection />
     </div>
   );
 }
