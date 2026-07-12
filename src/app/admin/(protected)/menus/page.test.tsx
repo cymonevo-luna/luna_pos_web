@@ -30,6 +30,16 @@ vi.mock("@/lib/api/menus", () => ({
     update: vi.fn(),
     delete: vi.fn(),
   },
+  menuBasicFormToPayload: vi.fn((basic) => ({
+    title: basic.title.trim(),
+    category_id: basic.category_id,
+    available_stock: basic.available_stock,
+    sell_price: basic.sell_price,
+    ...(basic.description?.trim()
+      ? { description: basic.description.trim() }
+      : {}),
+    ...(basic.photo_url?.trim() ? { photo_url: basic.photo_url.trim() } : {}),
+  })),
   menuFullFormToPayload: vi.fn((basic, cogs) => ({
     title: basic.title.trim(),
     category_id: basic.category_id,
@@ -49,26 +59,6 @@ vi.mock("@/lib/api/categories", () => ({
   categoriesAdminApi: {
     list: vi.fn(),
   },
-}));
-
-vi.mock("@/components/admin/menu-ingredients-form", () => ({
-  MenuIngredientsForm: ({ menuId }: { menuId: string }) => (
-    <section aria-label="Menu ingredients">
-      <h4>Ingredients</h4>
-      <button type="button">Add ingredient</button>
-      <button type="button">Save ingredients</button>
-      <span>menu:{menuId}</span>
-    </section>
-  ),
-}));
-
-vi.mock("@/components/admin/menu-stock-estimation-panel", () => ({
-  MenuStockEstimationPanel: ({ menuId }: { menuId: string }) => (
-    <section aria-label="Stock estimation">
-      <h4>Stock Estimation</h4>
-      <span>estimation:{menuId}</span>
-    </section>
-  ),
 }));
 
 vi.mock("sonner", () => ({
@@ -438,7 +428,18 @@ describe("AdminMenusPage", () => {
     expect(menusAdminApi.create).not.toHaveBeenCalled();
   });
 
-  it("shows ingredients section when editing an existing menu", async () => {
+  it("navigates to ingredients page from manage ingredients action", async () => {
+    render(<AdminMenusPage />);
+    await screen.findByText("Nasi Goreng");
+
+    const manageLink = screen.getByLabelText("Manage ingredients");
+    expect(manageLink).toHaveAttribute(
+      "href",
+      "/admin/menus/menu-1/ingredients",
+    );
+  });
+
+  it("does not show ingredients or stock sections in edit dialog", async () => {
     const user = userEvent.setup();
 
     render(<AdminMenusPage />);
@@ -446,12 +447,12 @@ describe("AdminMenusPage", () => {
 
     await user.click(screen.getByLabelText("Edit menu"));
 
-    expect(screen.getByRole("region", { name: "Menu ingredients" })).toBeInTheDocument();
-    expect(screen.getByText("menu:menu-1")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add ingredient" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save ingredients" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Stock estimation" })).toBeInTheDocument();
-    expect(screen.getByText("estimation:menu-1")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "Menu ingredients" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "Stock estimation" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows helper text on create instead of ingredients editor", async () => {
@@ -463,7 +464,9 @@ describe("AdminMenusPage", () => {
     await user.click(screen.getByRole("button", { name: "Add Menu" }));
 
     expect(
-      screen.getByText("Save the menu first to add an ingredient formula."),
+      screen.getByText(
+        "After saving, use Manage ingredients in the menu list to configure the formula.",
+      ),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("region", { name: "Menu ingredients" }),
