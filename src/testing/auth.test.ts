@@ -72,4 +72,32 @@ describe("loginAsTestAccount", () => {
     });
     expect(tokenStore.set).toHaveBeenCalledWith("access-token", "refresh-token");
   });
+
+  it("logs in via POST /api/v1/auth/login with the dedicated cashier account", async () => {
+    await loginAsTestAccount("cashier", { persistSession: false });
+
+    expect(authApi.login).toHaveBeenCalledWith({
+      email: "cashier-test@cymonevo.com",
+      password: "LunaTesting123!",
+    });
+  });
+
+  it("logs in via POST /api/v1/auth/login with the dedicated operational account", async () => {
+    await loginAsTestAccount("operational", { persistSession: false });
+
+    expect(authApi.login).toHaveBeenCalledWith({
+      email: "operation-test@cymonevo.com",
+      password: "LunaTesting123!",
+    });
+  });
+
+  it("loginAsRole alias delegates to loginAsTestAccount", async () => {
+    const { loginAsRole } = await import("@/testing/auth");
+    await loginAsRole("admin", { persistSession: false });
+
+    expect(authApi.login).toHaveBeenCalledWith({
+      email: "admin-test@cymonevo.com",
+      password: "LunaTesting123!",
+    });
+  });
 });

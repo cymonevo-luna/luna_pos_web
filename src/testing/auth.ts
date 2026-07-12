@@ -35,3 +35,6 @@ export async function loginAsTestAccount(
 
   return data;
 }
+
+/** Alias for {@link loginAsTestAccount} — matches POS-20-2 task naming. */
+export const loginAsRole = loginAsTestAccount;
