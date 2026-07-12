@@ -39,6 +39,17 @@ describe("AdminProtectedLayout", () => {
     expect(link).toHaveAttribute("href", "/admin/suppliers");
   });
 
+  it("includes Purchases in admin navigation", () => {
+    render(
+      <AdminProtectedLayout>
+        <div>Page content</div>
+      </AdminProtectedLayout>,
+    );
+
+    const link = screen.getByRole("link", { name: "Purchases" });
+    expect(link).toHaveAttribute("href", "/admin/purchases");
+  });
+
   it("includes COGS in admin navigation", () => {
     render(
       <AdminProtectedLayout>

@@ -19,7 +19,7 @@ import {
   formatSupplierUnitPrice,
 } from "@/lib/utils";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -39,16 +39,20 @@ const STATUS_OPTIONS: { value: PurchaseRequestStatus; label: string }[] = [
   { value: "DELIVERED", label: "Delivered" },
 ];
 
-function statusBadgeVariant(status: PurchaseRequestStatus) {
+function purchaseStatusBadgeVariant(
+  status: PurchaseRequestStatus,
+): NonNullable<BadgeProps["variant"]> {
   switch (status) {
     case "PENDING":
-      return "secondary" as const;
+      return "secondary";
     case "REQUESTED":
-      return "outline" as const;
+      return "default";
     case "PAID":
-      return "default" as const;
+      return "warning";
     case "DELIVERED":
-      return "success" as const;
+      return "success";
+    default:
+      return "secondary";
   }
 }
 
@@ -176,7 +180,7 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
               <CardHeader className="pb-2">
                 <CardDescription>Status</CardDescription>
                 <CardTitle className="text-xl">
-                  <Badge variant={statusBadgeVariant(purchase.status)}>
+                  <Badge variant={purchaseStatusBadgeVariant(purchase.status)}>
                     {purchase.status}
                   </Badge>
                 </CardTitle>
