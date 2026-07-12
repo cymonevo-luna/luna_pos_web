@@ -323,3 +323,89 @@ export interface PurchaseRequestSummary {
   created_at: string;
   updated_at: string;
 }
+
+export type ProductionRequestStatus =
+  | "REQUESTED"
+  | "ACCEPTED"
+  | "READY_TO_PICK"
+  | "DONE";
+
+/** Ingredient line within a per-menu stock estimation on production requests. */
+export interface ProductionStockEstimationIngredient
+  extends StockEstimationIngredient {
+  food_supply_id: string;
+  max_producible_from_supply?: number;
+}
+
+export interface ProductionLineStockEstimation {
+  has_formula: boolean;
+  is_fully_producible: boolean;
+  limiting_ingredient_id?: string;
+  limiting_ingredient_title?: string | null;
+  message?: string;
+  ingredients: ProductionStockEstimationIngredient[];
+}
+
+export interface ProductionAggregatedIngredient {
+  food_supply_id: string;
+  food_supply_title: string;
+  unit: FoodSupplyUnit;
+  required_quantity: number;
+  current_stock_quantity: number;
+  remaining_after: number;
+  is_sufficient: boolean;
+}
+
+export interface ProductionRequestItem {
+  id: string;
+  menu_id: string;
+  menu_title: string;
+  quantity: number;
+  is_finished: boolean;
+  stock_estimation: ProductionLineStockEstimation;
+}
+
+export interface ProductionRequestStatusHistoryEntry {
+  id: string;
+  from_status: ProductionRequestStatus | null;
+  to_status: ProductionRequestStatus;
+  changed_by_username: string;
+  created_at: string;
+}
+
+export interface ProductionRequest {
+  id: string;
+  status: ProductionRequestStatus;
+  is_fully_producible: boolean;
+  items: ProductionRequestItem[];
+  aggregated_ingredients: ProductionAggregatedIngredient[];
+  status_history: ProductionRequestStatusHistoryEntry[];
+  created_by_user_id?: string | null;
+  created_by_username?: string | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionRequestSummary {
+  id: string;
+  status: ProductionRequestStatus;
+  is_fully_producible: boolean;
+  item_count: number;
+  created_by_username?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionRequestEstimateItem {
+  menu_id: string;
+  menu_title: string;
+  quantity: number;
+  stock_estimation: ProductionLineStockEstimation;
+}
+
+export interface ProductionRequestEstimateResponse {
+  is_fully_producible: boolean;
+  items: ProductionRequestEstimateItem[];
+  aggregated_ingredients: ProductionAggregatedIngredient[];
+}
