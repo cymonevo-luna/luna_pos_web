@@ -244,6 +244,29 @@ export const purchaseRequestSchema = z.object({
 
 export type PurchaseRequestFormValues = z.infer<typeof purchaseRequestSchema>;
 
+export const productionRequestLineItemSchema = z.object({
+  menu_id: z.string().min(1, "Menu is required"),
+  quantity: z
+    .number({ error: "Quantity is required" })
+    .int("Quantity must be a whole number")
+    .positive("Quantity must be greater than 0"),
+});
+
+export const productionRequestFormSchema = z.object({
+  items: z
+    .array(productionRequestLineItemSchema)
+    .min(1, "Add at least one line item"),
+  notes: z
+    .string()
+    .max(2000, "Notes are too long")
+    .optional()
+    .or(z.literal("")),
+});
+
+export type ProductionRequestFormValues = z.infer<
+  typeof productionRequestFormSchema
+>;
+
 const assignableRoleSchema = z.enum(
   ["admin", "manager", "cashier", "operational"],
   { error: "Select a valid role" },
