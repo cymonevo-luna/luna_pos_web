@@ -1,9 +1,20 @@
 import { describe, it, expect } from "vitest";
 import {
   FOOD_SUPPLY_UNIT_LABELS,
+  UNIT_OPTIONS,
   formatMeasurementQuantity,
   getUnitLabel,
 } from "./units";
+
+describe("UNIT_OPTIONS", () => {
+  it("exposes API values with short display labels", () => {
+    expect(UNIT_OPTIONS).toEqual([
+      { value: "ml", label: "ml" },
+      { value: "gr", label: "gr" },
+      { value: "piece", label: "pcs" },
+    ]);
+  });
+});
 
 describe("FOOD_SUPPLY_UNIT_LABELS", () => {
   it("maps API units to display labels", () => {
