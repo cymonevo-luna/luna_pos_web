@@ -112,6 +112,89 @@ describe("MenuForm", () => {
     expect(preview).toHaveAttribute("src", "/default-food.svg");
   });
 
+  it("uses a two-column photo layout on desktop viewports", () => {
+    Object.defineProperty(window, "innerWidth", {
+      writable: true,
+      configurable: true,
+      value: 1024,
+    });
+
+    render(
+      <MenuForm categories={categories} onSubmit={() => {}} onCancel={() => {}} />,
+    );
+
+    const section = screen.getByTestId("menu-photo-section");
+    expect(section).toHaveClass("grid", "gap-4", "sm:grid-cols-2");
+
+    const controls = screen.getByTestId("menu-photo-controls");
+    const preview = screen.getByTestId("menu-photo-preview");
+
+    expect(section).toContainElement(controls);
+    expect(section).toContainElement(preview);
+    expect(controls).toContainElement(screen.getByLabelText("Menu photo"));
+    expect(controls).toContainElement(screen.getByLabelText(/Photo URL/));
+    expect(preview).toContainElement(screen.getByAltText("Menu photo preview"));
+  });
+
+  it("stacks photo controls vertically on narrow viewports", () => {
+    Object.defineProperty(window, "innerWidth", {
+      writable: true,
+      configurable: true,
+      value: 375,
+    });
+
+    render(
+      <MenuForm categories={categories} onSubmit={() => {}} onCancel={() => {}} />,
+    );
+
+    const section = screen.getByTestId("menu-photo-section");
+    expect(section).toHaveClass("grid", "sm:grid-cols-2");
+
+    expect(screen.getByLabelText("Menu photo")).toBeVisible();
+    expect(screen.getByLabelText(/Photo URL/)).toBeVisible();
+    expect(screen.getByText("Photo preview")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Choose image" })).toBeVisible();
+
+    const controls = screen.getByTestId("menu-photo-controls");
+    const preview = screen.getByTestId("menu-photo-preview");
+
+    expect(
+      controls.compareDocumentPosition(preview) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    const fileInput = screen.getByLabelText("Menu photo");
+    const urlInput = screen.getByLabelText(/Photo URL/);
+    expect(
+      fileInput.compareDocumentPosition(urlInput) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    const previewImage = screen.getByAltText("Menu photo preview");
+    expect(
+      urlInput.compareDocumentPosition(previewImage) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("updates the preview when Photo URL changes", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MenuForm categories={categories} onSubmit={() => {}} onCancel={() => {}} />,
+    );
+
+    const preview = screen.getByAltText("Menu photo preview");
+    expect(preview).toHaveAttribute("src", "/default-food.svg");
+
+    await user.type(
+      screen.getByLabelText(/Photo URL/),
+      "https://example.com/food.jpg",
+    );
+
+    expect(preview).toHaveAttribute("src", "https://example.com/food.jpg");
+  });
+
   it("prefills edit defaults", () => {
     render(
       <MenuForm
