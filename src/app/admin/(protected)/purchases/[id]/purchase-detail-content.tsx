@@ -1,24 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MessageCircle } from "lucide-react";
 import { purchaseRequestsAdminApi } from "@/lib/api/purchase-requests";
 import { ApiError } from "@/lib/api/client";
 import type {
   PurchaseRequest,
+  PurchaseRequestItem,
   PurchaseRequestStatus,
 } from "@/lib/api/types";
 import {
-  formatDate,
+  buildPurchaseWhatsAppMessage,
+  extractWhatsAppPhone,
   formatDateTime,
   formatRupiah,
   formatStockQuantity,
+  formatSupplierUnitPrice,
 } from "@/lib/utils";
 import { toast } from "sonner";
-import { buttonVariants } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
   CardContent,
@@ -26,6 +31,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
+const STATUS_OPTIONS: { value: PurchaseRequestStatus; label: string }[] = [
+  { value: "PENDING", label: "Pending" },
+  { value: "REQUESTED", label: "Requested" },
+  { value: "PAID", label: "Paid" },
+  { value: "DELIVERED", label: "Delivered" },
+];
 
 function purchaseStatusBadgeVariant(
   status: PurchaseRequestStatus,
@@ -44,25 +56,70 @@ function purchaseStatusBadgeVariant(
   }
 }
 
+function displayItemUnitPrice(item: PurchaseRequestItem) {
+  const unit = item.unit ?? "";
+  if (item.unit_price != null && Number.isFinite(item.unit_price)) {
+    const formatted = Number.parseFloat(item.unit_price.toFixed(4)).toString();
+    return `${formatRupiah(Number.parseFloat(formatted))} / ${unit}`;
+  }
+  return formatSupplierUnitPrice(
+    item.price_amount,
+    item.price_quantity,
+    unit || "unit",
+  );
+}
+
 export function AdminPurchaseDetailContent({ id }: { id: string }) {
   const [purchase, setPurchase] = useState<PurchaseRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [savingStatus, setSavingStatus] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await purchaseRequestsAdminApi.get(id);
+      setPurchase(res.data);
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Failed to load purchase request",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
   useEffect(() => {
-    purchaseRequestsAdminApi
-      .get(id)
-      .then((res) => setPurchase(res.data ?? null))
-      .catch((err) => {
-        const message =
-          err instanceof ApiError
-            ? err.message
-            : "Failed to load purchase request";
-        setError(message);
-        toast.error(message);
-      })
-      .finally(() => setLoading(false));
-  }, [id]);
+    void load();
+  }, [load]);
+
+  const handleStatusChange = async (status: PurchaseRequestStatus) => {
+    if (!purchase || status === purchase.status) return;
+    setSavingStatus(true);
+    try {
+      const res = await purchaseRequestsAdminApi.updateStatus(id, status);
+      setPurchase(res.data);
+      toast.success("Status updated");
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError ? err.message : "Failed to update status",
+      );
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+
+  const whatsAppPhone = purchase
+    ? extractWhatsAppPhone(purchase.supplier_contact_info)
+    : null;
+
+  const handleContactSupplier = () => {
+    if (!purchase || !whatsAppPhone) return;
+    const message = buildPurchaseWhatsAppMessage(purchase);
+    const url = `https://wa.me/${whatsAppPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, "_blank");
+  };
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -77,8 +134,8 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
       {loading ? (
         <div className="space-y-4">
           <Skeleton className="h-8 w-64" />
-          <div className="grid gap-4 sm:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-24 w-full" />
             ))}
           </div>
@@ -92,22 +149,43 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
         </Card>
       ) : purchase ? (
         <>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="font-mono text-sm text-muted-foreground">
-                {purchase.id}
-              </h2>
-              <p className="text-2xl font-semibold">{purchase.supplier_name}</p>
-              <p className="text-sm text-muted-foreground">
-                {purchase.supplier_contact_info}
+              <h2 className="text-2xl font-semibold">{purchase.supplier_name}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Purchase request ·{" "}
+                <span className="font-mono">{purchase.id}</span>
               </p>
             </div>
-            <Badge variant={purchaseStatusBadgeVariant(purchase.status)}>
-              {purchase.status}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              {purchase.supplier_contact_info ? (
+                <span title={whatsAppPhone ? undefined : "No WhatsApp number in contact info"}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!whatsAppPhone}
+                    onClick={handleContactSupplier}
+                    aria-label="Contact supplier"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    Contact supplier
+                  </Button>
+                </span>
+              ) : null}
+            </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardDescription>Status</CardDescription>
+                <CardTitle className="text-xl">
+                  <Badge variant={purchaseStatusBadgeVariant(purchase.status)}>
+                    {purchase.status}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+            </Card>
             <Card>
               <CardHeader className="pb-2">
                 <CardDescription>Total estimate</CardDescription>
@@ -118,7 +196,7 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Created</CardDescription>
+                <CardDescription>Created at</CardDescription>
                 <CardTitle className="text-xl">
                   {formatDateTime(purchase.created_at)}
                 </CardTitle>
@@ -126,13 +204,36 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Updated</CardDescription>
+                <CardDescription>Created by</CardDescription>
                 <CardTitle className="text-xl">
-                  {formatDate(purchase.updated_at)}
+                  {purchase.created_by?.trim() || "—"}
                 </CardTitle>
               </CardHeader>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Update status</CardTitle>
+              <CardDescription>
+                Change the purchase request lifecycle status.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Select
+                aria-label="Purchase request status"
+                className="max-w-xs"
+                options={STATUS_OPTIONS}
+                value={purchase.status}
+                disabled={savingStatus}
+                onChange={(event) =>
+                  void handleStatusChange(
+                    event.target.value as PurchaseRequestStatus,
+                  )
+                }
+              />
+            </CardContent>
+          </Card>
 
           {purchase.notes?.trim() ? (
             <Card>
@@ -148,6 +249,10 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
           <Card className="overflow-hidden">
             <CardHeader>
               <CardTitle className="text-base">Line items</CardTitle>
+              <CardDescription>
+                {purchase.items.length} item
+                {purchase.items.length === 1 ? "" : "s"}
+              </CardDescription>
             </CardHeader>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -156,43 +261,41 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                     <th className="px-4 py-3 font-medium">Food supply</th>
                     <th className="px-4 py-3 font-medium">Quantity</th>
                     <th className="px-4 py-3 font-medium">Unit price</th>
-                    <th className="px-4 py-3 font-medium">Line total</th>
+                    <th className="px-4 py-3 font-medium">Line estimate</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {purchase.items.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={4}
-                        className="px-4 py-10 text-center text-muted-foreground"
-                      >
-                        No line items.
+                  {purchase.items.map((item) => (
+                    <tr
+                      key={item.id}
+                      className="border-b border-border last:border-0"
+                    >
+                      <td className="px-4 py-3 font-medium">
+                        {item.food_supply_title ?? "Unknown"}
+                      </td>
+                      <td className="px-4 py-3">
+                        {formatStockQuantity(item.quantity, item.unit ?? "unit")}
+                      </td>
+                      <td className="px-4 py-3">{displayItemUnitPrice(item)}</td>
+                      <td className="px-4 py-3">
+                        {formatRupiah(item.price_amount)}
                       </td>
                     </tr>
-                  ) : (
-                    purchase.items.map((item) => (
-                      <tr
-                        key={item.id}
-                        className="border-b border-border last:border-0"
-                      >
-                        <td className="px-4 py-3 font-medium">
-                          {item.food_supply_title ?? "Unknown"}
-                        </td>
-                        <td className="px-4 py-3">
-                          {item.unit
-                            ? formatStockQuantity(item.quantity, item.unit)
-                            : item.quantity}
-                        </td>
-                        <td className="px-4 py-3">
-                          {formatRupiah(item.unit_price)}
-                        </td>
-                        <td className="px-4 py-3">
-                          {formatRupiah(item.price_amount)}
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                  ))}
                 </tbody>
+                <tfoot className="border-t border-border bg-muted/30">
+                  <tr>
+                    <td
+                      colSpan={3}
+                      className="px-4 py-3 text-right font-medium"
+                    >
+                      Total estimate
+                    </td>
+                    <td className="px-4 py-3 font-semibold">
+                      {formatRupiah(purchase.total_amount)}
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </Card>

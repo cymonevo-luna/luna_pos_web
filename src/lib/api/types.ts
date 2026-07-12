@@ -263,6 +263,7 @@ export interface PurchaseRequest {
   notes?: string | null;
   items: PurchaseRequestItem[];
   total_amount: number;
+  created_by?: string;
   created_at: string;
   updated_at: string;
 }
