@@ -1,7 +1,7 @@
 /**
  * Centralised runtime configuration. Reads from environment variables with
  * sensible defaults so the template runs out of the box against the companion
- * Go backend (go_template) on localhost:8080.
+ * Go backend (luna_pos_service docker-compose host port 8087 when using .env.example).
  */
 export const config = {
   appName: process.env.NEXT_PUBLIC_APP_NAME ?? "Next Template",

@@ -35,3 +35,11 @@ const { user, tokens } = await loginAsTestAccount("admin");
 Non-production environments may override credentials via `TEST_ADMIN_EMAIL`, `TEST_ADMIN_PASSWORD`, `TEST_MANAGER_EMAIL`, etc.
 
 **Never** call `POST /api/v1/auth/register` or walk through UI registration/signup to set up Tester Agent state. Manual registration UX for real users is unchanged.
+
+### QA verification
+
+1. Start `luna_pos_service` (`make docker-up` in the sibling repo; API on port **8087**).
+2. Set `NEXT_PUBLIC_API_URL=http://localhost:8087`.
+3. Run live checks:
+   - `npm run test:integration` — four role login tests against the API.
+   - `./scripts/verify-pos-20-2-qa.sh` — full deferred checklist (API health, logins, no register in tests, user count stability, optional login UI smoke).
