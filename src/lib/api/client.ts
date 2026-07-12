@@ -51,31 +51,7 @@ async function request<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<ApiResult<T>> {
-  const { body, auth = true, _retried, headers, ...rest } = options;
-
-  const finalHeaders = new Headers(headers);
-  if (body !== undefined && !finalHeaders.has("Content-Type")) {
-    finalHeaders.set("Content-Type", "application/json");
-  }
-  if (auth) {
-    const token = tokenStore.access;
-    if (token) finalHeaders.set("Authorization", `Bearer ${token}`);
-  }
-
-  const res = await fetch(`${config.apiBaseUrl}${path}`, {
-    ...rest,
-    headers: finalHeaders,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-
-  // Transparently refresh once on an expired token.
-  if (res.status === 401 && auth && !_retried) {
-    const refreshed = await refreshTokens();
-    if (refreshed) {
-      return request<T>(path, { ...options, _retried: true });
-    }
-    tokenStore.clear();
-  }
+  const res = await authorizedFetch(path, options);
 
   if (res.status === 204) {
     return { data: undefined as T };
@@ -101,6 +77,59 @@ async function request<T>(
   return { data: json.data as T, meta: json.meta };
 }
 
+async function authorizedFetch(
+  path: string,
+  options: RequestOptions = {},
+): Promise<Response> {
+  const { body, auth = true, _retried, headers, ...rest } = options;
+
+  const finalHeaders = new Headers(headers);
+  if (body !== undefined && !finalHeaders.has("Content-Type")) {
+    finalHeaders.set("Content-Type", "application/json");
+  }
+  if (auth) {
+    const token = tokenStore.access;
+    if (token) finalHeaders.set("Authorization", `Bearer ${token}`);
+  }
+
+  const res = await fetch(`${config.apiBaseUrl}${path}`, {
+    ...rest,
+    headers: finalHeaders,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+
+  if (res.status === 401 && auth && !_retried) {
+    const refreshed = await refreshTokens();
+    if (refreshed) {
+      return authorizedFetch(path, { ...options, _retried: true });
+    }
+    tokenStore.clear();
+  }
+
+  return res;
+}
+
+/** Download a binary response (e.g. CSV export) with auth and token refresh. */
+export async function downloadBlob(
+  path: string,
+  options: RequestOptions = {},
+): Promise<Blob> {
+  const res = await authorizedFetch(path, { ...options, method: "GET" });
+
+  if (!res.ok) {
+    let message = res.statusText;
+    try {
+      const json = (await res.json()) as Envelope<unknown>;
+      message = json.error?.message ?? message;
+    } catch {
+      // Non-JSON error body — keep status text.
+    }
+    throw new ApiError(res.status, "download_failed", message);
+  }
+
+  return res.blob();
+}
+
 export const api = {
   get: <T>(path: string, options?: RequestOptions) =>
     request<T>(path, { ...options, method: "GET" }),
@@ -110,4 +139,5 @@ export const api = {
     request<T>(path, { ...options, method: "PUT", body }),
   delete: <T>(path: string, options?: RequestOptions) =>
     request<T>(path, { ...options, method: "DELETE" }),
+  downloadBlob,
 };

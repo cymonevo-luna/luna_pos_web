@@ -38,4 +38,15 @@ describe("AdminProtectedLayout", () => {
     const link = screen.getByRole("link", { name: "Suppliers" });
     expect(link).toHaveAttribute("href", "/admin/suppliers");
   });
+
+  it("includes COGS in admin navigation", () => {
+    render(
+      <AdminProtectedLayout>
+        <div>Page content</div>
+      </AdminProtectedLayout>,
+    );
+
+    const link = screen.getByRole("link", { name: "COGS" });
+    expect(link).toHaveAttribute("href", "/admin/cogs");
+  });
 });

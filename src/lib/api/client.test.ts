@@ -99,4 +99,41 @@ describe("api client", () => {
       ApiError,
     );
   });
+
+  it("downloads a blob response with auth", async () => {
+    tokenStore.set("token-abc", "refresh-abc");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("menu,cogs", {
+        status: 200,
+        headers: { "Content-Type": "text/csv" },
+      }),
+    );
+
+    const blob = await api.downloadBlob("/api/admin/cogs/export");
+    expect(await blob.text()).toBe("menu,cogs");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://localhost:8080/api/admin/cogs/export");
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer token-abc");
+  });
+
+  it("throws ApiError when blob download fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        {
+          success: false,
+          error: { code: "server_error", message: "Export failed" },
+        },
+        500,
+      ),
+    );
+
+    await expect(
+      api.downloadBlob("/api/admin/cogs/export", { auth: false }),
+    ).rejects.toMatchObject({
+      message: "Export failed",
+      status: 500,
+    });
+  });
 });
