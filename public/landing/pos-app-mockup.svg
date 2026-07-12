@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 640" fill="none" role="img" aria-label="Luna POS mobile app preview">
+  <defs>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="304" height="624" rx="40" fill="#111827" stroke="#374151" stroke-width="4"/>
+  <rect x="24" y="72" width="272" height="520" rx="24" fill="url(#screen)"/>
+  <rect x="120" y="28" width="80" height="10" rx="5" fill="#374151"/>
+  <rect x="40" y="96" width="120" height="12" rx="6" fill="url(#accent)" opacity="0.9"/>
+  <rect x="40" y="124" width="200" height="8" rx="4" fill="#334155"/>
+  <rect x="40" y="160" width="240" height="72" rx="16" fill="#1e293b" stroke="#334155"/>
+  <rect x="56" y="176" width="80" height="8" rx="4" fill="#94a3b8"/>
+  <rect x="56" y="192" width="120" height="6" rx="3" fill="#475569"/>
+  <rect x="200" y="184" width="56" height="24" rx="12" fill="url(#accent)" opacity="0.8"/>
+  <rect x="40" y="248" width="240" height="72" rx="16" fill="#1e293b" stroke="#334155"/>
+  <rect x="56" y="264" width="96" height="8" rx="4" fill="#94a3b8"/>
+  <rect x="56" y="280" width="140" height="6" rx="3" fill="#475569"/>
+  <rect x="200" y="272" width="56" height="24" rx="12" fill="url(#accent)" opacity="0.8"/>
+  <rect x="40" y="336" width="240" height="72" rx="16" fill="#1e293b" stroke="#334155"/>
+  <rect x="56" y="352" width="72" height="8" rx="4" fill="#94a3b8"/>
+  <rect x="56" y="368" width="110" height="6" rx="3" fill="#475569"/>
+  <rect x="200" y="360" width="56" height="24" rx="12" fill="url(#accent)" opacity="0.8"/>
+  <rect x="40" y="448" width="240" height="48" rx="24" fill="url(#accent)"/>
+  <rect x="40" y="520" width="112" height="40" rx="12" fill="#1e293b" stroke="#334155"/>
+  <rect x="168" y="520" width="112" height="40" rx="12" fill="#1e293b" stroke="#334155"/>
+</svg>

@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: `%s · ${config.appName}`,
   },
   description:
-    "A production-ready Next.js starter with auth, public site, and dashboards.",
+    "Modern point-of-sale for restaurants and retail — web admin, inventory, COGS, and a native cashier app.",
 };
 
 export default function RootLayout({

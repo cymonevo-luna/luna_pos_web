@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -8,6 +9,7 @@ import {
   Zap,
   Code2,
 } from "lucide-react";
+import { PosAppSection } from "@/components/landing/pos-app-section";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -16,6 +18,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CtaSection } from "@/components/landing/cta-section";
+
+export const metadata: Metadata = {
+  description:
+    "Modern point-of-sale for restaurants and retail — web admin, inventory, COGS, and a native cashier app.",
+};
 
 const features = [
   {
@@ -108,6 +115,7 @@ export default function HomePage() {
         </div>
       </section>
 
+      <PosAppSection />
       <CtaSection />
     </div>
   );

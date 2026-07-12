@@ -6,6 +6,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8087}
         NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Luna POS}
+        NEXT_PUBLIC_POS_APP_DOWNLOAD_URL: ${NEXT_PUBLIC_POS_APP_DOWNLOAD_URL:-}
     ports:
       - "${WEB_PORT:-3007}:3000"
     restart: unless-stopped
