@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { cn, formatDate, formatRupiah, formatStockQuantity, displayDescription, menuPhotoUrl, initials } from "./utils";
+import { config } from "./config";
 
 describe("cn", () => {
   it("merges class names", () => {
@@ -86,6 +87,12 @@ describe("menuPhotoUrl", () => {
   it("returns a trimmed custom photo URL when provided", () => {
     expect(menuPhotoUrl(" https://example.com/food.jpg ")).toBe(
       "https://example.com/food.jpg",
+    );
+  });
+
+  it("prefixes API-hosted static paths with the API base URL", () => {
+    expect(menuPhotoUrl("/static/uploads/menus/x.webp")).toBe(
+      `${config.apiBaseUrl}/static/uploads/menus/x.webp`,
     );
   });
 });
