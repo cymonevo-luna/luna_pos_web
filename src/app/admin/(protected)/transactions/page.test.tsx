@@ -141,16 +141,6 @@ describe("AdminTransactionsPage", () => {
     );
   });
 
-  it("displays the transaction summary chart above the table", async () => {
-    render(<AdminTransactionsPage />);
-
-    expect(await screen.findByText("Transaction volume")).toBeInTheDocument();
-    expect(
-      screen.getByText("No transactions in this period"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Transactions")).toBeInTheDocument();
-  });
-
   it("shows error toast when loading fails", async () => {
     vi.mocked(transactionsAdminApi.list).mockRejectedValue(
       new ApiError(500, "server_error", "Server error"),

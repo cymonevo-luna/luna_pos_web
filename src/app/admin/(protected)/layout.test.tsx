@@ -7,6 +7,12 @@ vi.mock("@/components/layout/require-auth", () => ({
   RequireAuth: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+vi.mock("@/components/layout/admin-route-guard", () => ({
+  AdminRouteGuard: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+}));
+
 vi.mock("@/components/layout/dashboard-shell", () => ({
   DashboardShell: ({
     navItems,
@@ -35,30 +41,6 @@ vi.mock("@/lib/auth/context", () => ({
 }));
 
 describe("AdminProtectedLayout", () => {
-  it("includes Suppliers in admin navigation for manager users", () => {
-    vi.doMock("@/lib/auth/context", () => ({
-      useAuth: () => ({
-        user: { id: "1", roles: ["admin", "manager"], merchant_id: "merchant-1" },
-      }),
-    }));
-
-    const items: NavItem[] = [
-      { href: "/admin/users", label: "Users", icon: () => null, roles: ["admin"] },
-      {
-        href: "/admin/suppliers",
-        label: "Suppliers",
-        icon: () => null,
-        roles: ["manager", "operational"],
-      },
-    ];
-
-    expect(
-      filterAdminNavItems(items, ["admin", "manager"]).some(
-        (item) => item.label === "Suppliers",
-      ),
-    ).toBe(true);
-  });
-
   it("hides operational navigation for admin-only users", () => {
     render(
       <AdminProtectedLayout>
@@ -68,34 +50,70 @@ describe("AdminProtectedLayout", () => {
 
     expect(screen.getByRole("link", { name: "Users" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Suppliers" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Purchases" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Menus" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "COGS" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Receipt Settings" })).not.toBeInTheDocument();
   });
 
-  it("includes COGS in admin navigation for manager users", () => {
+  it("includes COGS for manager users", () => {
     const items: NavItem[] = [
       {
         href: "/admin/cogs",
         label: "COGS",
         icon: () => null,
-        roles: ["manager", "operational"],
+        roles: ["manager"],
       },
     ];
 
     expect(
-      filterAdminNavItems(items, ["admin", "manager"]).some(
+      filterAdminNavItems(items, ["manager"]).some(
         (item) => item.label === "COGS",
       ),
     ).toBe(true);
   });
 
-  it("includes Receipt Settings for admin-only users", () => {
-    render(
-      <AdminProtectedLayout>
-        <div>Page content</div>
-      </AdminProtectedLayout>,
-    );
+  it("includes operational items for operational users", () => {
+    const items: NavItem[] = [
+      {
+        href: "/admin/suppliers",
+        label: "Suppliers",
+        icon: () => null,
+        roles: ["operational"],
+      },
+      {
+        href: "/admin/purchases",
+        label: "Purchases",
+        icon: () => null,
+        roles: ["operational"],
+      },
+    ];
 
-    const link = screen.getByRole("link", { name: "Receipt Settings" });
-    expect(link).toHaveAttribute("href", "/admin/store-settings");
+    expect(
+      filterAdminNavItems(items, ["operational"]).map((item) => item.label),
+    ).toEqual(["Suppliers", "Purchases"]);
+  });
+
+  it("shows combined nav for manager and operational users", () => {
+    const items: NavItem[] = [
+      {
+        href: "/admin/cogs",
+        label: "COGS",
+        icon: () => null,
+        roles: ["manager"],
+      },
+      {
+        href: "/admin/purchases",
+        label: "Purchases",
+        icon: () => null,
+        roles: ["operational"],
+      },
+    ];
+
+    const labels = filterAdminNavItems(items, ["manager", "operational"]).map(
+      (item) => item.label,
+    );
+    expect(labels).toContain("COGS");
+    expect(labels).toContain("Purchases");
   });
 });

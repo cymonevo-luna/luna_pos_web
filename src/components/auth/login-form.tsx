@@ -17,7 +17,7 @@ import {
 import type { MerchantChoice } from "@/lib/api/types";
 import {
   getAuthenticatedLandingPath,
-  resolveUserRoles,
+  hasMerchantAreaAccess,
 } from "@/lib/auth/roles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,9 +48,9 @@ export function LoginForm({ variant = "user" }: LoginFormProps) {
   } = useForm<LoginValues>({ resolver: zodResolver(loginSchema) });
 
   const completeLogin = async (user: Awaited<ReturnType<typeof login>>) => {
-    if (isAdmin && !resolveUserRoles(user).includes("admin")) {
+    if (isAdmin && !hasMerchantAreaAccess(user)) {
       logout();
-      toast.error("This account does not have admin access.");
+      toast.error("This account does not have access to the admin console.");
       return;
     }
 

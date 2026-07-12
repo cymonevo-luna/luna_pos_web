@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ListTodo, CheckCircle2, Clock, ArrowRight, Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth/context";
+import { isCashierOnlyUser } from "@/lib/auth/roles";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GreetingCard } from "@/components/dashboard/greeting-card";
@@ -80,7 +81,19 @@ export default function DashboardHomePage() {
         </CardContent>
       </Card>
 
-      {isAdmin && (
+      {isCashierOnlyUser(user) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">POS mobile app</CardTitle>
+            <CardDescription>
+              Cashier accounts use the Luna POS mobile app for selling. Sign in
+              there to take orders and process payments.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
+
+      {isAdmin && !isCashierOnlyUser(user) && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">

@@ -117,4 +117,57 @@ describe("proxy", () => {
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toContain("/login");
   });
+
+  it("redirects admin-only users away from manager routes", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["admin"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+
+    const res = await proxy(
+      requestFor("/admin/cogs", {
+        [config.cookies.accessToken]: access,
+      }),
+    );
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("/admin/users");
+  });
+
+  it("redirects operational users away from admin routes", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["operational"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+
+    const res = await proxy(
+      requestFor("/admin/users", {
+        [config.cookies.accessToken]: access,
+      }),
+    );
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("/admin/suppliers");
+  });
+
+  it("allows manager users on manager routes", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["manager"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+
+    const res = await proxy(
+      requestFor("/admin/cogs", {
+        [config.cookies.accessToken]: access,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+  });
 });
