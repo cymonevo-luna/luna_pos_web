@@ -40,6 +40,14 @@ export type MenuCogsPayload = Pick<
   "recipe_yield" | "margin_percent" | "vat_percent"
 >;
 
+/** True when `value` is a non-empty absolute http(s) URL suitable for the API. */
+export function isAbsolutePhotoUrl(value: string): boolean {
+  const trimmed = value.trim();
+  return (
+    trimmed.startsWith("http://") || trimmed.startsWith("https://")
+  );
+}
+
 /** Map basic menu form values to an API payload, omitting blank optional fields. */
 export function menuBasicFormToPayload(
   values: MenuBasicFormValues,
@@ -57,7 +65,7 @@ export function menuBasicFormToPayload(
   }
 
   const photoUrl = values.photo_url?.trim();
-  if (photoUrl) {
+  if (photoUrl && isAbsolutePhotoUrl(photoUrl)) {
     payload.photo_url = photoUrl;
   }
 

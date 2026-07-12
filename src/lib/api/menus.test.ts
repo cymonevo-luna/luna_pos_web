@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   menusAdminApi,
+  isAbsolutePhotoUrl,
   menuBasicFormToPayload,
   menuCogsFormToPayload,
   menuFullFormToPayload,
@@ -366,15 +367,35 @@ describe("menusAdminApi", () => {
   });
 });
 
+describe("isAbsolutePhotoUrl", () => {
+  it("accepts http and https URLs", () => {
+    expect(isAbsolutePhotoUrl("https://cdn.example.com/a.jpg")).toBe(true);
+    expect(isAbsolutePhotoUrl("http://cdn.example.com/a.jpg")).toBe(true);
+    expect(isAbsolutePhotoUrl("  https://cdn.example.com/a.jpg  ")).toBe(true);
+  });
+
+  it("rejects relative paths, empty values, and other schemes", () => {
+    expect(isAbsolutePhotoUrl("/static/default-food.png")).toBe(false);
+    expect(isAbsolutePhotoUrl("/static/uploads/food.jpg")).toBe(false);
+    expect(isAbsolutePhotoUrl("")).toBe(false);
+    expect(isAbsolutePhotoUrl("   ")).toBe(false);
+    expect(isAbsolutePhotoUrl("ftp://cdn.example.com/a.jpg")).toBe(false);
+  });
+});
+
 describe("menuBasicFormToPayload", () => {
+  const base = {
+    title: "Batch Soup",
+    description: "",
+    category_id: "cat-1",
+    available_stock: 10,
+    sell_price: 25000,
+  };
+
   it("maps basic fields only and omits COGS keys", () => {
     const payload = menuBasicFormToPayload({
-      title: "Batch Soup",
-      description: "",
-      category_id: "cat-1",
+      ...base,
       photo_url: "",
-      available_stock: 10,
-      sell_price: 25000,
     });
 
     expect(payload).toEqual({
@@ -386,6 +407,42 @@ describe("menuBasicFormToPayload", () => {
     expect(payload).not.toHaveProperty("recipe_yield");
     expect(payload).not.toHaveProperty("margin_percent");
     expect(payload).not.toHaveProperty("vat_percent");
+  });
+
+  it("omits photo_url for default relative path", () => {
+    const payload = menuBasicFormToPayload({
+      ...base,
+      photo_url: "/static/default-food.png",
+    });
+
+    expect(payload).not.toHaveProperty("photo_url");
+  });
+
+  it("omits photo_url for other relative paths", () => {
+    const payload = menuBasicFormToPayload({
+      ...base,
+      photo_url: "/static/uploads/food.jpg",
+    });
+
+    expect(payload).not.toHaveProperty("photo_url");
+  });
+
+  it("includes photo_url for absolute https URLs", () => {
+    const payload = menuBasicFormToPayload({
+      ...base,
+      photo_url: "https://cdn.example.com/a.jpg",
+    });
+
+    expect(payload.photo_url).toBe("https://cdn.example.com/a.jpg");
+  });
+
+  it("omits photo_url for null-like empty values", () => {
+    const payload = menuBasicFormToPayload({
+      ...base,
+      photo_url: "   ",
+    });
+
+    expect(payload).not.toHaveProperty("photo_url");
   });
 });
 
@@ -432,6 +489,56 @@ describe("menuFullFormToPayload", () => {
       margin_percent: 30,
       vat_percent: 11,
     });
+  });
+
+  it("omits resolved default photo_url from COGS save payload", () => {
+    const payload = menuFullFormToPayload(
+      {
+        title: "Nasi Goreng",
+        description: "Spicy fried rice",
+        category_id: "cat-1",
+        photo_url: "/static/default-food.png",
+        available_stock: 10,
+        sell_price: 25000,
+      },
+      {
+        recipe_yield: 1,
+        margin_percent: 25,
+        vat_percent: 0,
+      },
+    );
+
+    expect(payload).not.toHaveProperty("photo_url");
+    expect(payload).toEqual({
+      title: "Nasi Goreng",
+      description: "Spicy fried rice",
+      category_id: "cat-1",
+      available_stock: 10,
+      sell_price: 25000,
+      recipe_yield: 1,
+      margin_percent: 25,
+      vat_percent: 0,
+    });
+  });
+
+  it("retains absolute photo_url in COGS save payload", () => {
+    const payload = menuFullFormToPayload(
+      {
+        title: "Nasi Goreng",
+        description: "",
+        category_id: "cat-1",
+        photo_url: "https://cdn.example.com/custom.jpg",
+        available_stock: 10,
+        sell_price: 25000,
+      },
+      {
+        recipe_yield: 1,
+        margin_percent: 25,
+        vat_percent: 0,
+      },
+    );
+
+    expect(payload.photo_url).toBe("https://cdn.example.com/custom.jpg");
   });
 });
 
