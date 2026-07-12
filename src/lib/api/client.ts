@@ -77,6 +77,21 @@ async function request<T>(
   return { data: json.data as T, meta: json.meta };
 }
 
+async function apiFetch(
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  try {
+    return await fetch(url, { ...config.apiFetchInit, ...init });
+  } catch {
+    throw new ApiError(
+      0,
+      "network_error",
+      "Cannot reach the API. Check your connection or try again later.",
+    );
+  }
+}
+
 async function authorizedFetch(
   path: string,
   options: RequestOptions = {},
@@ -92,7 +107,7 @@ async function authorizedFetch(
     if (token) finalHeaders.set("Authorization", `Bearer ${token}`);
   }
 
-  const res = await fetch(`${config.apiBaseUrl}${path}`, {
+  const res = await apiFetch(`${config.apiBaseUrl}${path}`, {
     ...rest,
     headers: finalHeaders,
     body: body !== undefined ? JSON.stringify(body) : undefined,

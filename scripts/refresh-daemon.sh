@@ -66,19 +66,27 @@ sysdocker() {
 	as_root env DOCKER_HOST="$SYS_DOCKER_HOST" docker "$@"
 }
 
-# Collect NEXT_PUBLIC_* assignments from the app .env into a --build-arg list.
+# Collect NEXT_PUBLIC_* assignments from app env files into a --build-arg list.
 # These are inlined into the browser bundle at build time, so they must be
 # passed to `docker build`. Runtime-only vars are left to compose/.env.
+# Repo .env.production is a fallback when the deploy .env omits NEXT_PUBLIC_*.
 collect_public_build_args() {
 	local args=()
-	[ -f "$APP_ENV" ] || { printf '%s' ""; return; }
-	while IFS= read -r line; do
-		case "$line" in
-		NEXT_PUBLIC_*=*)
-			args+=("--build-arg" "$line")
-			;;
-		esac
-	done < <(grep -E '^NEXT_PUBLIC_[A-Za-z0-9_]+=' "$APP_ENV" || true)
+	local -A seen=()
+	for env_file in "$APP_ENV" "$REPO_DIR/.env.production"; do
+		[ -f "$env_file" ] || continue
+		while IFS= read -r line; do
+			case "$line" in
+			NEXT_PUBLIC_*=*)
+				local key="${line%%=*}"
+				if [ -z "${seen[$key]+x}" ]; then
+					args+=("--build-arg" "$line")
+					seen[$key]=1
+				fi
+				;;
+			esac
+		done < <(grep -E '^NEXT_PUBLIC_[A-Za-z0-9_]+=' "$env_file" || true)
+	done
 	printf '%s\n' "${args[@]}"
 }
 

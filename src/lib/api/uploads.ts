@@ -55,6 +55,7 @@ async function uploadMenuPhotoRequest(
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const res = await fetch(`${config.apiBaseUrl}/api/admin/uploads/menu-photo`, {
+    ...config.apiFetchInit,
     method: "POST",
     headers,
     body: formData,

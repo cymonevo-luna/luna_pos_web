@@ -136,4 +136,26 @@ describe("api client", () => {
       status: 500,
     });
   });
+
+  it("omits credentials on cross-origin API requests", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, data: null }),
+    );
+
+    await api.get("/health", { auth: false });
+
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    expect(init?.credentials).toBe("omit");
+  });
+
+  it("throws a network_error ApiError when fetch fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("Failed to fetch"));
+
+    await expect(api.get("/health", { auth: false })).rejects.toMatchObject({
+      name: "ApiError",
+      code: "network_error",
+      status: 0,
+      message: "Cannot reach the API. Check your connection or try again later.",
+    });
+  });
 });

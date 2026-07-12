@@ -6,6 +6,7 @@ let refreshInFlight: Promise<TokenPair | null> | null = null;
 async function requestRefresh(refreshToken: string): Promise<TokenPair | null> {
   try {
     const res = await fetch(`${config.apiBaseUrl}/api/v1/auth/refresh`, {
+      ...config.apiFetchInit,
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh_token: refreshToken }),
