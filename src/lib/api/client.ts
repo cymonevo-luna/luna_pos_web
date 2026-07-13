@@ -1,7 +1,11 @@
 import { config } from "@/lib/config";
-import { redirectToLogin } from "@/lib/auth/redirect";
-import { refreshTokenPair } from "@/lib/auth/refresh";
-import { clearAuthSession } from "@/lib/auth/session-store";
+import {
+  clearSessionAndRedirectToLogin,
+  ensureFreshAccessToken,
+  isAuthExemptApiPath,
+  isLoginRoute,
+  performSessionRefresh,
+} from "@/lib/auth/session-refresh";
 import { tokenStore } from "@/lib/auth/tokens";
 import type { Envelope, PageMeta } from "./types";
 
@@ -41,17 +45,6 @@ export interface ApiResult<T> {
   meta?: PageMeta;
 }
 
-/** Attempt to refresh the access token using the stored refresh token. */
-async function refreshTokens(): Promise<boolean> {
-  const refresh = tokenStore.refresh;
-  if (!refresh) return false;
-
-  const tokens = await refreshTokenPair(refresh);
-  if (!tokens) return false;
-  tokenStore.setFromPair(tokens);
-  return true;
-}
-
 async function request<T>(
   path: string,
   options: RequestOptions = {},
@@ -88,12 +81,23 @@ async function authorizedFetch(
   options: RequestOptions = {},
 ): Promise<Response> {
   const { body, auth = true, _retried, headers, ...rest } = options;
+  const shouldAuthenticate =
+    auth && !isAuthExemptApiPath(path) && !isLoginRoute();
+  const hasStoredTokens = !!(tokenStore.access || tokenStore.refresh);
+
+  if (shouldAuthenticate && hasStoredTokens) {
+    const fresh = await ensureFreshAccessToken();
+    if (!fresh) {
+      clearSessionAndRedirectToLogin();
+      return new Response(null, { status: 401, statusText: "Unauthorized" });
+    }
+  }
 
   const finalHeaders = new Headers(headers);
   if (body !== undefined && !finalHeaders.has("Content-Type")) {
     finalHeaders.set("Content-Type", "application/json");
   }
-  if (auth) {
+  if (shouldAuthenticate) {
     const token = tokenStore.access;
     if (token) finalHeaders.set("Authorization", `Bearer ${token}`);
   }
@@ -104,13 +108,13 @@ async function authorizedFetch(
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
-  if (res.status === 401 && auth && !_retried) {
-    const refreshed = await refreshTokens();
+  if (res.status === 401 && shouldAuthenticate && !_retried) {
+    const refreshed = await performSessionRefresh();
     if (refreshed) {
       return authorizedFetch(path, { ...options, _retried: true });
     }
-    clearAuthSession();
-    redirectToLogin();
+    clearSessionAndRedirectToLogin();
+    return res;
   }
 
   return res;

@@ -1,7 +1,10 @@
 import { config } from "@/lib/config";
-import { redirectToLogin } from "@/lib/auth/redirect";
-import { refreshTokenPair } from "@/lib/auth/refresh";
-import { clearAuthSession } from "@/lib/auth/session-store";
+import {
+  clearSessionAndRedirectToLogin,
+  ensureFreshAccessToken,
+  isLoginRoute,
+  performSessionRefresh,
+} from "@/lib/auth/session-refresh";
 import { tokenStore } from "@/lib/auth/tokens";
 import { ApiError } from "./client";
 import type { Envelope } from "./types";
@@ -38,26 +41,26 @@ export function validateMenuPhotoFile(file: File): string | null {
   return null;
 }
 
-async function refreshTokens(): Promise<boolean> {
-  const refresh = tokenStore.refresh;
-  if (!refresh) return false;
-
-  const tokens = await refreshTokenPair(refresh);
-  if (!tokens) return false;
-  tokenStore.setFromPair(tokens);
-  return true;
-}
-
 async function uploadMenuPhotoRequest(
   file: File,
   _retried = false,
 ): Promise<MenuPhotoUploadResult> {
+  if (!isLoginRoute() && (tokenStore.access || tokenStore.refresh)) {
+    const fresh = await ensureFreshAccessToken();
+    if (!fresh) {
+      clearSessionAndRedirectToLogin();
+      throw new ApiError(401, "unauthorized", "Session expired");
+    }
+  }
+
   const formData = new FormData();
   formData.append("file", file);
 
   const headers = new Headers();
-  const token = tokenStore.access;
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (!isLoginRoute()) {
+    const token = tokenStore.access;
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+  }
 
   const res = await fetch(`${config.apiBaseUrl}/api/admin/uploads/menu-photo`, {
     method: "POST",
@@ -65,13 +68,12 @@ async function uploadMenuPhotoRequest(
     body: formData,
   });
 
-  if (res.status === 401 && !_retried) {
-    const refreshed = await refreshTokens();
+  if (res.status === 401 && !_retried && !isLoginRoute()) {
+    const refreshed = await performSessionRefresh();
     if (refreshed) {
       return uploadMenuPhotoRequest(file, true);
     }
-    clearAuthSession();
-    redirectToLogin();
+    clearSessionAndRedirectToLogin();
   }
 
   let json: Envelope<MenuPhotoUploadResult>;
@@ -109,12 +111,22 @@ async function uploadPurchasePhotoRequest(
   file: File,
   _retried = false,
 ): Promise<PurchasePhotoUploadResult> {
+  if (!isLoginRoute() && (tokenStore.access || tokenStore.refresh)) {
+    const fresh = await ensureFreshAccessToken();
+    if (!fresh) {
+      clearSessionAndRedirectToLogin();
+      throw new ApiError(401, "unauthorized", "Session expired");
+    }
+  }
+
   const formData = new FormData();
   formData.append("file", file);
 
   const headers = new Headers();
-  const token = tokenStore.access;
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (!isLoginRoute()) {
+    const token = tokenStore.access;
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+  }
 
   const res = await fetch(
     `${config.apiBaseUrl}/api/admin/uploads/purchase-photo`,
@@ -125,13 +137,12 @@ async function uploadPurchasePhotoRequest(
     },
   );
 
-  if (res.status === 401 && !_retried) {
-    const refreshed = await refreshTokens();
+  if (res.status === 401 && !_retried && !isLoginRoute()) {
+    const refreshed = await performSessionRefresh();
     if (refreshed) {
       return uploadPurchasePhotoRequest(file, true);
     }
-    clearAuthSession();
-    redirectToLogin();
+    clearSessionAndRedirectToLogin();
   }
 
   let json: Envelope<PurchasePhotoUploadResult>;

@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { api, ApiError } from "./client";
 import { tokenStore } from "@/lib/auth/tokens";
+import { refreshTokenPair, resetRefreshInFlightForTests } from "@/lib/auth/refresh";
+
+vi.mock("@/lib/auth/refresh", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/auth/refresh")>();
+  return {
+    ...actual,
+    refreshTokenPair: vi.fn(),
+  };
+});
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -9,9 +18,20 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+function mockAdminRoute() {
+  vi.spyOn(window, "location", "get").mockReturnValue({
+    ...window.location,
+    pathname: "/admin",
+    href: "/admin",
+  } as Location);
+}
+
 describe("api client", () => {
   beforeEach(() => {
     tokenStore.clear();
+    resetRefreshInFlightForTests();
+    vi.mocked(refreshTokenPair).mockReset();
+    mockAdminRoute();
     vi.restoreAllMocks();
   });
 
@@ -73,22 +93,69 @@ describe("api client", () => {
   });
 
   it("refreshes the token once on a 401 and retries", async () => {
-    tokenStore.set("expired", "refresh-1");
+    tokenStore.set("expired", "refresh-1", {
+      expires_in: 3600,
+      refresh_expires_in: 604800,
+    });
+    vi.mocked(refreshTokenPair).mockResolvedValue({
+      access_token: "new",
+      refresh_token: "newR",
+      expires_in: 900,
+      refresh_expires_in: 604800,
+    });
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(jsonResponse({ success: false }, 401))
-      .mockResolvedValueOnce(
-        jsonResponse({
-          success: true,
-          data: { tokens: { access_token: "new", refresh_token: "newR" } },
-        }),
-      )
       .mockResolvedValueOnce(jsonResponse({ success: true, data: { ok: true } }));
 
     const res = await api.get<{ ok: boolean }>("/protected");
     expect(res.data.ok).toBe(true);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(tokenStore.access).toBe("new");
+    expect(refreshTokenPair).toHaveBeenCalledTimes(1);
+  });
+
+  it("refreshes proactively before a request when access is expiring soon", async () => {
+    tokenStore.set("old-access", "refresh-1", {
+      expires_in: 30,
+      refresh_expires_in: 604800,
+    });
+    vi.mocked(refreshTokenPair).mockResolvedValue({
+      access_token: "fresh-access",
+      refresh_token: "fresh-refresh",
+      expires_in: 900,
+      refresh_expires_in: 604800,
+    });
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(jsonResponse({ success: true, data: { ok: true } }));
+
+    await api.get<{ ok: boolean }>("/protected");
+
+    expect(refreshTokenPair).toHaveBeenCalledWith("refresh-1");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, init] = fetchMock.mock.calls[0];
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer fresh-access");
+  });
+
+  it("does not attach bearer tokens on login routes", async () => {
+    vi.spyOn(window, "location", "get").mockReturnValue({
+      ...window.location,
+      pathname: "/admin/login",
+      href: "/admin/login",
+    } as Location);
+    tokenStore.set("token-abc", "refresh-abc");
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(jsonResponse({ success: true, data: null }));
+
+    await api.get("/me");
+
+    const [, init] = fetchMock.mock.calls[0];
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBeNull();
+    expect(refreshTokenPair).not.toHaveBeenCalled();
   });
 
   it("returns ApiError when InvalidJSON is received", async () => {
