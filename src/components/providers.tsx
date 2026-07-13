@@ -2,6 +2,7 @@
 
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
+import { SessionActivityMonitor } from "@/components/auth/session-activity-monitor";
 import { AuthProvider } from "@/lib/auth/context";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -13,6 +14,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange
     >
       <AuthProvider>
+        <SessionActivityMonitor />
         {children}
         <Toaster richColors position="top-right" />
       </AuthProvider>
