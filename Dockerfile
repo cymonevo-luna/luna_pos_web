@@ -3,7 +3,14 @@
 FROM node:24-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci
+# Cache npm downloads across builds and cap retry/backoff so transient DNS
+# failures (EAI_AGAIN) fail in minutes instead of hanging for an hour+.
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --prefer-offline \
+    --fetch-retries=5 \
+    --fetch-retry-mintimeout=10000 \
+    --fetch-retry-maxtimeout=120000 \
+    --fetch-timeout=300000
 
 FROM node:24-alpine AS builder
 WORKDIR /app
@@ -17,7 +24,8 @@ ENV NEXT_PUBLIC_POS_APP_DOWNLOAD_URL=$NEXT_PUBLIC_POS_APP_DOWNLOAD_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache \
+    npm run build
 
 FROM node:24-alpine AS runner
 WORKDIR /app

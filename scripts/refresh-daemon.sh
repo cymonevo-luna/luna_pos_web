@@ -66,6 +66,18 @@ sysdocker() {
 	as_root env DOCKER_HOST="$SYS_DOCKER_HOST" docker "$@"
 }
 
+# Serialize image builds per app. Aborted Jenkins jobs can leave a prior
+# deploy-on-host build running; overlapping npm ci runs waste bandwidth and
+# amplify flaky DNS inside the build network.
+acquire_build_lock() {
+	BUILD_LOCK="${TMPDIR:-/tmp}/${APP_NAME}.docker-build.lock"
+	exec 9>"$BUILD_LOCK"
+	if ! flock -n 9; then
+		echo "ERROR: another $APP_NAME image build is already in progress ($BUILD_LOCK)" >&2
+		exit 1
+	fi
+}
+
 # Collect NEXT_PUBLIC_* assignments from the app .env into a --build-arg list.
 # These are inlined into the browser bundle at build time, so they must be
 # passed to `docker build`. Runtime-only vars are left to compose/.env.
@@ -89,9 +101,12 @@ collect_public_build_args() {
 
 # 1. Build the image into the system engine with NEXT_PUBLIC_* build args.
 if [ "$BUILD" -eq 1 ]; then
+	acquire_build_lock
 	echo ">> Building $APP_NAME:latest into system engine ($SYS_DOCKER_HOST) ..."
 	mapfile -t BUILD_ARGS < <(collect_public_build_args)
-	sysdocker build -t "$APP_NAME:latest" "${BUILD_ARGS[@]}" "$REPO_DIR"
+	# --network=host avoids Docker bridge DNS flakes (EAI_AGAIN on registry.npmjs.org).
+	as_root env DOCKER_HOST="$SYS_DOCKER_HOST" DOCKER_BUILDKIT=1 \
+		docker build --network=host -t "$APP_NAME:latest" "${BUILD_ARGS[@]}" "$REPO_DIR"
 else
 	echo ">> Skipping image build (--no-build)."
 fi
