@@ -46,6 +46,12 @@ const managerNavLabels = filterAdminNavItems(
       icon: () => null,
       roles: ["manager"],
     },
+    {
+      href: "/admin/branch-assets",
+      label: "Branch Assets",
+      icon: () => null,
+      roles: ["manager"],
+    },
   ],
   ["manager"],
 ).map((item) => item.label);
@@ -108,6 +114,7 @@ describe("POS-18-12 manager-scoped page guards", () => {
       "/admin/menus/menu-1/ingredients",
       "/admin/production-requests/new",
       "/admin/cash-flow",
+      "/admin/branch-assets",
     ];
     for (const route of managerOnlyRoutes) {
       expect(canAccessRoute(route, ["manager"])).toBe(true);
@@ -125,6 +132,11 @@ describe("POS-18-12 manager-scoped page guards", () => {
     expect(canAccessRoute("/admin/food-supplies", ["manager"])).toBe(true);
     expect(canAccessRoute("/admin/food-supplies", ["operational"])).toBe(true);
     expect(canAccessRoute("/admin/food-supplies", ["admin"])).toBe(false);
+
+    expect(canAccessRoute("/admin/branch-assets", ["manager"])).toBe(true);
+    expect(canAccessRoute("/admin/branch-assets", ["operational"])).toBe(false);
+    expect(canAccessRoute("/admin/branch-assets", ["admin"])).toBe(false);
+    expect(managerNavLabels).toContain("Branch Assets");
   });
 
   it("no selling reports UI route exists", () => {
