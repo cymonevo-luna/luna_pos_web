@@ -30,7 +30,7 @@ export async function loginAsTestAccount(
   const persistSession =
     options.persistSession ?? typeof document !== "undefined";
   if (persistSession) {
-    tokenStore.set(data.tokens.access_token, data.tokens.refresh_token);
+    tokenStore.setFromPair(data.tokens);
   }
 
   return data;

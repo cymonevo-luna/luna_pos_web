@@ -12,6 +12,7 @@ vi.mock("@/lib/api/auth", () => ({
 vi.mock("@/lib/auth/tokens", () => ({
   tokenStore: {
     set: vi.fn(),
+    setFromPair: vi.fn(),
   },
 }));
 
@@ -50,6 +51,7 @@ describe("loginAsTestAccount", () => {
   beforeEach(() => {
     vi.mocked(authApi.login).mockResolvedValue({ data: loginResult });
     vi.mocked(tokenStore.set).mockClear();
+    vi.mocked(tokenStore.setFromPair).mockClear();
   });
 
   it("logs in via POST /api/v1/auth/login with the dedicated admin account", async () => {
@@ -70,7 +72,7 @@ describe("loginAsTestAccount", () => {
       email: "manager-test@cymonevo.com",
       password: "LunaTesting123!",
     });
-    expect(tokenStore.set).toHaveBeenCalledWith("access-token", "refresh-token");
+    expect(tokenStore.setFromPair).toHaveBeenCalledWith(loginResult.tokens);
   });
 
   it("logs in via POST /api/v1/auth/login with the dedicated cashier account", async () => {

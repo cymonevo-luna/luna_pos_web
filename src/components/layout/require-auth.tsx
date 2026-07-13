@@ -18,7 +18,7 @@ export function RequireAuth({ children, admin = false }: RequireAuthProps) {
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated) {
-      router.replace("/login");
+      router.replace(admin ? "/admin/login" : "/login");
     } else if (admin && !isAdmin) {
       router.replace("/dashboard");
     }

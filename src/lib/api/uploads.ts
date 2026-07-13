@@ -44,7 +44,7 @@ async function refreshTokens(): Promise<boolean> {
 
   const tokens = await refreshTokenPair(refresh);
   if (!tokens) return false;
-  tokenStore.set(tokens.access_token, tokens.refresh_token);
+  tokenStore.setFromPair(tokens);
   return true;
 }
 
