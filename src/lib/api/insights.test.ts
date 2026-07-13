@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   cashFlowSummary,
+  normalizeProductionNextDayInsight,
   productionNextDayInsight,
   transactionMenuInsights,
 } from "./insights";
@@ -183,5 +184,61 @@ describe("insights API", () => {
         },
       ],
     });
+  });
+
+  it("coerces missing numeric fields in production next-day insight items to finite numbers", async () => {
+    const backendPayload = {
+      target_date: "2026-07-14",
+      lookback_days: 14,
+      generated_at: "2026-07-13T10:00:00.000Z",
+      menus: [
+        {
+          menu_id: "menu-1",
+          menu_title: "Nasi Goreng",
+          current_available_stock: 5,
+          recommended_production_qty: 3,
+          max_producible_from_ingredients: null,
+          confidence: "high",
+          is_limited_by_ingredients: false,
+        },
+      ],
+    };
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, data: backendPayload }),
+    );
+
+    const got = await productionNextDayInsight({ lookbackDays: 14 });
+    const item = got.data?.items[0];
+
+    expect(item?.avg_daily_sales).toBe(0);
+    expect(item?.projected_demand).toBe(0);
+    expect(Number.isFinite(item?.current_stock)).toBe(true);
+    expect(Number.isFinite(item?.avg_daily_sales)).toBe(true);
+    expect(Number.isFinite(item?.projected_demand)).toBe(true);
+    expect(Number.isFinite(item?.recommended_production_qty)).toBe(true);
+    expect(item?.max_producible).toBeNull();
+    expect(item?.limited_by_ingredients).toBe(false);
+  });
+
+  it("returns empty items when production next-day insight menus is missing", () => {
+    const normalized = normalizeProductionNextDayInsight({
+      target_date: "2026-07-14",
+      lookback_days: 14,
+      generated_at: "2026-07-13T00:00:00Z",
+      menus: undefined as unknown as [],
+    });
+
+    expect(normalized.items).toEqual([]);
+  });
+
+  it("returns undefined data when production next-day insight response has no data", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, data: null }),
+    );
+
+    const got = await productionNextDayInsight({ lookbackDays: 14 });
+
+    expect(got.data).toBeUndefined();
   });
 });
