@@ -549,6 +549,14 @@ export interface ProductionRequestEstimateResponse {
   aggregated_ingredients: ProductionAggregatedIngredient[];
 }
 
+/** Profit lookback metadata from GET /api/admin/branch-assets/summary. */
+export interface BranchAssetsProfitSource {
+  lookback_days: number;
+  date_from: string;
+  date_to: string;
+  net_amount_total: number;
+}
+
 /** Wire `data` payload from GET /api/admin/branch-assets/summary. */
 export interface BranchAssetsSummary {
   total_asset_value: number;
@@ -560,6 +568,5 @@ export interface BranchAssetsSummary {
   bep_months: number | null;
   bep_message: string | null;
   bep_reachable: boolean;
-  /** Human-readable note for the profit lookback window (e.g. last 30 days). */
-  profit_source: string;
+  profit_source: BranchAssetsProfitSource;
 }

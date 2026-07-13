@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   branchAssetsAdminApi,
   branchAssetFormToPayload,
+  formatProfitSourceSubtitle,
   getBranchAssetsSummary,
   listBranchAssets,
   normalizeBranchAsset,
@@ -249,6 +250,35 @@ describe("normalizeBranchAsset", () => {
   });
 });
 
+describe("formatProfitSourceSubtitle", () => {
+  const profitSource = {
+    lookback_days: 30,
+    date_from: "2026-06-13T00:00:00Z",
+    date_to: "2026-07-13T00:00:00Z",
+    net_amount_total: 15_000_000,
+  };
+
+  it("returns a readable string for positive net amount", () => {
+    const subtitle = formatProfitSourceSubtitle(profitSource);
+
+    expect(typeof subtitle).toBe("string");
+    expect(subtitle.length).toBeGreaterThan(0);
+    expect(subtitle).toContain("30");
+    expect(subtitle).toContain("Rp 15.000.000");
+    expect(subtitle).toContain("net profit");
+  });
+
+  it("returns a no-sales message for zero net amount", () => {
+    const subtitle = formatProfitSourceSubtitle({
+      ...profitSource,
+      net_amount_total: 0,
+    });
+
+    expect(subtitle).toContain("No sales");
+    expect(subtitle).toContain("30");
+  });
+});
+
 describe("getBranchAssetsSummary", () => {
   beforeEach(() => {
     tokenStore.clear();
@@ -270,7 +300,12 @@ describe("getBranchAssetsSummary", () => {
       bep_months: 10,
       bep_message: null,
       bep_reachable: true,
-      profit_source: "Based on net profit over the last 30 days",
+      profit_source: {
+        lookback_days: 30,
+        date_from: "2026-06-13T00:00:00Z",
+        date_to: "2026-07-13T00:00:00Z",
+        net_amount_total: 15_000_000,
+      },
     };
 
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
@@ -284,6 +319,12 @@ describe("getBranchAssetsSummary", () => {
       "http://localhost:8080/api/admin/branch-assets/summary?profit_lookback_days=30",
     );
     expect(got.data).toEqual(summary);
+    expect(got.data.profit_source).toEqual({
+      lookback_days: 30,
+      date_from: "2026-06-13T00:00:00Z",
+      date_to: "2026-07-13T00:00:00Z",
+      net_amount_total: 15_000_000,
+    });
   });
 
   it("omits query params when profitLookbackDays is not provided", async () => {
@@ -300,7 +341,12 @@ describe("getBranchAssetsSummary", () => {
           bep_months: null,
           bep_message: "No profit data available",
           bep_reachable: false,
-          profit_source: "No sales history",
+          profit_source: {
+            lookback_days: 30,
+            date_from: "2026-06-13T00:00:00Z",
+            date_to: "2026-07-13T00:00:00Z",
+            net_amount_total: 0,
+          },
         },
       }),
     );

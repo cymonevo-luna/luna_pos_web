@@ -1,6 +1,11 @@
 import { api, type ApiResult } from "./client";
 import { parseNumeric } from "./suppliers";
-import type { BranchAsset, BranchAssetsSummary } from "./types";
+import type {
+  BranchAsset,
+  BranchAssetsProfitSource,
+  BranchAssetsSummary,
+} from "./types";
+import { formatDate, formatRupiah } from "@/lib/utils";
 import type { BranchAssetFormValues } from "@/lib/validations";
 
 /** Wire format from the Go backend (`decimal.Decimal` marshals as JSON string). */
@@ -121,6 +126,20 @@ export async function updateBranchAsset(
 
 export async function deleteBranchAsset(id: string) {
   return api.delete<void>(`/api/admin/branch-assets/${id}`);
+}
+
+export function formatProfitSourceSubtitle(
+  source: BranchAssetsProfitSource,
+): string {
+  const dateFrom = formatDate(source.date_from);
+  const dateTo = formatDate(source.date_to);
+  const dateRange = `${dateFrom} – ${dateTo}`;
+
+  if (source.net_amount_total > 0) {
+    return `Based on ${formatRupiah(source.net_amount_total)} net profit over the last ${source.lookback_days} days (${dateRange})`;
+  }
+
+  return `No sales in the last ${source.lookback_days} days (${dateRange})`;
 }
 
 export function getBranchAssetsSummary({
