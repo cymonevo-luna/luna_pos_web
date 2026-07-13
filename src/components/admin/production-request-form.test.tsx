@@ -186,6 +186,138 @@ describe("ProductionRequestForm", () => {
     expect(screen.getByLabelText("Notes (optional)")).toBeInTheDocument();
   });
 
+  async function fillSingleRow(
+    user: ReturnType<typeof userEvent.setup>,
+    options: { menuId?: string; quantity?: string } = {},
+  ) {
+    const { menuId = "menu-a", quantity = "5" } = options;
+    await addLineItem(user);
+    await selectMenu(user, "Menu 1", menuId);
+    await user.clear(screen.getByLabelText("Quantity"));
+    await user.type(screen.getByLabelText("Quantity"), quantity);
+  }
+
+  async function waitForEstimateCall(
+    expected: { items: Array<{ menu_id: string; quantity: number }> },
+    callIndex = 0,
+  ) {
+    await waitFor(() => {
+      expect(productionRequestsAdminApi.estimate).toHaveBeenCalledWith(expected);
+    });
+    expect(vi.mocked(productionRequestsAdminApi.estimate).mock.calls[callIndex]?.[0]).toEqual(
+      expected,
+    );
+  }
+
+  it("Single line item triggers estimation without row workaround", async () => {
+    const user = userEvent.setup();
+    render(<ProductionRequestForm onSubmit={() => {}} onCancel={() => {}} />);
+
+    await fillSingleRow(user);
+
+    await waitForEstimateCall({
+      items: [{ menu_id: "menu-a", quantity: 5 }],
+    });
+    expect(productionRequestsAdminApi.estimate).toHaveBeenCalledTimes(1);
+
+    expect(
+      await screen.findByTestId("production-estimation-overall-badge"),
+    ).toHaveTextContent("Sufficient stock");
+  });
+
+  it("re-estimates when quantity changes on a single row", async () => {
+    const user = userEvent.setup();
+    render(<ProductionRequestForm onSubmit={() => {}} onCancel={() => {}} />);
+
+    await fillSingleRow(user);
+    await waitForEstimateCall({
+      items: [{ menu_id: "menu-a", quantity: 5 }],
+    });
+
+    vi.mocked(productionRequestsAdminApi.estimate).mockClear();
+    const quantityInput = screen.getByLabelText("Quantity");
+    await user.clear(quantityInput);
+    await user.type(quantityInput, "10");
+
+    await waitForEstimateCall({
+      items: [{ menu_id: "menu-a", quantity: 10 }],
+    });
+
+    expect(
+      await screen.findByTestId("production-estimation-overall-badge"),
+    ).toHaveTextContent("Sufficient stock");
+  });
+
+  it("re-estimates when menu changes on a single row", async () => {
+    const user = userEvent.setup();
+    render(<ProductionRequestForm onSubmit={() => {}} onCancel={() => {}} />);
+
+    await fillSingleRow(user);
+    await waitForEstimateCall({
+      items: [{ menu_id: "menu-a", quantity: 5 }],
+    });
+
+    vi.mocked(productionRequestsAdminApi.estimate).mockClear();
+    await selectMenu(user, "Menu 1", "menu-b");
+
+    await waitForEstimateCall({
+      items: [{ menu_id: "menu-b", quantity: 5 }],
+    });
+
+    expect(
+      await screen.findByTestId("production-estimation-overall-badge"),
+    ).toHaveTextContent("Sufficient stock");
+  });
+
+  it("estimates preloaded single item on mount for edit flow", async () => {
+    render(
+      <ProductionRequestForm
+        defaultValues={{ items: [{ menu_id: "menu-a", quantity: 5 }] }}
+        preloadedMenus={[
+          { id: "menu-a", title: "Nasi Goreng", category_name: "Main" },
+        ]}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+
+    await waitForEstimateCall({
+      items: [{ menu_id: "menu-a", quantity: 5 }],
+    });
+
+    expect(
+      await screen.findByTestId("production-estimation-overall-badge"),
+    ).toHaveTextContent("Sufficient stock");
+  });
+
+  it("keeps estimation visible after add-remove second row workaround", async () => {
+    const user = userEvent.setup();
+    render(<ProductionRequestForm onSubmit={() => {}} onCancel={() => {}} />);
+
+    await fillSingleRow(user);
+    await waitForEstimateCall({
+      items: [{ menu_id: "menu-a", quantity: 5 }],
+    });
+    expect(
+      await screen.findByTestId("production-estimation-overall-badge"),
+    ).toHaveTextContent("Sufficient stock");
+
+    await addLineItem(user);
+    await user.click(
+      screen.getByRole("button", { name: "Remove item 2" }),
+    );
+
+    await waitFor(() => {
+      expect(productionRequestsAdminApi.estimate).toHaveBeenLastCalledWith({
+        items: [{ menu_id: "menu-a", quantity: 5 }],
+      });
+    });
+    expect(
+      screen.getByTestId("production-estimation-overall-badge"),
+    ).toHaveTextContent("Sufficient stock");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("shows green sufficient stock indicator after estimate", async () => {
     const user = userEvent.setup();
     render(<ProductionRequestForm onSubmit={() => {}} onCancel={() => {}} />);

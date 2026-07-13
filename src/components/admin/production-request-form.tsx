@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2 } from "lucide-react";
 import {
@@ -78,13 +78,26 @@ function buildSelectedMenusFromDefaults(
   return selected;
 }
 
-function hasEstimatableItems(items: ProductionRequestFormValues["items"]) {
-  return items.some(
-    (item) =>
-      item.menu_id &&
-      Number.isInteger(item.quantity) &&
-      item.quantity > 0,
+function isEstimatableItem(item: ProductionRequestFormValues["items"][number]) {
+  return (
+    Boolean(item.menu_id) &&
+    Number.isInteger(item.quantity) &&
+    item.quantity > 0
   );
+}
+
+function hasEstimatableItems(items: ProductionRequestFormValues["items"]) {
+  return items.some(isEstimatableItem);
+}
+
+function getEstimatableItems(items: ProductionRequestFormValues["items"]) {
+  return items.filter(isEstimatableItem);
+}
+
+function itemsEstimateKey(items: ProductionRequestFormValues["items"]) {
+  return getEstimatableItems(items)
+    .map((item) => `${item.menu_id}:${item.quantity}`)
+    .join("|");
 }
 
 export interface ProductionRequestFormProps {
@@ -133,6 +146,7 @@ export const ProductionRequestForm = React.forwardRef<
   const [estimateLoading, setEstimateLoading] = useState(false);
   const [estimateError, setEstimateError] = useState<string | null>(null);
   const estimateRequestIdRef = useRef(0);
+  const isInitialDefaultValuesEffectRef = useRef(true);
 
   const {
     register,
@@ -140,7 +154,6 @@ export const ProductionRequestForm = React.forwardRef<
     reset,
     setError,
     setValue,
-    watch,
     clearErrors,
     control,
     formState: { errors },
@@ -154,18 +167,8 @@ export const ProductionRequestForm = React.forwardRef<
     name: "items",
   });
 
-  const watchedItems = watch("items");
-
-  useEffect(() => {
-    const values = buildDefaultValues(defaultValues);
-    initialValuesRef.current = values;
-    reset(values);
-    setSelectedMenus(
-      buildSelectedMenusFromDefaults(values.items, preloadedMenus),
-    );
-    setEstimate(null);
-    setEstimateError(null);
-  }, [defaultValues, preloadedMenus, reset]);
+  const watchedItems = useWatch({ control, name: "items" }) ?? [];
+  const estimateKey = itemsEstimateKey(watchedItems);
 
   const runEstimate = useCallback(async (items: ProductionRequestFormValues["items"]) => {
     if (!hasEstimatableItems(items)) {
@@ -180,7 +183,11 @@ export const ProductionRequestForm = React.forwardRef<
     setEstimateError(null);
 
     try {
-      const payload = productionRequestFormToPayload({ items, notes: "" });
+      const estimatableItems = getEstimatableItems(items);
+      const payload = productionRequestFormToPayload({
+        items: estimatableItems,
+        notes: "",
+      });
       const result = await productionRequestsAdminApi.estimate(payload);
       if (requestId !== estimateRequestIdRef.current) return;
       setEstimate(result.data);
@@ -200,12 +207,32 @@ export const ProductionRequestForm = React.forwardRef<
   }, []);
 
   useEffect(() => {
+    const values = buildDefaultValues(defaultValues);
+    initialValuesRef.current = values;
+    reset(values);
+    setSelectedMenus(
+      buildSelectedMenusFromDefaults(values.items, preloadedMenus),
+    );
+    setEstimate(null);
+    setEstimateError(null);
+    if (
+      !isInitialDefaultValuesEffectRef.current &&
+      hasEstimatableItems(values.items)
+    ) {
+      void runEstimate(values.items);
+    }
+    isInitialDefaultValuesEffectRef.current = false;
+  }, [defaultValues, preloadedMenus, reset, runEstimate]);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       void runEstimate(watchedItems);
     }, ESTIMATE_DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [watchedItems, runEstimate]);
+  // estimateKey tracks nested item field edits; watchedItems is read from closure.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estimateKey, runEstimate]);
 
   useImperativeHandle(ref, () => ({
     applyServerErrors(fields: Record<string, string>) {
@@ -243,6 +270,9 @@ export const ProductionRequestForm = React.forwardRef<
       );
       setEstimate(null);
       setEstimateError(null);
+      if (hasEstimatableItems(nextValues.items)) {
+        void runEstimate(nextValues.items);
+      }
     },
   }));
 
@@ -253,7 +283,10 @@ export const ProductionRequestForm = React.forwardRef<
   const duplicateIndexes = findDuplicateItemIndexes(watchedItems);
 
   const handleMenuChange = (index: number, menu: Menu) => {
-    setValue(`items.${index}.menu_id`, menu.id, { shouldValidate: true });
+    setValue(`items.${index}.menu_id`, menu.id, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
     clearErrors(`items.${index}.menu_id`);
     setSelectedMenus((current) => ({
       ...current,
