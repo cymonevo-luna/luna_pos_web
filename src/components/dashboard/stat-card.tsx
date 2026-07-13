@@ -25,6 +25,7 @@ interface StatCardProps {
   value: string | number;
   icon: ComponentType<{ className?: string }>;
   color?: AccentColor;
+  subtitle?: string;
   trend?: string;
   trendUp?: boolean;
 }
@@ -34,6 +35,7 @@ export function StatCard({
   value,
   icon: Icon,
   color = "blue",
+  subtitle,
   trend,
   trendUp = true,
 }: StatCardProps) {
@@ -49,7 +51,12 @@ export function StatCard({
       </div>
       <p className="mt-3 text-2xl font-bold tracking-tight">{value}</p>
       <div className="mt-0.5 flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{label}</p>
+        <div>
+          <p className="text-sm text-muted-foreground">{label}</p>
+          {subtitle && (
+            <p className="text-xs text-muted-foreground">{subtitle}</p>
+          )}
+        </div>
         {trend && (
           <span
             className={cn(

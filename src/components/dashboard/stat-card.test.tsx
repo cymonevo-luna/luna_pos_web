@@ -10,6 +10,18 @@ describe("StatCard", () => {
     expect(screen.getByText("24")).toBeInTheDocument();
   });
 
+  it("renders a subtitle when provided", () => {
+    render(
+      <StatCard
+        label="Today's Inflow"
+        value="Rp 100.000"
+        icon={ListTodo}
+        subtitle="12 transactions"
+      />,
+    );
+    expect(screen.getByText("12 transactions")).toBeInTheDocument();
+  });
+
   it("renders a trend when provided", () => {
     render(
       <StatCard label="Completed" value={16} icon={ListTodo} trend="+8%" />,

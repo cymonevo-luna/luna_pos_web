@@ -23,6 +23,12 @@ vi.mock("@/components/dashboard/dashboard-summary-stats", () => ({
   ),
 }));
 
+vi.mock("@/components/dashboard/cash-flow-overview-stats", () => ({
+  CashFlowOverviewStats: () => (
+    <div data-testid="cash-flow-overview-stats">Cash flow overview</div>
+  ),
+}));
+
 vi.mock("@/components/admin/transaction-summary-chart", () => ({
   TransactionSummaryChart: () => (
     <div data-testid="transaction-summary-chart">Transaction volume</div>
@@ -100,6 +106,7 @@ describe("AdminOverviewPage", () => {
     expect(screen.getByText("Welcome to your POS dashboard")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Summary" })).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-summary-stats")).toBeInTheDocument();
+    expect(screen.getByTestId("cash-flow-overview-stats")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Analytics" })).toBeInTheDocument();
     expect(screen.getByTestId("transaction-summary-chart")).toBeInTheDocument();
     expect(
@@ -120,6 +127,9 @@ describe("AdminOverviewPage", () => {
 
     expect(screen.getByRole("heading", { name: "Summary" })).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-summary-stats")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("cash-flow-overview-stats"),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("User management")).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { name: "Analytics" }),
@@ -138,6 +148,9 @@ describe("AdminOverviewPage", () => {
 
     expect(screen.getByText("Suppliers")).toBeInTheDocument();
     expect(screen.getByText("Purchase requests")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("cash-flow-overview-stats"),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("COGS")).not.toBeInTheDocument();
     expect(screen.queryByText("Transactions")).not.toBeInTheDocument();
     expect(

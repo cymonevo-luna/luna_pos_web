@@ -215,6 +215,19 @@ export interface TransactionSummary {
   buckets: TransactionSummaryBucket[];
 }
 
+export interface CashFlowSummaryTotals {
+  inflow_amount: number;
+  inflow_count: number;
+  outflow_amount: number;
+  outflow_count: number;
+  net_amount: number;
+}
+
+export interface CashFlowSummary {
+  period: TransactionSummaryPeriod;
+  totals: CashFlowSummaryTotals;
+}
+
 export type CogsStatus = "complete" | "missing_prices" | "no_formula";
 
 /** Summary row returned by GET /api/admin/cogs. */

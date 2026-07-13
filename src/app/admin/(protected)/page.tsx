@@ -8,6 +8,7 @@ import { overviewCards } from "@/lib/dashboard/quick-actions";
 import { buttonVariants } from "@/components/ui/button";
 import { GreetingCard } from "@/components/dashboard/greeting-card";
 import { DashboardSummaryStats } from "@/components/dashboard/dashboard-summary-stats";
+import { CashFlowOverviewStats } from "@/components/dashboard/cash-flow-overview-stats";
 import { RecentTransactionsPanel } from "@/components/dashboard/recent-transactions-panel";
 import { TransactionSummaryChart } from "@/components/admin/transaction-summary-chart";
 import {
@@ -42,6 +43,7 @@ export default function AdminOverviewPage() {
             Summary
           </h2>
           <DashboardSummaryStats roles={roles} />
+          {isManager && <CashFlowOverviewStats />}
         </section>
       )}
 
