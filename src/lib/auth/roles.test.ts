@@ -68,10 +68,12 @@ describe("canAccessRoute", () => {
   it("blocks operational users from manager-only routes", () => {
     expect(canAccessRoute("/admin/cogs", ["operational"])).toBe(false);
     expect(canAccessRoute("/admin/menus", ["operational"])).toBe(false);
+    expect(canAccessRoute("/admin/cash-flow", ["operational"])).toBe(false);
   });
 
   it("allows manager users on manager routes", () => {
     expect(canAccessRoute("/admin/cogs", ["manager"])).toBe(true);
+    expect(canAccessRoute("/admin/cash-flow", ["manager"])).toBe(true);
     expect(canAccessRoute("/admin/menus/menu-1/ingredients", ["manager"])).toBe(
       true,
     );

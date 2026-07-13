@@ -27,7 +27,7 @@ vi.mock("sonner", () => ({
 
 const transaction1: Transaction = {
   id: "txn-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-  method: "OFFLINE",
+  method: "CASH",
   amount: 50000,
   cash_tendered: 100000,
   change_amount: 50000,
@@ -40,7 +40,7 @@ const transaction1: Transaction = {
 
 const transaction2: Transaction = {
   id: "txn-bbbbbbbb-cccc-dddd-eeee-ffffffffffff",
-  method: "OFFLINE",
+  method: "CASH",
   amount: 30000,
   cash_tendered: 50000,
   change_amount: 20000,

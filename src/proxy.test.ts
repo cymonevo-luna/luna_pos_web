@@ -310,4 +310,39 @@ describe("proxy", () => {
 
     expect(res.status).toBe(200);
   });
+
+  it("allows manager users on cash flow routes", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["manager"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+
+    const res = await proxy(
+      requestFor("/admin/cash-flow", {
+        [config.cookies.accessToken]: access,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it("redirects operational users away from cash flow", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["operational"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+
+    const res = await proxy(
+      requestFor("/admin/cash-flow", {
+        [config.cookies.accessToken]: access,
+      }),
+    );
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("/admin/suppliers");
+  });
 });

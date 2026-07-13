@@ -29,6 +29,7 @@ const todaySummary: CashFlowSummary = {
     outflow_count: 2,
     net_amount: 750_000,
   },
+  buckets: [],
 };
 
 const zeroSummary: CashFlowSummary = {
@@ -40,6 +41,7 @@ const zeroSummary: CashFlowSummary = {
     outflow_count: 0,
     net_amount: 0,
   },
+  buckets: [],
 };
 
 describe("CashFlowOverviewStats", () => {

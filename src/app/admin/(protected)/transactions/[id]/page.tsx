@@ -103,7 +103,7 @@ export default function AdminTransactionDetailPage({
             </Card>
           </div>
 
-          {transaction.method === "OFFLINE" && (
+          {transaction.method === "CASH" && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Cash payment</CardTitle>

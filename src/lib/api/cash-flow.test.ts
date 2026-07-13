@@ -29,6 +29,7 @@ describe("cashFlowAdminApi", () => {
         outflow_count: 2,
         net_amount: 750_000,
       },
+      buckets: [],
     };
 
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(

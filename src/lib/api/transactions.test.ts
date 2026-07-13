@@ -51,7 +51,7 @@ describe("transactionsAdminApi", () => {
     await transactionsAdminApi.list({
       page: 2,
       perPage: 10,
-      method: "OFFLINE",
+      method: "CASH",
       dateFrom: "2026-01-01",
       dateTo: "2026-01-31",
       cashierUsername: "kasir1",
@@ -59,7 +59,7 @@ describe("transactionsAdminApi", () => {
 
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe(
-      "http://localhost:8080/api/admin/transactions?page=2&per_page=10&method=OFFLINE&date_from=2026-01-01T00%3A00%3A00.000Z&date_to=2026-01-31T23%3A59%3A59.999Z&cashier_username=kasir1",
+      "http://localhost:8080/api/admin/transactions?page=2&per_page=10&method=CASH&date_from=2026-01-01T00%3A00%3A00.000Z&date_to=2026-01-31T23%3A59%3A59.999Z&cashier_username=kasir1",
     );
     const headers = new Headers(init?.headers);
     expect(headers.get("Authorization")).toBe("Bearer token-abc");
@@ -68,7 +68,7 @@ describe("transactionsAdminApi", () => {
   it("unwraps envelope responses for get", async () => {
     const transaction = {
       id: "txn-1",
-      method: "OFFLINE",
+      method: "CASH",
       amount: 50000,
       cash_tendered: 100000,
       change_amount: 50000,

@@ -57,6 +57,28 @@ describe("AdminProtectedLayout", () => {
     expect(screen.queryByRole("link", { name: "Receipt Settings" })).not.toBeInTheDocument();
   });
 
+  it("includes Cash Flow for manager users", () => {
+    const items: NavItem[] = [
+      {
+        href: "/admin/cash-flow",
+        label: "Cash Flow",
+        icon: () => null,
+        roles: ["manager"],
+      },
+    ];
+
+    expect(
+      filterAdminNavItems(items, ["manager"]).some(
+        (item) => item.label === "Cash Flow",
+      ),
+    ).toBe(true);
+    expect(
+      filterAdminNavItems(items, ["operational"]).some(
+        (item) => item.label === "Cash Flow",
+      ),
+    ).toBe(false);
+  });
+
   it("includes COGS for manager users", () => {
     const items: NavItem[] = [
       {

@@ -178,7 +178,7 @@ export interface StockEstimationResponse {
   ingredients?: StockEstimationIngredient[];
 }
 
-export type TransactionMethod = "OFFLINE";
+export type TransactionMethod = "CASH" | "QRIS";
 
 export type TransactionSummaryPeriod = "daily" | "weekly" | "monthly";
 
@@ -223,9 +223,61 @@ export interface CashFlowSummaryTotals {
   net_amount: number;
 }
 
+export interface CashFlowSummaryBucket {
+  period_start: string;
+  period_label: string;
+  inflow_amount: number;
+  outflow_amount: number;
+  net_amount: number;
+}
+
+export interface CashFlowInflowByMethod {
+  method: TransactionMethod;
+  amount: number;
+  count: number;
+}
+
 export interface CashFlowSummary {
   period: TransactionSummaryPeriod;
   totals: CashFlowSummaryTotals;
+  buckets: CashFlowSummaryBucket[];
+  inflow_by_method?: CashFlowInflowByMethod[];
+}
+
+export interface TransactionMenuInsightItem {
+  menu_id: string;
+  menu_title: string;
+  quantity_sold: number;
+  revenue: number;
+  share_percent: number;
+}
+
+export interface TransactionMenuInsights {
+  date_from: string;
+  date_to: string;
+  total_revenue: number;
+  menus: TransactionMenuInsightItem[];
+}
+
+export type ProductionInsightConfidence = "high" | "medium" | "low";
+
+export interface ProductionNextDayInsightItem {
+  menu_id: string;
+  menu_title: string;
+  current_stock: number;
+  avg_daily_sales: number;
+  projected_demand: number;
+  recommended_production_qty: number;
+  max_producible: number | null;
+  confidence: ProductionInsightConfidence;
+  limited_by_ingredients: boolean;
+  limiting_ingredient_title?: string | null;
+}
+
+export interface ProductionNextDayInsight {
+  lookback_days: number;
+  generated_at: string;
+  items: ProductionNextDayInsightItem[];
 }
 
 export type CogsStatus = "complete" | "missing_prices" | "no_formula";
