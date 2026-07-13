@@ -120,30 +120,41 @@ export async function transactionMenuInsights({
   return normalizeTransactionMenuInsightsResult(result);
 }
 
-function normalizeProductionNextDayInsightItem(
+function coerceFiniteNumber(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function coerceMaxProducible(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  return coerceFiniteNumber(value);
+}
+
+export function normalizeProductionNextDayInsightItem(
   raw: ProductionNextDayInsightItemRaw,
 ): ProductionNextDayInsightItem {
   return {
     menu_id: raw.menu_id,
     menu_title: raw.menu_title,
-    current_stock: raw.current_available_stock,
-    avg_daily_sales: raw.avg_daily_sales,
-    projected_demand: raw.projected_demand,
-    recommended_production_qty: raw.recommended_production_qty,
-    max_producible: raw.max_producible_from_ingredients,
+    current_stock: coerceFiniteNumber(raw.current_available_stock),
+    avg_daily_sales: coerceFiniteNumber(raw.avg_daily_sales),
+    projected_demand: coerceFiniteNumber(raw.projected_demand),
+    recommended_production_qty: coerceFiniteNumber(raw.recommended_production_qty),
+    max_producible: coerceMaxProducible(raw.max_producible_from_ingredients),
     confidence: raw.confidence,
-    limited_by_ingredients: raw.is_limited_by_ingredients,
+    limited_by_ingredients: Boolean(raw.is_limited_by_ingredients),
   };
 }
 
-function normalizeProductionNextDayInsight(
+export function normalizeProductionNextDayInsight(
   raw: ProductionNextDayInsightRaw,
 ): ProductionNextDayInsight {
+  const menus = raw.menus ?? [];
   return {
     target_date: raw.target_date,
     lookback_days: raw.lookback_days,
     generated_at: raw.generated_at,
-    items: (raw.menus ?? []).map(normalizeProductionNextDayInsightItem),
+    items: menus.map(normalizeProductionNextDayInsightItem),
   };
 }
 
