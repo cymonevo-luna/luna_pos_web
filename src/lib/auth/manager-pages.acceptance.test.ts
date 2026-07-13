@@ -17,6 +17,12 @@ const managerNavLabels = filterAdminNavItems(
       roles: ["manager"],
     },
     {
+      href: "/admin/cash-flow",
+      label: "Cash Flow",
+      icon: () => null,
+      roles: ["manager"],
+    },
+    {
       href: "/admin/store-settings",
       label: "Receipt Settings",
       icon: () => null,
@@ -62,6 +68,11 @@ describe("POS-18-12 manager-scoped page guards", () => {
     expect(managerNavLabels).toContain("Transactions");
   });
 
+  it("2b. Manager accesses cash flow insights", () => {
+    expect(canAccessRoute("/admin/cash-flow", ["manager"])).toBe(true);
+    expect(managerNavLabels).toContain("Cash Flow");
+  });
+
   it("3. Manager edits receipt settings — route and nav are manager-only", () => {
     expect(canAccessRoute("/admin/store-settings", ["manager"])).toBe(true);
     expect(managerNavLabels).toContain("Receipt Settings");
@@ -83,12 +94,20 @@ describe("POS-18-12 manager-scoped page guards", () => {
     );
   });
 
+  it("6. Operational blocked from cash flow", () => {
+    expect(canAccessRoute("/admin/cash-flow", ["operational"])).toBe(false);
+    expect(canAccessRoute("/admin/cash-flow", ["cashier"] as never)).toBe(
+      false,
+    );
+  });
+
   it("manager supporting routes remain gated", () => {
     const managerOnlyRoutes = [
       "/admin/categories",
       "/admin/menus",
       "/admin/menus/menu-1/ingredients",
       "/admin/production-requests/new",
+      "/admin/cash-flow",
     ];
     for (const route of managerOnlyRoutes) {
       expect(canAccessRoute(route, ["manager"])).toBe(true);

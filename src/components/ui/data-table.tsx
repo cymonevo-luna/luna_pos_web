@@ -16,6 +16,7 @@ export interface DataTableProps<T> {
   columns: Column<T>[];
   rows: T[];
   getRowKey: (row: T) => string;
+  getRowClassName?: (row: T) => string | undefined;
   loading?: boolean;
   error?: string | null;
   emptyMessage?: string;
@@ -30,6 +31,7 @@ export function DataTable<T>({
   columns,
   rows,
   getRowKey,
+  getRowClassName,
   loading = false,
   error = null,
   emptyMessage = "No records found.",
@@ -84,7 +86,10 @@ export function DataTable<T>({
               rows.map((row) => (
                 <tr
                   key={getRowKey(row)}
-                  className="border-border hover:bg-muted/30 border-b last:border-0"
+                  className={cn(
+                    "border-border hover:bg-muted/30 border-b last:border-0",
+                    getRowClassName?.(row),
+                  )}
                 >
                   {columns.map((c, i) => (
                     <td key={i} className={cn("px-4 py-3", c.className)}>

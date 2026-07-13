@@ -13,6 +13,7 @@ import {
   Calculator,
   ArrowLeft,
   Printer,
+  TrendingUp,
 } from "lucide-react";
 import {
   DashboardShell,
@@ -35,6 +36,7 @@ const allNavItems: NavItem[] = [
   { href: "/admin/menus", label: "Menus", icon: UtensilsCrossed, roles: ["manager"] },
   { href: "/admin/cogs", label: "COGS", icon: Calculator, roles: ["manager"] },
   { href: "/admin/transactions", label: "Transactions", icon: Receipt, roles: ["manager"] },
+  { href: "/admin/cash-flow", label: "Cash Flow", icon: TrendingUp, roles: ["manager"] },
   { href: "/admin/store-settings", label: "Receipt Settings", icon: Printer, roles: ["manager"] },
   { href: "/admin/suppliers", label: "Suppliers", icon: Truck, roles: ["operational"] },
   { href: "/admin/purchases", label: "Purchases", icon: ShoppingCart, roles: ["operational"] },

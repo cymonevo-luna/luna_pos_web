@@ -17,7 +17,8 @@ const PER_PAGE = 10;
 
 const METHOD_OPTIONS = [
   { value: "", label: "All methods" },
-  { value: "OFFLINE", label: "OFFLINE" },
+  { value: "CASH", label: "Cash" },
+  { value: "QRIS", label: "QRIS" },
 ];
 
 export default function AdminTransactionsPage() {

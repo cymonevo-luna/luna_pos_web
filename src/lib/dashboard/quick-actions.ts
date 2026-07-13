@@ -9,6 +9,7 @@ import {
   Package,
   Printer,
   ChefHat,
+  TrendingUp,
 } from "lucide-react";
 import type { MerchantRole } from "@/lib/api/types";
 
@@ -40,6 +41,13 @@ export const overviewCards: OverviewCard[] = [
     description: "Browse transaction history and details.",
     href: "/admin/transactions",
     icon: Receipt,
+    roles: ["manager"],
+  },
+  {
+    title: "Cash flow",
+    description: "Review inflows, menu sales, and production insights.",
+    href: "/admin/cash-flow",
+    icon: TrendingUp,
     roles: ["manager"],
   },
   {

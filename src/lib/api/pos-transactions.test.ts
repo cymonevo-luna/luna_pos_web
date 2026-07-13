@@ -67,7 +67,7 @@ describe("transactionsPosApi", () => {
   it("targets transaction by id and unwraps the response", async () => {
     const transaction = {
       id: "txn-id",
-      method: "OFFLINE",
+      method: "CASH",
       amount: 50000,
       cash_tendered: 100000,
       change_amount: 50000,
