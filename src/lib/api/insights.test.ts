@@ -76,6 +76,36 @@ describe("insights API", () => {
     expect(url).toContain("date_to=2026-07-13");
   });
 
+  it("maps revenue_share_percent to share_percent", async () => {
+    const insights = {
+      date_from: "2026-07-01T00:00:00.000Z",
+      date_to: "2026-07-13T23:59:59.999Z",
+      total_revenue: 500_000,
+      menus: [
+        {
+          menu_id: "menu-1",
+          menu_title: "Nasi Goreng",
+          quantity_sold: 20,
+          revenue: 300_000,
+          revenue_share_percent: 60,
+          quantity_share_percent: 66.7,
+        },
+      ],
+    };
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, data: insights }),
+    );
+
+    const got = await transactionMenuInsights({
+      dateFrom: "2026-07-01",
+      dateTo: "2026-07-13",
+    });
+
+    expect(got.data?.menus[0]?.share_percent).toBe(60);
+    expect(got.data?.menus[0]?.quantity_share_percent).toBe(66.7);
+  });
+
   it("builds the production next-day insight URL", async () => {
     const insight = {
       lookback_days: 14,
