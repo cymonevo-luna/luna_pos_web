@@ -84,6 +84,36 @@ export const foodSupplySchema = z.object({
 
 export type FoodSupplyFormValues = z.infer<typeof foodSupplySchema>;
 
+export const branchAssetSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1, "Title is required")
+    .max(200, "Title is too long"),
+  description: z
+    .string()
+    .max(2000, "Description is too long")
+    .optional()
+    .or(z.literal("")),
+  quantity: z
+    .number({ error: "Quantity is required" })
+    .min(0, "Quantity cannot be negative"),
+  price_amount: z
+    .number({ error: "Price is required" })
+    .int("Price must be a whole number")
+    .min(0, "Price cannot be negative"),
+  photo_url: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine(
+      (value) => !value?.trim() || z.string().url().safeParse(value.trim()).success,
+      "Enter a valid URL",
+    ),
+});
+
+export type BranchAssetFormValues = z.infer<typeof branchAssetSchema>;
+
 export const supplierSchema = z
   .object({
     name: z

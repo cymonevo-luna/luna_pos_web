@@ -24,7 +24,8 @@ export function BranchAssetsNav() {
         const active =
           tab.href === "/admin/branch-assets"
             ? pathname === "/admin/branch-assets"
-            : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+            : pathname === tab.href ||
+              (pathname?.startsWith(`${tab.href}/`) ?? false);
         return (
           <Link
             key={tab.href}
