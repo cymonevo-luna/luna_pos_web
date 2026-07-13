@@ -16,10 +16,7 @@ import {
 import { usersApi } from "@/lib/api/users";
 import { refreshTokenPair } from "@/lib/auth/refresh";
 import { hasMerchantAreaAccess } from "@/lib/auth/roles";
-import {
-  isClaimsValid,
-  needsTokenRefresh,
-} from "@/lib/auth/session";
+import { isClaimsValid } from "@/lib/auth/session";
 import { clearAuthSession, sessionStore } from "@/lib/auth/session-store";
 import { tokenStore, decodeJwt } from "@/lib/auth/tokens";
 import type { SessionMerchant, User } from "@/lib/api/types";
@@ -49,17 +46,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const hydrate = useCallback(async () => {
-    let access = tokenStore.access;
+    const access = tokenStore.access;
     const refresh = tokenStore.refresh;
+    const accessValid = tokenStore.isAccessValid();
+    const refreshValid = tokenStore.isRefreshValid();
 
-    if (needsTokenRefresh(access, refresh)) {
-      if (!refresh) {
-        clearAuthSession();
-        setUser(null);
-        setMerchant(null);
-        setIsLoading(false);
-        return;
-      }
+    if (!access && !refresh) {
+      setUser(null);
+      setMerchant(null);
+      setIsLoading(false);
+      return;
+    }
+
+    if (!accessValid && !refreshValid) {
+      clearAuthSession();
+      setUser(null);
+      setMerchant(null);
+      setIsLoading(false);
+      return;
+    }
+
+    let currentAccess = access;
+    if (!accessValid && refreshValid && refresh) {
       const tokens = await refreshTokenPair(refresh);
       if (!tokens) {
         clearAuthSession();
@@ -68,11 +76,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
         return;
       }
-      tokenStore.set(tokens.access_token, tokens.refresh_token);
-      access = tokens.access_token;
+      tokenStore.setFromPair(tokens);
+      currentAccess = tokens.access_token;
     }
 
-    const claims = access ? decodeJwt(access) : null;
+    const claims = currentAccess ? decodeJwt(currentAccess) : null;
     if (!isClaimsValid(claims) || !claims) {
       clearAuthSession();
       setUser(null);
@@ -117,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (payload: LoginPayload) => {
     const { data } = await authApi.login(payload);
-    tokenStore.set(data.tokens.access_token, data.tokens.refresh_token);
+    tokenStore.setFromPair(data.tokens);
     persistSession(data.user, data.merchant);
     setUser(data.user);
     setMerchant(data.merchant);
@@ -130,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const registerMerchant = useCallback(async (payload: MerchantRegisterPayload) => {
     const { data } = await merchantsApi.register(payload);
-    tokenStore.set(data.tokens.access_token, data.tokens.refresh_token);
+    tokenStore.setFromPair(data.tokens);
     const sessionMerchant = { id: data.merchant.id, name: data.merchant.name };
     persistSession(data.user, sessionMerchant);
     setUser(data.user);

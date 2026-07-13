@@ -3,6 +3,8 @@ import { decodeJwt, type JwtPayload } from "@/lib/auth/tokens";
 /** Cookie lifetime for both tokens — matches backend refresh TTL (7 days). */
 export const ACCESS_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 export const REFRESH_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+/** Default refresh session window when the API omits refresh_expires_in. */
+export const DEFAULT_REFRESH_TTL_SECONDS = REFRESH_COOKIE_MAX_AGE;
 
 export function isClaimsValid(claims: JwtPayload | null | undefined): boolean {
   return !!claims && claims.exp * 1000 > Date.now();

@@ -58,6 +58,9 @@ describe("clearAuthSession", () => {
     clearAuthSession();
 
     expect(tokenStore.access).toBeNull();
+    expect(tokenStore.refresh).toBeNull();
+    expect(localStorage.getItem(config.tokens.accessExpiresAt)).toBeNull();
+    expect(localStorage.getItem(config.tokens.refreshExpiresAt)).toBeNull();
     expect(sessionStore.get()).toBeNull();
   });
 });
