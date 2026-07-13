@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { productionRequestsAdminApi } from "@/lib/api/production-requests";
 import { ApiError } from "@/lib/api/client";
 import type {
@@ -11,6 +12,9 @@ import type {
 } from "@/lib/api/types";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/auth/context";
+import { hasRole } from "@/lib/auth/roles";
+import { buttonVariants } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -46,6 +50,8 @@ function productionStatusBadgeVariant(
 
 export default function AdminProductionRequestsPage() {
   const router = useRouter();
+  const { user } = useAuth();
+  const canCreate = hasRole(user, "manager");
   const [requests, setRequests] = useState<ProductionRequestSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -93,13 +99,24 @@ export default function AdminProductionRequestsPage() {
           <h2 className="text-2xl font-semibold">Production requests</h2>
           <p className="text-muted-foreground">{total} total</p>
         </div>
-        <Select
-          aria-label="Filter by status"
-          className="w-full sm:w-44"
-          options={STATUS_OPTIONS}
-          value={status}
-          onChange={(e) => handleStatusChange(e.target.value)}
-        />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Select
+            aria-label="Filter by status"
+            className="w-full sm:w-44"
+            options={STATUS_OPTIONS}
+            value={status}
+            onChange={(e) => handleStatusChange(e.target.value)}
+          />
+          {canCreate ? (
+            <Link
+              href="/admin/production-requests/new"
+              className={buttonVariants()}
+            >
+              <Plus className="h-4 w-4" />
+              New production request
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       <Card className="overflow-hidden">
