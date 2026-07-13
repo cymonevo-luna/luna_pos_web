@@ -207,7 +207,24 @@ describe("proxy", () => {
     expect(res.headers.get("location")).toContain("/admin/suppliers");
   });
 
-  it("allows manager users on production request routes", async () => {
+  it("allows manager users on production request list route", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["manager"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+
+    const res = await proxy(
+      requestFor("/admin/production-requests", {
+        [config.cookies.accessToken]: access,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it("allows manager users on production request create route", async () => {
     const access = makeJwt({
       uid: "1",
       roles: ["manager"],

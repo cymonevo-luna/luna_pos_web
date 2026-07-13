@@ -37,13 +37,13 @@ describe("POS-39-7 production request route guards and navigation", () => {
     expect(labels).toContain("Production");
   });
 
-  it("2. Manager blocked from production list", () => {
+  it("2. Manager can access production list and detail routes", () => {
     expect(canAccessRoute("/admin/production-requests", ["manager"])).toBe(
-      false,
+      true,
     );
     expect(
       canAccessRoute("/admin/production-requests/prod-1", ["manager"]),
-    ).toBe(false);
+    ).toBe(true);
     expect(canAccessRoute("/admin/production-requests/new", ["manager"])).toBe(
       true,
     );

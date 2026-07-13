@@ -97,11 +97,11 @@ describe("POS-18-12 manager-scoped page guards", () => {
     }
 
     expect(canAccessRoute("/admin/production-requests", ["manager"])).toBe(
-      false,
+      true,
     );
     expect(
       canAccessRoute("/admin/production-requests/prod-1", ["manager"]),
-    ).toBe(false);
+    ).toBe(true);
 
     expect(canAccessRoute("/admin/food-supplies", ["manager"])).toBe(true);
     expect(canAccessRoute("/admin/food-supplies", ["operational"])).toBe(true);
