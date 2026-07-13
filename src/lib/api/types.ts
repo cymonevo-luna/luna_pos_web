@@ -231,17 +231,24 @@ export interface CashFlowSummaryBucket {
   net_amount: number;
 }
 
+/** Wire format from cash-flow summary API (`inflow_by_method` rows). */
 export interface CashFlowInflowByMethod {
   method: TransactionMethod;
-  amount: number;
+  total_amount: number;
   count: number;
+}
+
+/** Normalized inflow row for UI (`amount` mapped from `total_amount`). */
+export interface CashFlowInflowByMethodNormalized
+  extends Omit<CashFlowInflowByMethod, "total_amount"> {
+  amount: number;
 }
 
 export interface CashFlowSummary {
   period: TransactionSummaryPeriod;
   totals: CashFlowSummaryTotals;
   buckets: CashFlowSummaryBucket[];
-  inflow_by_method?: CashFlowInflowByMethod[];
+  inflow_by_method?: CashFlowInflowByMethodNormalized[];
 }
 
 export interface TransactionMenuInsightItem {

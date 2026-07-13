@@ -30,6 +30,9 @@ describe("cashFlowAdminApi", () => {
         net_amount: 750_000,
       },
       buckets: [],
+      inflow_by_method: [
+        { method: "CASH", total_amount: 1_000_000, count: 7 },
+      ],
     };
 
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
@@ -46,6 +49,8 @@ describe("cashFlowAdminApi", () => {
     expect(url).toBe(
       "http://localhost:8080/api/admin/insights/cash-flow/summary?period=daily&date_from=2026-07-13T00%3A00%3A00.000Z&date_to=2026-07-13T23%3A59%3A59.999Z",
     );
-    expect(got.data).toEqual(summary);
+    expect(got.data.inflow_by_method).toEqual([
+      { method: "CASH", amount: 1_000_000, count: 7 },
+    ]);
   });
 });
