@@ -127,7 +127,7 @@ export default function AdminProductionRequestsPage() {
                 <th className="px-4 py-3 font-medium">Created</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Items</th>
-                <th className="px-4 py-3 font-medium">Stock OK</th>
+                <th className="px-4 py-3 font-medium">Stock Available</th>
                 <th className="px-4 py-3 font-medium">Created by</th>
               </tr>
             </thead>

@@ -432,7 +432,7 @@ export function ProductionRequestDetailContent({ id }: { id: string }) {
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Stock OK</CardDescription>
+                <CardDescription>Stock Available</CardDescription>
                 <CardTitle className="text-xl">
                   <Badge
                     variant={

@@ -104,7 +104,7 @@ describe("AdminProductionRequestsPage", () => {
       screen.getByRole("columnheader", { name: "Items" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("columnheader", { name: "Stock OK" }),
+      screen.getByRole("columnheader", { name: "Stock Available" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("columnheader", { name: "Created by" }),
