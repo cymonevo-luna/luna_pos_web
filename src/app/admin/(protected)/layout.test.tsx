@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { ChefHat } from "lucide-react";
 import AdminProtectedLayout, { filterAdminNavItems } from "./layout";
 import type { NavItem } from "@/components/layout/dashboard-shell";
 
@@ -125,6 +126,12 @@ describe("AdminProtectedLayout", () => {
         icon: () => null,
         roles: ["operational"],
       },
+      {
+        href: "/admin/production-requests",
+        label: "Production",
+        icon: () => null,
+        roles: ["manager", "operational"],
+      },
     ];
 
     const labels = filterAdminNavItems(items, ["manager", "operational"]).map(
@@ -132,5 +139,12 @@ describe("AdminProtectedLayout", () => {
     );
     expect(labels).toContain("COGS");
     expect(labels).toContain("Purchases");
+    expect(labels).toContain("Production");
+    expect(labels).not.toContain("New production request");
+  });
+
+  it("uses ChefHat icon for Production navigation", () => {
+    const { container } = render(<ChefHat className="h-4 w-4" />);
+    expect(container.querySelector("svg")).toHaveClass("lucide-chef-hat");
   });
 });

@@ -4,13 +4,18 @@ import userEvent from "@testing-library/user-event";
 import AdminProductionRequestsPage from "./page";
 import { productionRequestsAdminApi } from "@/lib/api/production-requests";
 import { ApiError } from "@/lib/api/client";
-import type { ProductionRequestSummary } from "@/lib/api/types";
+import type { ProductionRequestSummary, User } from "@/lib/api/types";
+import { useAuth } from "@/lib/auth/context";
 import { toast } from "sonner";
 
 const mockPush = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
+}));
+
+vi.mock("@/lib/auth/context", () => ({
+  useAuth: vi.fn(),
 }));
 
 vi.mock("@/lib/api/production-requests", () => ({
@@ -26,6 +31,41 @@ vi.mock("sonner", () => ({
   },
 }));
 
+const managerUser: User = {
+  id: "manager-1",
+  email: "manager-test@cymonevo.com",
+  name: "Manager Test",
+  roles: ["manager"],
+  merchant_id: "merchant-1",
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-15T00:00:00Z",
+};
+
+const operationalUser: User = {
+  id: "operational-1",
+  email: "operation-test@cymonevo.com",
+  name: "Operational Test",
+  roles: ["operational"],
+  merchant_id: "merchant-1",
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-15T00:00:00Z",
+};
+
+function mockAuthUser(user: User) {
+  vi.mocked(useAuth).mockReturnValue({
+    user,
+    merchant: { id: "merchant-1", name: "Test Merchant" },
+    isLoading: false,
+    isAuthenticated: true,
+    isAdmin: user.roles.includes("admin"),
+    login: vi.fn(),
+    register: vi.fn(),
+    registerMerchant: vi.fn(),
+    logout: vi.fn(),
+    refreshUser: vi.fn(),
+  });
+}
+
 const request: ProductionRequestSummary = {
   id: "prod-1",
   status: "REQUESTED",
@@ -39,6 +79,7 @@ const request: ProductionRequestSummary = {
 describe("AdminProductionRequestsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAuthUser(operationalUser);
     vi.mocked(productionRequestsAdminApi.list).mockResolvedValue({
       data: [request],
       meta: { page: 1, per_page: 10, total: 1 },
@@ -68,6 +109,36 @@ describe("AdminProductionRequestsPage", () => {
     expect(
       screen.getByRole("columnheader", { name: "Created by" }),
     ).toBeInTheDocument();
+  });
+
+  it("links to the new production request page for managers", async () => {
+    mockAuthUser(managerUser);
+    render(<AdminProductionRequestsPage />);
+    await screen.findByText("manager1");
+
+    expect(
+      screen.getByRole("link", { name: "New production request" }),
+    ).toHaveAttribute("href", "/admin/production-requests/new");
+  });
+
+  it("hides the new production request link for operational-only users", async () => {
+    mockAuthUser(operationalUser);
+    render(<AdminProductionRequestsPage />);
+    await screen.findByText("manager1");
+
+    expect(
+      screen.queryByRole("link", { name: "New production request" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows create button for users with both manager and operational roles", async () => {
+    mockAuthUser({ ...managerUser, roles: ["manager", "operational"] });
+    render(<AdminProductionRequestsPage />);
+    await screen.findByText("manager1");
+
+    expect(
+      screen.getByRole("link", { name: "New production request" }),
+    ).toHaveAttribute("href", "/admin/production-requests/new");
   });
 
   it("shows empty state when no production requests match", async () => {

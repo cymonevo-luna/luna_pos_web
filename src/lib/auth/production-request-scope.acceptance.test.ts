@@ -9,18 +9,12 @@ const navItems: NavItem[] = [
     href: "/admin/production-requests",
     label: "Production",
     icon: () => null,
-    roles: ["operational"],
-  },
-  {
-    href: "/admin/production-requests/new",
-    label: "New production request",
-    icon: () => null,
-    roles: ["manager"],
+    roles: ["manager", "operational"],
   },
 ];
 
 /**
- * Checklist coverage for POS-39-7 acceptance criteria.
+ * Checklist coverage for POS-39-7 and POS-45-2 acceptance criteria.
  */
 describe("POS-39-7 production request route guards and navigation", () => {
   it("1. Operational nav includes production", () => {
@@ -35,6 +29,7 @@ describe("POS-39-7 production request route guards and navigation", () => {
       (item) => item.label,
     );
     expect(labels).toContain("Production");
+    expect(labels).not.toContain("New production request");
   });
 
   it("2. Manager can access production list and detail routes", () => {
@@ -51,8 +46,8 @@ describe("POS-39-7 production request route guards and navigation", () => {
     const labels = filterAdminNavItems(navItems, ["manager"]).map(
       (item) => item.label,
     );
-    expect(labels).not.toContain("Production");
-    expect(labels).toContain("New production request");
+    expect(labels).toContain("Production");
+    expect(labels).not.toContain("New production request");
   });
 
   it("3. Cashier blocked from admin production routes", () => {
