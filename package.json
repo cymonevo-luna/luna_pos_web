@@ -16,6 +16,7 @@
     "test:integration:suppliers:watch": "RUN_INTEGRATION_TESTS=1 vitest src/testing/suppliers.integration.test.ts",
     "test:integration:suppliers-list": "RUN_INTEGRATION_TESTS=1 vitest run src/testing/suppliers-list.integration.test.ts",
     "test:integration:production-requests-list": "RUN_INTEGRATION_TESTS=1 vitest run src/testing/production-requests-list.integration.test.ts",
+    "test:integration:production-request-estimate": "RUN_INTEGRATION_TESTS=1 NEXT_PUBLIC_API_URL=http://localhost:8087 vitest run src/testing/production-request-estimate.integration.test.ts",
     "format": "prettier --write ."
   },
   "dependencies": {
