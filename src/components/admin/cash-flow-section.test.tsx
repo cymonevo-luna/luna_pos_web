@@ -1,16 +1,11 @@
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CashFlowSection } from "./cash-flow-section";
-import { cashFlowSummary } from "@/lib/api/insights";
 import { ApiError } from "@/lib/api/client";
-import type { CashFlowSummary } from "@/lib/api/types";
+import { tokenStore } from "@/lib/auth/tokens";
 import { toast } from "sonner";
-
-vi.mock("@/lib/api/insights", () => ({
-  cashFlowSummary: vi.fn(),
-}));
 
 vi.mock("sonner", () => ({
   toast: {
@@ -31,8 +26,15 @@ vi.mock("recharts", async (importOriginal) => {
   };
 });
 
-const sampleSummary: CashFlowSummary = {
-  period: "daily",
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+const sampleSummary = {
+  period: "daily" as const,
   totals: {
     inflow_amount: 1_500_000,
     inflow_count: 10,
@@ -50,15 +52,22 @@ const sampleSummary: CashFlowSummary = {
     },
   ],
   inflow_by_method: [
-    { method: "CASH", amount: 1_000_000, count: 7 },
-    { method: "QRIS", amount: 500_000, count: 3 },
+    { method: "CASH", total_amount: 1_000_000, count: 7 },
+    { method: "QRIS", total_amount: 500_000, count: 3 },
   ],
 };
 
 describe("CashFlowSection", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(cashFlowSummary).mockResolvedValue({ data: sampleSummary });
+    tokenStore.clear();
+    vi.restoreAllMocks();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, data: sampleSummary }),
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("renders formatted currency stat cards", async () => {
@@ -72,7 +81,7 @@ describe("CashFlowSection", () => {
     expect(screen.getAllByText("Rp 1.000.000").length).toBeGreaterThan(0);
   });
 
-  it("shows inflow-by-method breakdown", async () => {
+  it("shows inflow-by-method breakdown with mapped amounts", async () => {
     render(<CashFlowSection />);
 
     expect(
@@ -80,10 +89,30 @@ describe("CashFlowSection", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("CASH")).toBeInTheDocument();
     expect(screen.getByText("QRIS")).toBeInTheDocument();
+    expect(screen.getAllByText("Rp 1.000.000").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Rp NaN")).not.toBeInTheDocument();
+  });
+
+  it("hides inflow-by-method legend when empty", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: { ...sampleSummary, inflow_by_method: [] },
+      }),
+    );
+
+    render(<CashFlowSection />);
+
+    expect(await screen.findByText("Total inflow")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("cash-flow-inflow-by-method"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("cash-flow-chart")).toBeInTheDocument();
   });
 
   it("refetches when date range changes", async () => {
     const user = userEvent.setup();
+    const fetchMock = vi.spyOn(globalThis, "fetch");
     render(<CashFlowSection />);
     await screen.findByText("Rp 1.500.000");
 
@@ -91,15 +120,17 @@ describe("CashFlowSection", () => {
     await user.type(screen.getByLabelText("Cash flow date from"), "2026-01-01");
 
     await waitFor(() => {
-      expect(cashFlowSummary).toHaveBeenLastCalledWith(
-        expect.objectContaining({ dateFrom: "2026-01-01" }),
-      );
+      const lastCall = fetchMock.mock.calls.at(-1);
+      expect(lastCall?.[0]).toContain("date_from=2026-01-01");
     });
   });
 
   it("shows error toast when loading fails", async () => {
-    vi.mocked(cashFlowSummary).mockRejectedValue(
-      new ApiError(500, "server_error", "Server error"),
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        { success: false, error: { code: "server_error", message: "Server error" } },
+        500,
+      ),
     );
 
     render(<CashFlowSection />);

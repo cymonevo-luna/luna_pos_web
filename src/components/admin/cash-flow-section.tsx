@@ -15,7 +15,7 @@ import { ArrowDownLeft, ArrowUpRight, Scale } from "lucide-react";
 import { cashFlowSummary } from "@/lib/api/insights";
 import { ApiError } from "@/lib/api/client";
 import type {
-  CashFlowInflowByMethod,
+  CashFlowInflowByMethodNormalized,
   CashFlowSummary,
   CashFlowSummaryBucket,
   TransactionSummaryPeriod,
@@ -93,7 +93,11 @@ function ChartTooltip({ active, payload }: ChartTooltipProps) {
   );
 }
 
-function InflowMethodLegend({ items }: { items: CashFlowInflowByMethod[] }) {
+function InflowMethodLegend({
+  items,
+}: {
+  items: CashFlowInflowByMethodNormalized[];
+}) {
   if (!items.length) return null;
 
   return (

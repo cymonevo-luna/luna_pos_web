@@ -1,6 +1,8 @@
 import { api, type ApiResult } from "./client";
 import { dateInputToIso } from "./transactions";
 import type {
+  CashFlowInflowByMethod,
+  CashFlowInflowByMethodNormalized,
   CashFlowSummary,
   ProductionNextDayInsight,
   TransactionMenuInsightItem,
@@ -9,6 +11,37 @@ import type {
   TransactionMenuInsightsRaw,
   TransactionSummaryPeriod,
 } from "./types";
+
+interface CashFlowSummaryRaw
+  extends Omit<CashFlowSummary, "inflow_by_method"> {
+  inflow_by_method?: CashFlowInflowByMethod[];
+}
+
+export function normalizeCashFlowInflowByMethod(
+  raw: CashFlowInflowByMethod,
+): CashFlowInflowByMethodNormalized {
+  return {
+    method: raw.method,
+    count: raw.count,
+    amount: raw.total_amount,
+  };
+}
+
+export function normalizeCashFlowSummary(raw: CashFlowSummaryRaw): CashFlowSummary {
+  return {
+    ...raw,
+    inflow_by_method: raw.inflow_by_method?.map(normalizeCashFlowInflowByMethod),
+  };
+}
+
+function normalizeCashFlowSummaryResult(
+  result: ApiResult<CashFlowSummaryRaw>,
+): ApiResult<CashFlowSummary> {
+  return {
+    ...result,
+    data: normalizeCashFlowSummary(result.data),
+  };
+}
 
 export interface CashFlowSummaryParams {
   period?: TransactionSummaryPeriod;
@@ -33,9 +66,11 @@ export function cashFlowSummary({
   const params = new URLSearchParams({ period });
   if (dateFrom) params.set("date_from", dateInputToIso(dateFrom, false));
   if (dateTo) params.set("date_to", dateInputToIso(dateTo, true));
-  return api.get<CashFlowSummary>(
-    `/api/admin/insights/cash-flow/summary?${params.toString()}`,
-  );
+  return api
+    .get<CashFlowSummaryRaw>(
+      `/api/admin/insights/cash-flow/summary?${params.toString()}`,
+    )
+    .then(normalizeCashFlowSummaryResult);
 }
 
 function normalizeTransactionMenuInsightItem(
