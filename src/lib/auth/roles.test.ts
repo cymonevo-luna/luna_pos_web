@@ -80,18 +80,15 @@ describe("canAccessRoute", () => {
   it("blocks manager users from operational routes", () => {
     expect(canAccessRoute("/admin/suppliers", ["manager"])).toBe(false);
     expect(canAccessRoute("/admin/purchases", ["manager"])).toBe(false);
-    expect(canAccessRoute("/admin/production-requests", ["manager"])).toBe(false);
-    expect(
-      canAccessRoute("/admin/production-requests/prod-1", ["manager"]),
-    ).toBe(false);
   });
 
-  it("allows manager users on production request create route only", () => {
+  it("allows manager users on production request list, detail, and create routes", () => {
+    expect(canAccessRoute("/admin/production-requests", ["manager"])).toBe(true);
+    expect(
+      canAccessRoute("/admin/production-requests/prod-1", ["manager"]),
+    ).toBe(true);
     expect(canAccessRoute("/admin/production-requests/new", ["manager"])).toBe(
       true,
-    );
-    expect(canAccessRoute("/admin/production-requests", ["manager"])).toBe(
-      false,
     );
   });
 

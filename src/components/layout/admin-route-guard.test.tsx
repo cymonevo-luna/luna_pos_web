@@ -84,21 +84,20 @@ describe("AdminRouteGuard", () => {
     });
   });
 
-  it("redirects manager users away from production request list", async () => {
+  it("allows manager users on production request list", () => {
     vi.mocked(useAuth).mockReturnValue({
       user: { id: "1", roles: ["manager"], merchant_id: "m-1" },
       isLoading: false,
     } as ReturnType<typeof useAuth>);
     vi.mocked(usePathname).mockReturnValue("/admin/production-requests");
 
-    render(
+    const { getByText } = render(
       <AdminRouteGuard>
         <div>Protected content</div>
       </AdminRouteGuard>,
     );
 
-    await waitFor(() => {
-      expect(replace).toHaveBeenCalledWith("/admin");
-    });
+    expect(getByText("Protected content")).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
   });
 });
