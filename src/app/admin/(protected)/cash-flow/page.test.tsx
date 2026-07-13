@@ -122,7 +122,9 @@ const productionNextDayBackend: ProductionNextDayInsightRaw = {
   ],
 };
 
-function mockInsightsFetch() {
+function mockInsightsFetch(
+  productionPayload: ProductionNextDayInsightRaw = productionNextDayBackend,
+) {
   return vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
     const url = String(input);
 
@@ -140,7 +142,7 @@ function mockInsightsFetch() {
 
     if (url.includes("/api/admin/insights/production/next-day")) {
       return Promise.resolve(
-        jsonResponse({ success: true, data: productionNextDayBackend }),
+        jsonResponse({ success: true, data: productionPayload }),
       );
     }
 
@@ -194,6 +196,44 @@ describe("AdminCashFlowPage", () => {
       expect(screen.getByTestId("menu-pie-chart")).toBeInTheDocument();
       expect(screen.queryByText("Rp NaN")).not.toBeInTheDocument();
       expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it("renders all sections when production insight row omits avg_daily_sales", async () => {
+      const malformedProductionPayload: ProductionNextDayInsightRaw = {
+        ...productionNextDayBackend,
+        menus: [
+          {
+            ...productionNextDayBackend.menus[0],
+            avg_daily_sales: undefined as unknown as number,
+          },
+          productionNextDayBackend.menus[1],
+        ],
+      };
+
+      vi.restoreAllMocks();
+      mockInsightsFetch(malformedProductionPayload);
+      consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      render(<AdminCashFlowPage />);
+
+      expect(screen.getByTestId("cash-flow-page")).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("cash-flow-section")).toBeInTheDocument();
+        expect(screen.getByTestId("transaction-menu-insights")).toBeInTheDocument();
+        expect(screen.getByTestId("production-insight-panel")).toBeInTheDocument();
+      });
+
+      expect(screen.getAllByText("Nasi Goreng").length).toBeGreaterThan(0);
+      expect(screen.getByText("0.0")).toBeInTheDocument();
+
+      const toFixedErrors = consoleErrorSpy.mock.calls.filter(
+        ([message]: [unknown, ...unknown[]]) =>
+          typeof message === "string" &&
+          message.includes("toFixed") &&
+          message.includes("TypeError"),
+      );
+      expect(toFixedErrors).toHaveLength(0);
     });
   });
 });

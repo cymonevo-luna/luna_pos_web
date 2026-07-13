@@ -85,4 +85,50 @@ describe("ProductionInsightPanel", () => {
     expect(screen.getByText("Limited")).toBeInTheDocument();
     expect(screen.getAllByText("3").length).toBeGreaterThanOrEqual(2);
   });
+
+  it("renders 0.0 fallback when avg_daily_sales is missing", async () => {
+    const payloadWithMissingAvgDailySales = {
+      ...backendPayload,
+      menus: [
+        {
+          ...backendPayload.menus[0],
+          avg_daily_sales: undefined,
+        },
+        backendPayload.menus[1],
+      ],
+    };
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, data: payloadWithMissingAvgDailySales }),
+    );
+
+    render(<ProductionInsightPanel />);
+
+    expect(await screen.findByText("Nasi Goreng")).toBeInTheDocument();
+    expect(screen.getByText("0.0")).toBeInTheDocument();
+    expect(screen.getByText("10.0")).toBeInTheDocument();
+  });
+
+  it("renders 0.0 fallback when projected_demand is null", async () => {
+    const payloadWithNullProjectedDemand = {
+      ...backendPayload,
+      menus: [
+        {
+          ...backendPayload.menus[0],
+          projected_demand: null,
+        },
+        backendPayload.menus[1],
+      ],
+    };
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, data: payloadWithNullProjectedDemand }),
+    );
+
+    render(<ProductionInsightPanel />);
+
+    expect(await screen.findByText("Nasi Goreng")).toBeInTheDocument();
+    expect(screen.getByText("0.0")).toBeInTheDocument();
+    expect(screen.getByText("8.0")).toBeInTheDocument();
+  });
 });
