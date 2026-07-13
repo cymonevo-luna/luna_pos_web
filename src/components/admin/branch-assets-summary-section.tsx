@@ -21,7 +21,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { getBranchAssetsSummary } from "@/lib/api/branch-assets";
+import {
+  formatProfitSourceSubtitle,
+  getBranchAssetsSummary,
+} from "@/lib/api/branch-assets";
 import { ApiError } from "@/lib/api/client";
 import type { BranchAssetsSummary } from "@/lib/api/types";
 import { cn, formatRupiah } from "@/lib/utils";
@@ -232,7 +235,11 @@ export function BranchAssetsSummarySection({
                 <StatCard
                   label="Daily profit average"
                   value={formatRupiah(summary?.profit_daily_avg ?? 0)}
-                  subtitle={summary?.profit_source}
+                  subtitle={
+                    summary
+                      ? formatProfitSourceSubtitle(summary.profit_source)
+                      : undefined
+                  }
                   icon={TrendingUp}
                   color="green"
                 />

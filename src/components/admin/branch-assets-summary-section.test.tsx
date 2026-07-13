@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BranchAssetsSummarySection } from "./branch-assets-summary-section";
+import { formatProfitSourceSubtitle } from "@/lib/api/branch-assets";
 import { tokenStore } from "@/lib/auth/tokens";
 import { toast } from "sonner";
 
@@ -47,6 +48,20 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+const profitableProfitSource = {
+  lookback_days: 30,
+  date_from: "2026-06-13T00:00:00Z",
+  date_to: "2026-07-13T00:00:00Z",
+  net_amount_total: 15_000_000,
+};
+
+const noProfitProfitSource = {
+  lookback_days: 30,
+  date_from: "2026-06-13T00:00:00Z",
+  date_to: "2026-07-13T00:00:00Z",
+  net_amount_total: 0,
+};
+
 const profitableSummary = {
   total_asset_value: 30_000_000,
   asset_count: 3,
@@ -57,7 +72,7 @@ const profitableSummary = {
   bep_months: 10,
   bep_message: null,
   bep_reachable: true,
-  profit_source: "Based on net profit over the last 30 days",
+  profit_source: profitableProfitSource,
 };
 
 const noProfitSummary = {
@@ -70,7 +85,7 @@ const noProfitSummary = {
   bep_months: null,
   bep_message: "Insufficient profit data to calculate break-even",
   bep_reachable: false,
-  profit_source: "No sales in the last 30 days",
+  profit_source: noProfitProfitSource,
 };
 
 describe("BranchAssetsSummarySection", () => {
@@ -146,7 +161,18 @@ describe("BranchAssetsSummarySection", () => {
     render(<BranchAssetsSummarySection />);
 
     expect(
-      await screen.findByText("Based on net profit over the last 30 days"),
+      await screen.findByText(
+        formatProfitSourceSubtitle(profitableProfitSource),
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("renders successfully when profit_source is an object", async () => {
+    render(<BranchAssetsSummarySection />);
+
+    expect(await screen.findByTestId("total-asset-value-card")).toBeInTheDocument();
+    expect(
+      screen.getByText(formatProfitSourceSubtitle(profitableProfitSource)),
     ).toBeInTheDocument();
   });
 
