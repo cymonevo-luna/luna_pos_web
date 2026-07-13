@@ -244,12 +244,24 @@ export interface CashFlowSummary {
   inflow_by_method?: CashFlowInflowByMethod[];
 }
 
+/** Wire format from GET /api/admin/insights/transactions/by-menu. */
+export interface TransactionMenuInsightItemRaw {
+  menu_id: string;
+  menu_title: string;
+  quantity_sold: number;
+  revenue: number;
+  revenue_share_percent: number;
+  quantity_share_percent: number;
+}
+
 export interface TransactionMenuInsightItem {
   menu_id: string;
   menu_title: string;
   quantity_sold: number;
   revenue: number;
+  /** Mapped from `revenue_share_percent` for UI display. */
   share_percent: number;
+  quantity_share_percent?: number;
 }
 
 export interface TransactionMenuInsights {
@@ -257,6 +269,14 @@ export interface TransactionMenuInsights {
   date_to: string;
   total_revenue: number;
   menus: TransactionMenuInsightItem[];
+}
+
+/** Wire format from GET /api/admin/insights/transactions/by-menu. */
+export interface TransactionMenuInsightsRaw {
+  date_from: string;
+  date_to: string;
+  total_revenue: number;
+  menus: TransactionMenuInsightItemRaw[];
 }
 
 export type ProductionInsightConfidence = "high" | "medium" | "low";

@@ -50,8 +50,9 @@ function getDefaultDateRange() {
   };
 }
 
-function formatSharePercent(value: number): string {
-  return `${value.toFixed(1)}%`;
+function formatSharePercent(value: number | null | undefined): string {
+  const n = Number(value);
+  return `${(Number.isFinite(n) ? n : 0).toFixed(1)}%`;
 }
 
 interface PieTooltipProps {

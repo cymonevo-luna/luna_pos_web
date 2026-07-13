@@ -1,9 +1,12 @@
-import { api } from "./client";
+import { api, type ApiResult } from "./client";
 import { dateInputToIso } from "./transactions";
 import type {
   CashFlowSummary,
   ProductionNextDayInsight,
+  TransactionMenuInsightItem,
+  TransactionMenuInsightItemRaw,
   TransactionMenuInsights,
+  TransactionMenuInsightsRaw,
   TransactionSummaryPeriod,
 } from "./types";
 
@@ -35,16 +38,48 @@ export function cashFlowSummary({
   );
 }
 
-export function transactionMenuInsights({
+function normalizeTransactionMenuInsightItem(
+  raw: TransactionMenuInsightItemRaw,
+): TransactionMenuInsightItem {
+  return {
+    menu_id: raw.menu_id,
+    menu_title: raw.menu_title,
+    quantity_sold: raw.quantity_sold,
+    revenue: raw.revenue,
+    share_percent: raw.revenue_share_percent,
+    quantity_share_percent: raw.quantity_share_percent,
+  };
+}
+
+function normalizeTransactionMenuInsights(
+  raw: TransactionMenuInsightsRaw,
+): TransactionMenuInsights {
+  return {
+    ...raw,
+    menus: raw.menus.map(normalizeTransactionMenuInsightItem),
+  };
+}
+
+function normalizeTransactionMenuInsightsResult(
+  result: ApiResult<TransactionMenuInsightsRaw>,
+): ApiResult<TransactionMenuInsights> {
+  return {
+    ...result,
+    data: normalizeTransactionMenuInsights(result.data),
+  };
+}
+
+export async function transactionMenuInsights({
   dateFrom = "",
   dateTo = "",
 }: TransactionMenuInsightsParams = {}) {
   const params = new URLSearchParams();
   if (dateFrom) params.set("date_from", dateInputToIso(dateFrom, false));
   if (dateTo) params.set("date_to", dateInputToIso(dateTo, true));
-  return api.get<TransactionMenuInsights>(
+  const result = await api.get<TransactionMenuInsightsRaw>(
     `/api/admin/insights/transactions/by-menu?${params.toString()}`,
   );
+  return normalizeTransactionMenuInsightsResult(result);
 }
 
 export function productionNextDayInsight({
