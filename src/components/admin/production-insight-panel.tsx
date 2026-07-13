@@ -47,6 +47,11 @@ function formatConfidence(confidence: ProductionInsightConfidence): string {
   return confidence.charAt(0).toUpperCase() + confidence.slice(1);
 }
 
+function formatDecimal(value: number | null | undefined, digits = 1): string {
+  const n = Number(value);
+  return (Number.isFinite(n) ? n : 0).toFixed(digits);
+}
+
 const tableColumns: Column<ProductionNextDayInsightItem>[] = [
   {
     header: "Menu",
@@ -59,12 +64,12 @@ const tableColumns: Column<ProductionNextDayInsightItem>[] = [
   },
   {
     header: "Avg daily sales",
-    cell: (row) => row.avg_daily_sales.toFixed(1),
+    cell: (row) => formatDecimal(row.avg_daily_sales),
     className: "text-right",
   },
   {
     header: "Projected demand",
-    cell: (row) => row.projected_demand.toFixed(1),
+    cell: (row) => formatDecimal(row.projected_demand),
     className: "text-right",
   },
   {
