@@ -548,3 +548,18 @@ export interface ProductionRequestEstimateResponse {
   items: ProductionRequestEstimateItem[];
   aggregated_ingredients: ProductionAggregatedIngredient[];
 }
+
+/** Wire `data` payload from GET /api/admin/branch-assets/summary. */
+export interface BranchAssetsSummary {
+  total_asset_value: number;
+  asset_count: number;
+  total_quantity: number;
+  profit_daily_avg: number;
+  profit_monthly_avg: number;
+  bep_days: number | null;
+  bep_months: number | null;
+  bep_message: string | null;
+  bep_reachable: boolean;
+  /** Human-readable note for the profit lookback window (e.g. last 30 days). */
+  profit_source: string;
+}

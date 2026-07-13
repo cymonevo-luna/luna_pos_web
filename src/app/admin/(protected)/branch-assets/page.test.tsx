@@ -9,6 +9,10 @@ import type { BranchAsset } from "@/lib/api/types";
 import { formatRupiah } from "@/lib/utils";
 import { toast } from "sonner";
 
+vi.mock("next/navigation", () => ({
+  usePathname: vi.fn(() => "/admin/branch-assets"),
+}));
+
 vi.mock("@/lib/api/branch-assets", () => ({
   branchAssetsAdminApi: {
     list: vi.fn(),

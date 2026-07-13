@@ -1,6 +1,6 @@
 import { api, type ApiResult } from "./client";
 import { parseNumeric } from "./suppliers";
-import type { BranchAsset } from "./types";
+import type { BranchAsset, BranchAssetsSummary } from "./types";
 import type { BranchAssetFormValues } from "@/lib/validations";
 
 /** Wire format from the Go backend (`decimal.Decimal` marshals as JSON string). */
@@ -53,6 +53,10 @@ export interface CreateBranchAssetPayload {
 }
 
 export type UpdateBranchAssetPayload = CreateBranchAssetPayload;
+
+export interface BranchAssetsSummaryParams {
+  profitLookbackDays?: number;
+}
 
 /** Map form values to an API payload. */
 export function branchAssetFormToPayload(
@@ -119,10 +123,25 @@ export async function deleteBranchAsset(id: string) {
   return api.delete<void>(`/api/admin/branch-assets/${id}`);
 }
 
+export function getBranchAssetsSummary({
+  profitLookbackDays,
+}: BranchAssetsSummaryParams = {}) {
+  const params = new URLSearchParams();
+  if (profitLookbackDays != null) {
+    params.set("profit_lookback_days", String(profitLookbackDays));
+  }
+  const query = params.toString();
+  const path = query
+    ? `/api/admin/branch-assets/summary?${query}`
+    : "/api/admin/branch-assets/summary";
+  return api.get<BranchAssetsSummary>(path);
+}
+
 export const branchAssetsAdminApi = {
   list: listBranchAssets,
   get: getBranchAsset,
   create: createBranchAsset,
   update: updateBranchAsset,
   delete: deleteBranchAsset,
+  summary: getBranchAssetsSummary,
 };

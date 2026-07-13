@@ -345,4 +345,39 @@ describe("proxy", () => {
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toContain("/admin/suppliers");
   });
+
+  it("allows manager users on branch assets summary routes", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["manager"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+
+    const res = await proxy(
+      requestFor("/admin/branch-assets/summary", {
+        [config.cookies.accessToken]: access,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it("redirects cashier users away from branch assets summary", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["cashier"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+
+    const res = await proxy(
+      requestFor("/admin/branch-assets/summary", {
+        [config.cookies.accessToken]: access,
+      }),
+    );
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("/dashboard");
+  });
 });

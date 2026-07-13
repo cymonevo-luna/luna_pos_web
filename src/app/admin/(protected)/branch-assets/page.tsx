@@ -22,6 +22,7 @@ import {
   BranchAssetForm,
   type BranchAssetFormHandle,
 } from "@/components/admin/branch-asset-form";
+import { BranchAssetsNav } from "@/components/admin/branch-assets-nav";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -172,27 +173,30 @@ export default function AdminBranchAssetsPage() {
     dialog?.mode === "edit" ? assetToFormValues(dialog.asset) : undefined;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold">Branch Assets</h2>
-          <p className="text-muted-foreground">{total} total</p>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search by title"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
+    <div className="space-y-6" data-testid="branch-assets-page">
+      <div className="space-y-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold">Branch Assets</h2>
+            <p className="text-muted-foreground">{total} total</p>
           </div>
-          <Button onClick={() => setDialog({ mode: "create" })}>
-            <Plus className="h-4 w-4" />
-            Add asset
-          </Button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search by title"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Button onClick={() => setDialog({ mode: "create" })}>
+              <Plus className="h-4 w-4" />
+              Add asset
+            </Button>
+          </div>
         </div>
+        <BranchAssetsNav />
       </div>
 
       <Card className="overflow-hidden">
