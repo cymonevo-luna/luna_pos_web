@@ -93,6 +93,18 @@ export interface FoodSupply {
   updated_at: string;
 }
 
+export interface BranchAsset {
+  id: string;
+  title: string;
+  description?: string | null;
+  photo_url?: string | null;
+  quantity: number;
+  price_amount: number;
+  line_value: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface SupplierPrice {
   id: string;
   food_supply_id: string;

@@ -7,6 +7,7 @@ import {
   UtensilsCrossed,
   Tags,
   Package,
+  Box,
   Printer,
   ChefHat,
   TrendingUp,
@@ -70,6 +71,13 @@ export const overviewCards: OverviewCard[] = [
     href: "/admin/food-supplies",
     icon: Package,
     roles: ["manager", "operational"],
+  },
+  {
+    title: "Branch assets",
+    description: "Manage branch equipment and inventory.",
+    href: "/admin/branch-assets",
+    icon: Box,
+    roles: ["manager"],
   },
   {
     title: "Receipt settings",
