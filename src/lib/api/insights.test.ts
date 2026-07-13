@@ -113,22 +113,75 @@ describe("insights API", () => {
     expect(got.data?.menus[0]?.quantity_share_percent).toBe(66.7);
   });
 
-  it("builds the production next-day insight URL", async () => {
-    const insight = {
+  it("builds the production next-day insight URL and maps menus to items", async () => {
+    const backendPayload = {
+      target_date: "2026-07-14",
       lookback_days: 14,
       generated_at: "2026-07-13T10:00:00.000Z",
-      items: [],
+      menus: [
+        {
+          menu_id: "menu-1",
+          menu_title: "Nasi Goreng",
+          current_available_stock: 5,
+          avg_daily_sales: 8,
+          projected_demand: 10,
+          recommended_production_qty: 5,
+          max_producible_from_ingredients: 12,
+          confidence: "high",
+          is_limited_by_ingredients: false,
+        },
+        {
+          menu_id: "menu-2",
+          menu_title: "Mie Goreng",
+          current_available_stock: 20,
+          avg_daily_sales: 3,
+          projected_demand: 4,
+          recommended_production_qty: 3,
+          max_producible_from_ingredients: 3,
+          confidence: "medium",
+          is_limited_by_ingredients: true,
+        },
+      ],
     };
 
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      jsonResponse({ success: true, data: insight }),
+      jsonResponse({ success: true, data: backendPayload }),
     );
 
-    await productionNextDayInsight({ lookbackDays: 14 });
+    const got = await productionNextDayInsight({ lookbackDays: 14 });
 
     const [url] = fetchMock.mock.calls[0];
     expect(url).toBe(
       "http://localhost:8080/api/admin/insights/production/next-day?lookback_days=14",
     );
+    expect(got.data).toEqual({
+      target_date: "2026-07-14",
+      lookback_days: 14,
+      generated_at: "2026-07-13T10:00:00.000Z",
+      items: [
+        {
+          menu_id: "menu-1",
+          menu_title: "Nasi Goreng",
+          current_stock: 5,
+          avg_daily_sales: 8,
+          projected_demand: 10,
+          recommended_production_qty: 5,
+          max_producible: 12,
+          confidence: "high",
+          limited_by_ingredients: false,
+        },
+        {
+          menu_id: "menu-2",
+          menu_title: "Mie Goreng",
+          current_stock: 20,
+          avg_daily_sales: 3,
+          projected_demand: 4,
+          recommended_production_qty: 3,
+          max_producible: 3,
+          confidence: "medium",
+          limited_by_ingredients: true,
+        },
+      ],
+    });
   });
 });

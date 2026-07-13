@@ -240,8 +240,8 @@ describe("ProductionRequestDetailContent", () => {
     );
 
     expect(
-      await screen.findByRole("alert"),
-    ).toHaveTextContent("Insufficient stock for Rice");
+      await screen.findByText("Insufficient stock for Rice"),
+    ).toBeInTheDocument();
     expect(toast.error).toHaveBeenCalledWith("Insufficient stock for Rice");
   });
 

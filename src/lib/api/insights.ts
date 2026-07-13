@@ -5,6 +5,9 @@ import type {
   CashFlowInflowByMethodNormalized,
   CashFlowSummary,
   ProductionNextDayInsight,
+  ProductionNextDayInsightItem,
+  ProductionNextDayInsightItemRaw,
+  ProductionNextDayInsightRaw,
   TransactionMenuInsightItem,
   TransactionMenuInsightItemRaw,
   TransactionMenuInsights,
@@ -117,15 +120,48 @@ export async function transactionMenuInsights({
   return normalizeTransactionMenuInsightsResult(result);
 }
 
-export function productionNextDayInsight({
+function normalizeProductionNextDayInsightItem(
+  raw: ProductionNextDayInsightItemRaw,
+): ProductionNextDayInsightItem {
+  return {
+    menu_id: raw.menu_id,
+    menu_title: raw.menu_title,
+    current_stock: raw.current_available_stock,
+    avg_daily_sales: raw.avg_daily_sales,
+    projected_demand: raw.projected_demand,
+    recommended_production_qty: raw.recommended_production_qty,
+    max_producible: raw.max_producible_from_ingredients,
+    confidence: raw.confidence,
+    limited_by_ingredients: raw.is_limited_by_ingredients,
+  };
+}
+
+function normalizeProductionNextDayInsight(
+  raw: ProductionNextDayInsightRaw,
+): ProductionNextDayInsight {
+  return {
+    target_date: raw.target_date,
+    lookback_days: raw.lookback_days,
+    generated_at: raw.generated_at,
+    items: (raw.menus ?? []).map(normalizeProductionNextDayInsightItem),
+  };
+}
+
+export async function productionNextDayInsight({
   lookbackDays = 14,
 }: ProductionNextDayInsightParams = {}) {
   const params = new URLSearchParams({
     lookback_days: String(lookbackDays),
   });
-  return api.get<ProductionNextDayInsight>(
+  const result = await api.get<ProductionNextDayInsightRaw>(
     `/api/admin/insights/production/next-day?${params.toString()}`,
   );
+  return {
+    ...result,
+    data: result.data
+      ? normalizeProductionNextDayInsight(result.data)
+      : undefined,
+  };
 }
 
 export const insightsAdminApi = {

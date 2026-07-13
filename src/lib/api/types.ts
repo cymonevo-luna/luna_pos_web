@@ -288,6 +288,26 @@ export interface TransactionMenuInsightsRaw {
 
 export type ProductionInsightConfidence = "high" | "medium" | "low";
 
+/** Wire item from GET /api/admin/insights/production/next-day (`menus[]`). */
+export interface ProductionNextDayInsightItemRaw {
+  menu_id: string;
+  menu_title: string;
+  current_available_stock: number;
+  avg_daily_sales: number;
+  projected_demand: number;
+  recommended_production_qty: number;
+  max_producible_from_ingredients: number | null;
+  is_limited_by_ingredients: boolean;
+  confidence: ProductionInsightConfidence;
+}
+
+/**
+ * Normalized production insight row for UI.
+ * Mapped from {@link ProductionNextDayInsightItemRaw} in the insights API client:
+ * `current_stock` ← `current_available_stock`,
+ * `max_producible` ← `max_producible_from_ingredients`,
+ * `limited_by_ingredients` ← `is_limited_by_ingredients`.
+ */
 export interface ProductionNextDayInsightItem {
   menu_id: string;
   menu_title: string;
@@ -298,10 +318,24 @@ export interface ProductionNextDayInsightItem {
   max_producible: number | null;
   confidence: ProductionInsightConfidence;
   limited_by_ingredients: boolean;
+  /** Not provided by the backend; reserved for future UI if the API adds it. */
   limiting_ingredient_title?: string | null;
 }
 
+/** Wire `data` payload from GET /api/admin/insights/production/next-day. */
+export interface ProductionNextDayInsightRaw {
+  target_date: string;
+  lookback_days: number;
+  generated_at: string;
+  menus: ProductionNextDayInsightItemRaw[];
+}
+
+/**
+ * Normalized production next-day insight for UI.
+ * Mapped from {@link ProductionNextDayInsightRaw} in the insights API client (`menus` → `items`).
+ */
 export interface ProductionNextDayInsight {
+  target_date: string;
   lookback_days: number;
   generated_at: string;
   items: ProductionNextDayInsightItem[];
