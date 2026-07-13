@@ -15,6 +15,7 @@
     "test:integration:suppliers": "RUN_INTEGRATION_TESTS=1 vitest run src/testing/suppliers.integration.test.ts",
     "test:integration:suppliers:watch": "RUN_INTEGRATION_TESTS=1 vitest src/testing/suppliers.integration.test.ts",
     "test:integration:suppliers-list": "RUN_INTEGRATION_TESTS=1 vitest run src/testing/suppliers-list.integration.test.ts",
+    "test:integration:production-requests-list": "RUN_INTEGRATION_TESTS=1 vitest run src/testing/production-requests-list.integration.test.ts",
     "format": "prettier --write ."
   },
   "dependencies": {
