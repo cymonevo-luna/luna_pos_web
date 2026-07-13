@@ -1,12 +1,44 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ProductionInsightPanel } from "./production-insight-panel";
-import { productionNextDayInsight } from "@/lib/api/insights";
-import type { ProductionNextDayInsight } from "@/lib/api/types";
+import { tokenStore } from "@/lib/auth/tokens";
 
-vi.mock("@/lib/api/insights", () => ({
-  productionNextDayInsight: vi.fn(),
-}));
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+const backendPayload = {
+  target_date: "2026-07-14",
+  lookback_days: 14,
+  generated_at: "2026-07-13T10:00:00.000Z",
+  menus: [
+    {
+      menu_id: "menu-1",
+      menu_title: "Nasi Goreng",
+      current_available_stock: 5,
+      avg_daily_sales: 8,
+      projected_demand: 10,
+      recommended_production_qty: 5,
+      max_producible_from_ingredients: 12,
+      confidence: "high",
+      is_limited_by_ingredients: false,
+    },
+    {
+      menu_id: "menu-2",
+      menu_title: "Mie Goreng",
+      current_available_stock: 20,
+      avg_daily_sales: 3,
+      projected_demand: 4,
+      recommended_production_qty: 3,
+      max_producible_from_ingredients: 3,
+      confidence: "medium",
+      is_limited_by_ingredients: true,
+    },
+  ],
+};
 
 vi.mock("sonner", () => ({
   toast: {
@@ -15,48 +47,23 @@ vi.mock("sonner", () => ({
   },
 }));
 
-const sampleInsight: ProductionNextDayInsight = {
-  lookback_days: 14,
-  generated_at: "2026-07-13T10:00:00.000Z",
-  items: [
-    {
-      menu_id: "menu-1",
-      menu_title: "Nasi Goreng",
-      current_stock: 5,
-      avg_daily_sales: 8,
-      projected_demand: 10,
-      recommended_production_qty: 5,
-      max_producible: 12,
-      confidence: "high",
-      limited_by_ingredients: false,
-    },
-    {
-      menu_id: "menu-2",
-      menu_title: "Mie Goreng",
-      current_stock: 20,
-      avg_daily_sales: 3,
-      projected_demand: 4,
-      recommended_production_qty: 0,
-      max_producible: 8,
-      confidence: "medium",
-      limited_by_ingredients: true,
-      limiting_ingredient_title: "Flour",
-    },
-  ],
-};
-
 describe("ProductionInsightPanel", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(productionNextDayInsight).mockResolvedValue({
-      data: sampleInsight,
-    });
+    tokenStore.clear();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, data: backendPayload }),
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("renders recommendations and highlights actionable rows", async () => {
     render(<ProductionInsightPanel />);
 
     expect(await screen.findByText("Nasi Goreng")).toBeInTheDocument();
+    expect(screen.getByText("Mie Goreng")).toBeInTheDocument();
     expect(screen.getAllByText("5").length).toBeGreaterThan(0);
     expect(screen.getByText("High")).toBeInTheDocument();
     expect(screen.getByText("Limited")).toBeInTheDocument();
@@ -69,5 +76,13 @@ describe("ProductionInsightPanel", () => {
     render(<ProductionInsightPanel />);
 
     expect(await screen.findByText(/Generated/i)).toBeInTheDocument();
+  });
+
+  it("handles ingredient-limited rows with capped recommended production", async () => {
+    render(<ProductionInsightPanel />);
+
+    expect(await screen.findByText("Mie Goreng")).toBeInTheDocument();
+    expect(screen.getByText("Limited")).toBeInTheDocument();
+    expect(screen.getAllByText("3").length).toBeGreaterThanOrEqual(2);
   });
 });
