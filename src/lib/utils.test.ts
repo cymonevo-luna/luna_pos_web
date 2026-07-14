@@ -4,6 +4,7 @@ import {
   formatDate,
   formatRupiah,
   formatStockQuantity,
+  formatSignedQuantityDelta,
   displayDescription,
   menuPhotoUrl,
   initials,
@@ -69,6 +70,21 @@ describe("formatStockQuantity", () => {
 
   it("returns an em dash for invalid string input", () => {
     expect(formatStockQuantity("abc", "ml")).toBe("— ml");
+  });
+});
+
+describe("formatSignedQuantityDelta", () => {
+  it("prefixes positive deltas with plus", () => {
+    expect(formatSignedQuantityDelta("50")).toBe("+50");
+    expect(formatSignedQuantityDelta("2.5")).toBe("+2.5");
+  });
+
+  it("keeps negative deltas as-is", () => {
+    expect(formatSignedQuantityDelta("-20")).toBe("-20");
+  });
+
+  it("returns em dash for empty values", () => {
+    expect(formatSignedQuantityDelta("")).toBe("—");
   });
 });
 

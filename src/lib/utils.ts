@@ -44,6 +44,16 @@ export function formatStockQuantity(quantity: number | string, unit: string) {
   return formatMeasurementQuantity(quantity, unit);
 }
 
+/** Format a signed quantity delta for manual edit history (prefix + for positive). */
+export function formatSignedQuantityDelta(delta: string) {
+  const trimmed = delta?.trim();
+  if (!trimmed) return "—";
+  const n = Number(trimmed);
+  if (!Number.isFinite(n)) return trimmed;
+  const formatted = Number.parseFloat(n.toFixed(10)).toString();
+  return n > 0 ? `+${formatted}` : formatted;
+}
+
 /** Truncate text for table cells; returns an em dash when empty. */
 export function displayDescription(
   description?: string | null,

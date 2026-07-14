@@ -1,10 +1,16 @@
 import { api, type ApiResult } from "./client";
-import type { FoodSupply, FoodSupplyUnit } from "./types";
+import type {
+  FoodSupply,
+  FoodSupplyManualEditHistoryEntry,
+  FoodSupplyUnit,
+} from "./types";
 import type { FoodSupplyFormValues } from "@/lib/validations";
 
 /** Wire format from the Go backend (`decimal.Decimal` marshals as JSON string). */
-interface FoodSupplyRaw extends Omit<FoodSupply, "stock_quantity"> {
+interface FoodSupplyRaw
+  extends Omit<FoodSupply, "stock_quantity" | "manual_edit_history"> {
   stock_quantity: number | string;
+  manual_edit_history?: FoodSupplyManualEditHistoryEntry[];
 }
 
 /**
@@ -21,6 +27,7 @@ export function normalizeFoodSupply(raw: FoodSupplyRaw): FoodSupply {
   return {
     ...raw,
     stock_quantity: parseStockQuantity(raw.stock_quantity),
+    manual_edit_history: raw.manual_edit_history ?? [],
   };
 }
 

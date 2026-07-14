@@ -10,6 +10,7 @@ import { toast } from "sonner";
 vi.mock("@/lib/api/food-supplies", () => ({
   foodSuppliesAdminApi: {
     list: vi.fn(),
+    get: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
@@ -39,6 +40,7 @@ const supply: FoodSupply = {
   unit: "ml",
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-15T00:00:00Z",
+  manual_edit_history: [],
 };
 
 describe("AdminFoodSuppliesPage", () => {
@@ -47,6 +49,9 @@ describe("AdminFoodSuppliesPage", () => {
     vi.mocked(foodSuppliesAdminApi.list).mockResolvedValue({
       data: [supply],
       meta: { page: 1, per_page: 10, total: 1 },
+    });
+    vi.mocked(foodSuppliesAdminApi.get).mockResolvedValue({
+      data: supply,
     });
   });
 
@@ -214,6 +219,15 @@ describe("AdminFoodSuppliesPage", () => {
         unit: "gr",
       },
     });
+    vi.mocked(foodSuppliesAdminApi.get)
+      .mockResolvedValueOnce({ data: supply })
+      .mockResolvedValueOnce({
+        data: {
+          ...supply,
+          stock_quantity: 1.5,
+          unit: "gr",
+        },
+      });
 
     render(<AdminFoodSuppliesPage />);
     await screen.findByText("Olive oil");
@@ -236,6 +250,7 @@ describe("AdminFoodSuppliesPage", () => {
       });
     });
     expect(toast.success).toHaveBeenCalledWith("Food supply updated");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
   it("maps server validation errors onto form fields", async () => {
@@ -277,5 +292,108 @@ describe("AdminFoodSuppliesPage", () => {
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(foodSuppliesAdminApi.create).not.toHaveBeenCalled();
+  });
+
+  it("loads detail and shows empty manual edit history in edit dialog", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminFoodSuppliesPage />);
+    await screen.findByText("Olive oil");
+
+    await user.click(screen.getByLabelText("Edit food supply"));
+
+    const dialog = await screen.findByRole("dialog");
+    await waitFor(() => {
+      expect(foodSuppliesAdminApi.get).toHaveBeenCalledWith("fs-1");
+    });
+    expect(
+      within(dialog).getByText("No manual quantity edits yet"),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("columnheader", { name: "Delta (ml)" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows manual edit history after quantity save and refetches detail", async () => {
+    const user = userEvent.setup();
+    const historyEntry = {
+      delta_quantity: "100",
+      previous_quantity: "500",
+      new_quantity: "600",
+      changed_by_username: "ops-user",
+      created_at: "2026-03-01T10:00:00Z",
+    };
+
+    vi.mocked(foodSuppliesAdminApi.get)
+      .mockResolvedValueOnce({ data: supply })
+      .mockResolvedValueOnce({
+        data: {
+          ...supply,
+          stock_quantity: 600,
+          manual_edit_history: [historyEntry],
+        },
+      });
+
+    vi.mocked(foodSuppliesAdminApi.update).mockResolvedValue({
+      data: { ...supply, stock_quantity: 600 },
+    });
+
+    render(<AdminFoodSuppliesPage />);
+    await screen.findByText("Olive oil");
+
+    await user.click(screen.getByLabelText("Edit food supply"));
+    await screen.findByText("No manual quantity edits yet");
+
+    await user.clear(screen.getByLabelText("Stock quantity"));
+    await user.type(screen.getByLabelText("Stock quantity"), "600");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(foodSuppliesAdminApi.update).toHaveBeenCalled();
+      expect(foodSuppliesAdminApi.get).toHaveBeenCalledTimes(2);
+    });
+
+    expect(await screen.findByText("+100")).toBeInTheDocument();
+    expect(screen.getByText("ops-user")).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("keeps manual edit history unchanged after title-only save", async () => {
+    const user = userEvent.setup();
+    const historyEntry = {
+      delta_quantity: "10",
+      previous_quantity: "490",
+      new_quantity: "500",
+      changed_by_username: "ops-user",
+      created_at: "2026-03-01T09:00:00Z",
+    };
+    const supplyWithHistory = {
+      ...supply,
+      manual_edit_history: [historyEntry],
+    };
+
+    vi.mocked(foodSuppliesAdminApi.get).mockResolvedValue({
+      data: supplyWithHistory,
+    });
+    vi.mocked(foodSuppliesAdminApi.update).mockResolvedValue({
+      data: { ...supplyWithHistory, title: "Premium olive oil" },
+    });
+
+    render(<AdminFoodSuppliesPage />);
+    await screen.findByText("Olive oil");
+
+    await user.click(screen.getByLabelText("Edit food supply"));
+    expect(await screen.findByText("+10")).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText("Title"));
+    await user.type(screen.getByLabelText("Title"), "Premium olive oil");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(foodSuppliesAdminApi.update).toHaveBeenCalled();
+      expect(foodSuppliesAdminApi.get).toHaveBeenCalledTimes(2);
+    });
+
+    expect(screen.getAllByText("+10")).toHaveLength(1);
   });
 });

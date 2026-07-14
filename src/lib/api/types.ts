@@ -83,6 +83,14 @@ export interface RefreshResult {
 
 export type FoodSupplyUnit = "ml" | "piece" | "gr";
 
+export interface FoodSupplyManualEditHistoryEntry {
+  delta_quantity: string;
+  previous_quantity: string;
+  new_quantity: string;
+  changed_by_username: string;
+  created_at: string;
+}
+
 export interface FoodSupply {
   id: string;
   title: string;
@@ -91,6 +99,7 @@ export interface FoodSupply {
   unit: FoodSupplyUnit;
   created_at: string;
   updated_at: string;
+  manual_edit_history: FoodSupplyManualEditHistoryEntry[];
 }
 
 export interface BranchAsset {
