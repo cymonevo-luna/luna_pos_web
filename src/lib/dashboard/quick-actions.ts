@@ -105,6 +105,6 @@ export const overviewCards: OverviewCard[] = [
     description: "Review and approve production requests.",
     href: "/admin/production-requests",
     icon: ChefHat,
-    roles: ["manager", "operational"],
+    roles: ["admin", "manager", "operational"],
   },
 ];

@@ -42,7 +42,7 @@ const allNavItems: NavItem[] = [
   { href: "/admin/store-settings", label: "Receipt Settings", icon: Printer, roles: ["manager"] },
   { href: "/admin/suppliers", label: "Suppliers", icon: Truck, roles: ["operational"] },
   { href: "/admin/purchases", label: "Purchases", icon: ShoppingCart, roles: ["operational"] },
-  { href: "/admin/production-requests", label: "Production", icon: ChefHat, roles: ["manager", "operational"] },
+  { href: "/admin/production-requests", label: "Production", icon: ChefHat, roles: ["admin", "manager", "operational"] },
   { href: "/dashboard", label: "Back to app", icon: ArrowLeft },
 ];
 

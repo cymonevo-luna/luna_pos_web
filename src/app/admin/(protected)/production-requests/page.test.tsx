@@ -41,6 +41,16 @@ const managerUser: User = {
   updated_at: "2026-01-15T00:00:00Z",
 };
 
+const adminUser: User = {
+  id: "admin-1",
+  email: "admin-test@cymonevo.com",
+  name: "Admin Test",
+  roles: ["admin"],
+  merchant_id: "merchant-1",
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-15T00:00:00Z",
+};
+
 const operationalUser: User = {
   id: "operational-1",
   email: "operation-test@cymonevo.com",
@@ -119,6 +129,16 @@ describe("AdminProductionRequestsPage", () => {
     expect(
       screen.getByRole("link", { name: "New production request" }),
     ).toHaveAttribute("href", "/admin/production-requests/new");
+  });
+
+  it("hides the new production request link for admin-only users", async () => {
+    mockAuthUser(adminUser);
+    render(<AdminProductionRequestsPage />);
+    await screen.findByText("manager1");
+
+    expect(
+      screen.queryByRole("link", { name: "New production request" }),
+    ).not.toBeInTheDocument();
   });
 
   it("hides the new production request link for operational-only users", async () => {
