@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import {
   productionRequestsAdminApi,
@@ -32,6 +33,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { useRoles } from "@/lib/auth/use-roles";
+import {
+  Dialog,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 function productionStatusBadgeVariant(
   status: ProductionRequestStatus,
@@ -249,6 +257,9 @@ function LineStockEstimationTable({
 }
 
 export function ProductionRequestDetailContent({ id }: { id: string }) {
+  const router = useRouter();
+  const { hasRole } = useRoles();
+  const isAdmin = hasRole("admin");
   const [request, setRequest] = useState<ProductionRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -259,6 +270,8 @@ export function ProductionRequestDetailContent({ id }: { id: string }) {
     null,
   );
   const [togglingItemId, setTogglingItemId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -360,6 +373,29 @@ export function ProductionRequestDetailContent({ id }: { id: string }) {
       setTogglingItemId(null);
     }
   };
+
+  const isMutating =
+    saving || approving || readyingPick || togglingItemId !== null || deleting;
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await productionRequestsAdminApi.delete(id);
+      toast.success("Production request deleted");
+      router.push("/admin/production-requests");
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError
+          ? err.message
+          : "Failed to delete production request",
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const deleteReversesStock =
+    request?.status === "ACCEPTED" || request?.status === "DONE";
 
   const allItemsFinished =
     request?.items.every((item) => item.is_finished) ?? false;
@@ -660,6 +696,62 @@ export function ProductionRequestDetailContent({ id }: { id: string }) {
               ))}
             </CardContent>
           </Card>
+
+          {isAdmin ? (
+            <Card className="border-destructive/30">
+              <CardHeader>
+                <CardTitle className="text-base text-destructive">
+                  Danger zone
+                </CardTitle>
+                <CardDescription>
+                  Permanently remove this production request from the system.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  variant="destructive"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  disabled={isMutating}
+                  aria-label="Delete production request"
+                >
+                  Delete production request
+                </Button>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          <Dialog
+            open={deleteDialogOpen}
+            onClose={() => {
+              if (!deleting) setDeleteDialogOpen(false);
+            }}
+          >
+            <DialogTitle>Delete production request</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this production request? This
+              action cannot be undone.
+              {deleteReversesStock
+                ? " Deducted ingredient stock will be reversed."
+                : null}
+            </DialogDescription>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDeleteDialogOpen(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => void handleDelete()}
+                isLoading={deleting}
+                disabled={deleting}
+              >
+                Delete
+              </Button>
+            </DialogFooter>
+          </Dialog>
         </>
       ) : null}
     </div>

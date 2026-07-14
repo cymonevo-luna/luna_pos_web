@@ -359,6 +359,31 @@ describe("productionRequestsAdminApi", () => {
     expect(fetchMock).toHaveBeenCalled();
   });
 
+  it("issues DELETE to /api/admin/production-requests/{id}", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async (input, init) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+
+        if (
+          method === "DELETE" &&
+          url.endsWith("/api/admin/production-requests/pr-1")
+        ) {
+          return new Response(null, { status: 204 });
+        }
+        return jsonResponse({ success: false }, 404);
+      },
+    );
+
+    await productionRequestsAdminApi.delete("pr-1");
+
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/production-requests/pr-1",
+    );
+    expect(init?.method).toBe("DELETE");
+  });
+
   it("normalizes aggregated ingredients from list API", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({
