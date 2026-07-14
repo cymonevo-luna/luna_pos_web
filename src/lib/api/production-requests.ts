@@ -282,4 +282,7 @@ export const productionRequestsAdminApi = {
     );
     return normalizeItemResult(result);
   },
+
+  delete: (id: string) =>
+    api.delete<void>(`/api/admin/production-requests/${id}`),
 };

@@ -5,7 +5,18 @@ import { ProductionRequestDetailContent } from "./production-request-detail-cont
 import { productionRequestsAdminApi } from "@/lib/api/production-requests";
 import { ApiError } from "@/lib/api/client";
 import type { ProductionRequest } from "@/lib/api/types";
+import { useRoles } from "@/lib/auth/use-roles";
 import { toast } from "sonner";
+
+const mockPush = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
+
+vi.mock("@/lib/auth/use-roles", () => ({
+  useRoles: vi.fn(),
+}));
 
 vi.mock("@/lib/api/production-requests", () => ({
   productionRequestsAdminApi: {
@@ -13,6 +24,7 @@ vi.mock("@/lib/api/production-requests", () => ({
     update: vi.fn(),
     updateStatus: vi.fn(),
     markItemFinished: vi.fn(),
+    delete: vi.fn(),
   },
   productionRequestFormToPayload: vi.fn((values) => ({
     items: values.items,
@@ -98,9 +110,34 @@ function createRequest(
   };
 }
 
+function mockAdminRoles() {
+  vi.mocked(useRoles).mockReturnValue({
+    roles: ["admin"],
+    hasRole: (role) => role === "admin",
+    hasAnyRole: (roles) => roles.includes("admin"),
+  });
+}
+
+function mockManagerRoles() {
+  vi.mocked(useRoles).mockReturnValue({
+    roles: ["manager"],
+    hasRole: (role) => role === "manager",
+    hasAnyRole: (roles) => roles.includes("manager"),
+  });
+}
+
+function mockOperationalRoles() {
+  vi.mocked(useRoles).mockReturnValue({
+    roles: ["operational"],
+    hasRole: () => false,
+    hasAnyRole: (roles) => roles.includes("operational"),
+  });
+}
+
 describe("ProductionRequestDetailContent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockManagerRoles();
     vi.mocked(productionRequestsAdminApi.get).mockResolvedValue({
       data: createRequest(),
     });
@@ -408,5 +445,80 @@ describe("ProductionRequestDetailContent", () => {
     ) as HTMLElement;
     expect(within(historyCard).getByText("REQUESTED")).toBeInTheDocument();
     expect(within(historyCard).getByText("manager1")).toBeInTheDocument();
+  });
+
+  it("shows delete button for admin users", async () => {
+    mockAdminRoles();
+    render(<ProductionRequestDetailContent id="prod-1" />);
+
+    expect(
+      await screen.findByRole("button", { name: "Delete production request" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not show delete for manager but keeps manager actions", async () => {
+    mockManagerRoles();
+    render(<ProductionRequestDetailContent id="prod-1" />);
+
+    await screen.findByText("Edit request");
+    expect(
+      screen.queryByRole("button", { name: "Delete production request" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Approve to ACCEPTED" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not show delete for operational users", async () => {
+    mockOperationalRoles();
+    render(<ProductionRequestDetailContent id="prod-1" />);
+
+    await screen.findByText("Production request");
+    expect(
+      screen.queryByRole("button", { name: "Delete production request" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("deletes production request and redirects to list on confirm", async () => {
+    const user = userEvent.setup();
+    mockAdminRoles();
+    vi.mocked(productionRequestsAdminApi.delete).mockResolvedValue({
+      data: undefined,
+    });
+
+    render(<ProductionRequestDetailContent id="prod-1" />);
+    await screen.findByText("Production request");
+
+    await user.click(
+      screen.getByRole("button", { name: "Delete production request" }),
+    );
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(productionRequestsAdminApi.delete).toHaveBeenCalledWith("prod-1");
+    });
+    expect(toast.success).toHaveBeenCalledWith("Production request deleted");
+    expect(mockPush).toHaveBeenCalledWith("/admin/production-requests");
+  });
+
+  it("notes stock reversal in delete dialog for ACCEPTED requests", async () => {
+    const user = userEvent.setup();
+    mockAdminRoles();
+    vi.mocked(productionRequestsAdminApi.get).mockResolvedValue({
+      data: createRequest({ status: "ACCEPTED" }),
+    });
+
+    render(<ProductionRequestDetailContent id="prod-1" />);
+    await screen.findByText("Production progress");
+
+    await user.click(
+      screen.getByRole("button", { name: "Delete production request" }),
+    );
+
+    expect(
+      screen.getByText(/Deducted ingredient stock will be reversed/),
+    ).toBeInTheDocument();
   });
 });
