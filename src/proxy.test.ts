@@ -207,6 +207,58 @@ describe("proxy", () => {
     expect(res.headers.get("location")).toContain("/admin/suppliers");
   });
 
+  it("allows admin-only users on production request list route", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["admin"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+
+    const res = await proxy(
+      requestFor("/admin/production-requests", {
+        [config.cookies.accessToken]: access,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it("allows admin-only users on production request detail route", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["admin"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+
+    const res = await proxy(
+      requestFor("/admin/production-requests/some-id", {
+        [config.cookies.accessToken]: access,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it("redirects admin-only users away from production request create route", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["admin"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+
+    const res = await proxy(
+      requestFor("/admin/production-requests/new", {
+        [config.cookies.accessToken]: access,
+      }),
+    );
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("/admin/users");
+  });
+
   it("allows manager users on production request list route", async () => {
     const access = makeJwt({
       uid: "1",

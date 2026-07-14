@@ -9,7 +9,7 @@ const navItems: NavItem[] = [
     href: "/admin/production-requests",
     label: "Production",
     icon: () => null,
-    roles: ["manager", "operational"],
+    roles: ["admin", "manager", "operational"],
   },
 ];
 
@@ -72,5 +72,21 @@ describe("POS-39-7 production request route guards and navigation", () => {
     expect(
       canAccessRoute("/admin/production-requests/new", ["operational"]),
     ).toBe(false);
+  });
+
+  it("5. Admin can access production list and detail, blocked from create", () => {
+    expect(canAccessRoute("/admin/production-requests", ["admin"])).toBe(true);
+    expect(
+      canAccessRoute("/admin/production-requests/prod-1", ["admin"]),
+    ).toBe(true);
+    expect(canAccessRoute("/admin/production-requests/new", ["admin"])).toBe(
+      false,
+    );
+
+    const labels = filterAdminNavItems(navItems, ["admin"]).map(
+      (item) => item.label,
+    );
+    expect(labels).toContain("Production");
+    expect(labels).not.toContain("New production request");
   });
 });
