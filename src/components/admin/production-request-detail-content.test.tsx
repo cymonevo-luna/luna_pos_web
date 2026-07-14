@@ -118,6 +118,24 @@ function mockAdminRoles() {
   });
 }
 
+function mockAdminManagerRoles() {
+  vi.mocked(useRoles).mockReturnValue({
+    roles: ["admin", "manager"],
+    hasRole: (role) => role === "admin" || role === "manager",
+    hasAnyRole: (roles) =>
+      roles.some((role) => role === "admin" || role === "manager"),
+  });
+}
+
+function mockAdminOperationalRoles() {
+  vi.mocked(useRoles).mockReturnValue({
+    roles: ["admin", "operational"],
+    hasRole: (role) => role === "admin" || role === "operational",
+    hasAnyRole: (roles) =>
+      roles.some((role) => role === "admin" || role === "operational"),
+  });
+}
+
 function mockManagerRoles() {
   vi.mocked(useRoles).mockReturnValue({
     roles: ["manager"],
@@ -447,12 +465,100 @@ describe("ProductionRequestDetailContent", () => {
     expect(within(historyCard).getByText("manager1")).toBeInTheDocument();
   });
 
-  it("shows delete button for admin users", async () => {
+  it("shows delete button for admin-only users", async () => {
     mockAdminRoles();
     render(<ProductionRequestDetailContent id="prod-1" />);
 
     expect(
       await screen.findByRole("button", { name: "Delete production request" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides mutation controls for admin-only REQUESTED requests", async () => {
+    mockAdminRoles();
+    render(<ProductionRequestDetailContent id="prod-1" />);
+
+    expect(await screen.findByText("Production request")).toBeInTheDocument();
+    expect(screen.queryByText("Edit request")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Approve to ACCEPTED" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Notes (optional)")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save changes" })).not.toBeInTheDocument();
+    expect(screen.getByText("Rush order")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Delete production request" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides operational controls for admin-only ACCEPTED requests", async () => {
+    mockAdminRoles();
+    vi.mocked(productionRequestsAdminApi.get).mockResolvedValue({
+      data: createRequest({
+        status: "ACCEPTED",
+        items: [
+          {
+            id: "item-1",
+            menu_id: "menu-1",
+            menu_title: "Nasi Goreng",
+            quantity: 10,
+            is_finished: true,
+            stock_estimation: lineStockEstimation,
+          },
+          {
+            id: "item-2",
+            menu_id: "menu-2",
+            menu_title: "Mie Goreng",
+            quantity: 5,
+            is_finished: false,
+            stock_estimation: lineStockEstimation,
+          },
+        ],
+      }),
+    });
+
+    render(<ProductionRequestDetailContent id="prod-1" />);
+
+    expect(await screen.findByText("Production request")).toBeInTheDocument();
+    expect(screen.queryByText("Production progress")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Ready to pick" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "Mark Nasi Goreng finished" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "Mark Mie Goreng finished" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Finished")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Delete production request" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps mutation and delete controls for admin+manager users", async () => {
+    mockAdminManagerRoles();
+    render(<ProductionRequestDetailContent id="prod-1" />);
+
+    expect(await screen.findByText("Edit request")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Approve to ACCEPTED" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Delete production request" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps mutation and delete controls for admin+operational users on REQUESTED", async () => {
+    mockAdminOperationalRoles();
+    render(<ProductionRequestDetailContent id="prod-1" />);
+
+    expect(await screen.findByText("Edit request")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Approve to ACCEPTED" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Delete production request" }),
     ).toBeInTheDocument();
   });
 
@@ -511,7 +617,7 @@ describe("ProductionRequestDetailContent", () => {
     });
 
     render(<ProductionRequestDetailContent id="prod-1" />);
-    await screen.findByText("Production progress");
+    await screen.findByText("Production request");
 
     await user.click(
       screen.getByRole("button", { name: "Delete production request" }),
