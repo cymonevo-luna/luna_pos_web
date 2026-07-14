@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
-# POS-64-2 live-stack QA orchestration for POS-60-3 browser verification.
+# POS-66-2 live QA verification — admin-only production request detail.
 #
-# Brings up luna_pos_service (when Docker is available), seeds disposable REQUESTED
-# rows, starts or detects the Next.js dev server, and runs mocked + live browser checks.
+# Brings up luna_pos_service via qa-api-up.sh (or docker fallback), seeds fixtures,
+# auto-starts Next.js when needed, and runs mocked + live browser checks.
 #
 # Environment:
 #   WEB_BASE              — Next.js app URL (default http://localhost:3000)
 #   NEXT_PUBLIC_API_URL   — API base URL (default http://localhost:8087)
-#   LUNA_POS_SERVICE_DIR  — sibling service repo (default ../luna_pos_service)
-#   MOCK_API              — default 1 for mocked regression step
-#   LIVE_DELETE           — default 1 for live browser step
+#   LUNA_POS_SERVICE_DIR  — override sibling service repo path
+#   CLOSED_API_URL        — closed port for API preflight (default http://127.0.0.1:9)
 #
 # Usage:
 #   ./scripts/verify-pos-60-3-qa.sh
@@ -19,12 +18,24 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
 REPO_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
+if [ -n "${LUNA_POS_SERVICE_DIR:-}" ] && [ -d "$LUNA_POS_SERVICE_DIR" ]; then
+	SERVICE_DIR="$(cd -- "$LUNA_POS_SERVICE_DIR" && pwd)"
+elif [ -d "$REPO_DIR/../luna_pos_service" ]; then
+	SERVICE_DIR="$(cd -- "$REPO_DIR/../luna_pos_service" && pwd)"
+elif [ -d "$REPO_DIR/luna_pos_service" ]; then
+	SERVICE_DIR="$(cd -- "$REPO_DIR/luna_pos_service" && pwd)"
+else
+	SERVICE_DIR="$(cd -- "$REPO_DIR/.." && pwd)/luna_pos_service"
+fi
+
 API_URL="${NEXT_PUBLIC_API_URL:-http://localhost:8087}"
 WEB_BASE="${WEB_BASE:-http://localhost:3000}"
-LUNA_POS_SERVICE_DIR="${LUNA_POS_SERVICE_DIR:-$REPO_DIR/../luna_pos_service}"
+CLOSED_API_URL="${CLOSED_API_URL:-http://127.0.0.1:9}"
+WEB_DEV_LOG="/tmp/pos-60-3-web-dev.log"
+WEB_DEV_PID_FILE="/tmp/pos-60-3-web-dev.pid"
 
-DEV_PID=""
-STARTED_DEV=0
+QA_MANAGED_STACK=0
+QA_MANAGED_WEB=0
 
 declare -A RESULTS
 declare -A NOTES
@@ -43,28 +54,16 @@ fail() {
 	NOTES["$key"]="$note"
 }
 
-cleanup() {
-	if [ "$STARTED_DEV" -eq 1 ] && [ -n "$DEV_PID" ]; then
-		kill "$DEV_PID" 2>/dev/null || true
-		wait "$DEV_PID" 2>/dev/null || true
+api_port_from_url() {
+	local url="$1"
+	if [[ "$url" =~ :([0-9]+)(/|$) ]]; then
+		echo "${BASH_REMATCH[1]}"
+	else
+		echo "8087"
 	fi
 }
-trap cleanup EXIT
 
-print_summary() {
-	echo
-	echo "== QA summary =="
-	printf "%-55s %-6s %s\n" "Case" "Status" "Note"
-	printf "%-55s %-6s %s\n" "----" "------" "----"
-	printf "%-55s %-6s %s\n" "API readiness" "${RESULTS[api_readiness]:-}" "${NOTES[api_readiness]:-}"
-	printf "%-55s %-6s %s\n" "Seed fixtures" "${RESULTS[seed_fixtures]:-}" "${NOTES[seed_fixtures]:-}"
-	printf "%-55s %-6s %s\n" "Web dev server readiness" "${RESULTS[web_readiness]:-}" "${NOTES[web_readiness]:-}"
-	printf "%-55s %-6s %s\n" "Mocked browser verification regression" "${RESULTS[mocked_browser]:-}" "${NOTES[mocked_browser]:-}"
-	printf "%-55s %-6s %s\n" "Live admin login and list navigation" "${RESULTS[live_login_list]:-}" "${NOTES[live_login_list]:-}"
-	printf "%-55s %-6s %s\n" "Live detail read-only with delete visible" "${RESULTS[live_readonly]:-}" "${NOTES[live_readonly]:-}"
-	printf "%-55s %-6s %s\n" "Live delete confirms and redirects" "${RESULTS[live_delete]:-}" "${NOTES[live_delete]:-}"
-	printf "%-55s %-6s %s\n" "Component test regression" "${RESULTS[component_tests]:-}" "${NOTES[component_tests]:-}"
-}
+API_PORT="$(api_port_from_url "$API_URL")"
 
 api_healthy() {
 	curl -sf --max-time 5 "${API_URL%/}/healthz" >/dev/null 2>&1
@@ -74,6 +73,78 @@ web_healthy() {
 	curl -sf --max-time 3 "${WEB_BASE}/admin/login" >/dev/null 2>&1
 }
 
+cleanup() {
+	if [ "$QA_MANAGED_WEB" -eq 1 ] && [ -f "$WEB_DEV_PID_FILE" ]; then
+		local web_pid
+		web_pid="$(cat "$WEB_DEV_PID_FILE" 2>/dev/null || true)"
+		if [ -n "$web_pid" ] && kill -0 "$web_pid" 2>/dev/null; then
+			kill "$web_pid" 2>/dev/null || true
+			wait "$web_pid" 2>/dev/null || true
+		fi
+		rm -f "$WEB_DEV_PID_FILE"
+	fi
+	if [ "$QA_MANAGED_STACK" -eq 1 ] && [ -x "$SERVICE_DIR/scripts/qa-api-down.sh" ]; then
+		"$SERVICE_DIR/scripts/qa-api-down.sh" >/tmp/pos-60-3-api-down.log 2>&1 || true
+	fi
+}
+trap cleanup EXIT INT TERM
+
+bootstrap_api() {
+	if api_healthy; then
+		return 0
+	fi
+
+	if [ ! -d "$SERVICE_DIR" ]; then
+		return 1
+	fi
+
+	local bootstrap_log="/tmp/pos-60-3-api-bootstrap.log"
+	local qa_up="$SERVICE_DIR/scripts/qa-api-up.sh"
+
+	if [ -x "$qa_up" ]; then
+		echo "   API down — running $qa_up"
+		if API_HOST_PORT="$API_PORT" "$qa_up" >"$bootstrap_log" 2>&1; then
+			QA_MANAGED_STACK=1
+			api_healthy && return 0
+		fi
+		cat "$bootstrap_log" >&2 || true
+		return 1
+	fi
+
+	echo "   API down — qa-api-up.sh absent; running make docker-up-d in $SERVICE_DIR"
+	if (
+		cd "$SERVICE_DIR"
+		make docker-up-d
+		if [ -x "$SERVICE_DIR/scripts/docker-wait-healthy.sh" ]; then
+			API_HOST_PORT="$API_PORT" "$SERVICE_DIR/scripts/docker-wait-healthy.sh"
+		fi
+	) >"$bootstrap_log" 2>&1; then
+		QA_MANAGED_STACK=1
+		api_healthy && return 0
+	fi
+	cat "$bootstrap_log" >&2 || true
+	return 1
+}
+
+bootstrap_web() {
+	if web_healthy; then
+		return 0
+	fi
+
+	echo "   Web down — starting dev server with NEXT_PUBLIC_API_URL=$API_URL"
+	NEXT_PUBLIC_API_URL="$API_URL" npm run dev >"$WEB_DEV_LOG" 2>&1 &
+	echo $! >"$WEB_DEV_PID_FILE"
+	QA_MANAGED_WEB=1
+
+	for _ in $(seq 1 45); do
+		if web_healthy; then
+			return 0
+		fi
+		sleep 2
+	done
+	return 1
+}
+
 ensure_playwright() {
 	if [ ! -d "$(npm root)/playwright" ]; then
 		npm install --no-save playwright@1.51.1 >/tmp/pos-60-3-playwright-install.log 2>&1
@@ -81,274 +152,178 @@ ensure_playwright() {
 	npx playwright install chromium >/tmp/pos-60-3-playwright-install.log 2>&1 || true
 }
 
-mark_live_blocked() {
+seed_fixtures() {
+	local seed_script="$SERVICE_DIR/scripts/seed-production-request-browser-qa.sh"
+	if [ -x "$seed_script" ]; then
+		echo "   Running service seed script"
+		"$seed_script" "$API_URL"
+	fi
+}
+
+mark_live_fail() {
 	local note="$1"
-	fail "live_login_list" "$note"
-	fail "live_readonly" "$note"
+	fail "live_login" "$note"
+	fail "live_list_detail" "$note"
+	fail "live_requested_readonly" "$note"
+	fail "live_accepted_readonly" "$note"
 	fail "live_delete" "$note"
 }
 
 mark_live_pass_from_log() {
 	local log_file="$1"
-	if grep -q "PASS: Live admin login succeeds" "$log_file" \
-		&& grep -q "PASS: Live admin navigates list to detail" "$log_file"; then
-		pass "live_login_list" "admin login + REQUESTED row opens detail"
+	if grep -q "PASS: Live admin login succeeds" "$log_file"; then
+		pass "live_login" "admin redirected off /admin/login"
 	else
-		fail "live_login_list" "see $log_file"
+		fail "live_login" "see $log_file"
+	fi
+	if grep -q "PASS: Live admin navigates list to detail" "$log_file"; then
+		pass "live_list_detail" "REQUESTED row opens detail heading"
+	else
+		fail "live_list_detail" "see $log_file"
 	fi
 	if grep -q "PASS: Live REQUESTED detail is read-only for admin" "$log_file"; then
-		pass "live_readonly" "mutation controls absent; delete button visible"
+		pass "live_requested_readonly" "no mutation controls; delete visible"
 	else
-		fail "live_readonly" "see $log_file"
+		fail "live_requested_readonly" "see $log_file"
 	fi
-	if grep -q "PASS: Live delete confirms and redirects" "$log_file"; then
-		pass "live_delete" "toast + redirect; deleted row absent from list"
+	if grep -q "PASS: Live ACCEPTED detail hides operational controls" "$log_file"; then
+		pass "live_accepted_readonly" "Finished badge; no operational controls"
+	else
+		fail "live_accepted_readonly" "see $log_file"
+	fi
+	if grep -q "PASS: Live delete dialog and confirm flow" "$log_file"; then
+		pass "live_delete" "disposable row deleted with toast + redirect"
 	else
 		fail "live_delete" "see $log_file"
 	fi
 }
 
-echo "== POS-60-3 / POS-64-2 QA verification =="
+print_summary() {
+	echo
+	echo "== QA summary =="
+	printf "%-55s %-6s %s\n" "Case" "Status" "Note"
+	printf "%-55s %-6s %s\n" "----" "------" "----"
+	printf "%-55s %-6s %s\n" "Component tests regression" "${RESULTS[component_tests]:-}" "${NOTES[component_tests]:-}"
+	printf "%-55s %-6s %s\n" "Lint and typecheck regression" "${RESULTS[lint_typecheck]:-}" "${NOTES[lint_typecheck]:-}"
+	printf "%-55s %-6s %s\n" "API preflight fails fast when API down" "${RESULTS[api_preflight]:-}" "${NOTES[api_preflight]:-}"
+	printf "%-55s %-6s %s\n" "Mocked browser verification regression" "${RESULTS[mocked_browser]:-}" "${NOTES[mocked_browser]:-}"
+	printf "%-55s %-6s %s\n" "Live admin login succeeds" "${RESULTS[live_login]:-}" "${NOTES[live_login]:-}"
+	printf "%-55s %-6s %s\n" "Live admin navigates list to detail" "${RESULTS[live_list_detail]:-}" "${NOTES[live_list_detail]:-}"
+	printf "%-55s %-6s %s\n" "Live REQUESTED detail is read-only for admin" "${RESULTS[live_requested_readonly]:-}" "${NOTES[live_requested_readonly]:-}"
+	printf "%-55s %-6s %s\n" "Live ACCEPTED detail hides operational controls" "${RESULTS[live_accepted_readonly]:-}" "${NOTES[live_accepted_readonly]:-}"
+	printf "%-55s %-6s %s\n" "Live delete dialog and confirm flow" "${RESULTS[live_delete]:-}" "${NOTES[live_delete]:-}"
+	printf "%-55s %-6s %s\n" "Full QA orchestrator passes" "${RESULTS[orchestrator]:-}" "${NOTES[orchestrator]:-}"
+}
+
+echo "== POS-60-3 / POS-66-2 QA verification =="
 echo "API_URL=$API_URL"
 echo "WEB_BASE=$WEB_BASE"
-echo "LUNA_POS_SERVICE_DIR=$LUNA_POS_SERVICE_DIR"
+echo "SERVICE_DIR=$SERVICE_DIR"
 echo
 
 cd "$REPO_DIR"
 
-echo ">> [1/8] API readiness"
-if api_healthy; then
-	pass "api_readiness" "GET ${API_URL%/}/healthz returned HTTP 200"
-else
-	if [ ! -d "$LUNA_POS_SERVICE_DIR" ]; then
-		fail "api_readiness" "API down and LUNA_POS_SERVICE_DIR not found at $LUNA_POS_SERVICE_DIR"
-		mark_live_blocked "API unreachable"
-	elif ! command -v docker >/dev/null 2>&1; then
-		fail "api_readiness" "API down and Docker unavailable — start luna_pos_service manually"
-		mark_live_blocked "API unreachable"
-	else
-		echo "   API down — running make docker-up-d in $LUNA_POS_SERVICE_DIR"
-		if (
-			cd "$LUNA_POS_SERVICE_DIR"
-			make docker-up-d
-			if [ -x "$LUNA_POS_SERVICE_DIR/scripts/docker-wait-healthy.sh" ]; then
-				"$LUNA_POS_SERVICE_DIR/scripts/docker-wait-healthy.sh"
-			fi
-		) >/tmp/pos-60-3-docker.log 2>&1 && api_healthy; then
-			pass "api_readiness" "docker-up-d + healthz OK"
-		else
-			fail "api_readiness" "API still down — see /tmp/pos-60-3-docker.log"
-			mark_live_blocked "API unreachable after docker-up-d"
-		fi
-	fi
-fi
-
-create_requested_fallback() {
-	local manager_login manager_token menus_json menu_id create_json
-	manager_login="$(curl -sf --max-time 10 -X POST "${API_URL%/}/api/v1/auth/login" \
-		-H 'Content-Type: application/json' \
-		-d '{"email":"manager-test@cymonevo.com","password":"LunaTesting123!"}')" || return 1
-	manager_token="$(python3 - "$manager_login" <<'PY'
-import json
-import sys
-print((json.loads(sys.argv[1] or "{}").get("data") or {}).get("tokens", {}).get("access_token") or "")
-PY
-)"
-	[ -n "$manager_token" ] || return 1
-	menus_json="$(curl -sf --max-time 15 \
-		-H "Authorization: Bearer ${manager_token}" \
-		"${API_URL%/}/api/admin/menus?page=1&per_page=10")" || return 1
-	menu_id="$(python3 - "$menus_json" <<'PY'
-import json
-import sys
-menus = (json.loads(sys.argv[1] or "{}").get("data") or [])
-print(menus[0]["id"] if menus else "")
-PY
-)"
-	[ -n "$menu_id" ] || return 1
-	create_json="$(curl -sf --max-time 15 -X POST "${API_URL%/}/api/admin/production-requests" \
-		-H "Authorization: Bearer ${manager_token}" \
-		-H 'Content-Type: application/json' \
-		-d "{\"items\":[{\"menu_id\":\"${menu_id}\",\"quantity\":2}],\"notes\":\"Rush order for POS-60-3 verification\"}")" || return 1
-	python3 - "$create_json" <<'PY'
-import json
-import sys
-status = (json.loads(sys.argv[1] or "{}").get("data") or {}).get("status")
-if status != "REQUESTED":
-    raise SystemExit(1)
-PY
-}
-
-count_requested_rows() {
-	local token="$1"
-	local list_json
-	list_json="$(curl -sf --max-time 15 \
-		-H "Authorization: Bearer ${token}" \
-		"${API_URL%/}/api/admin/production-requests?page=1&per_page=50")" || true
-	python3 - "$list_json" <<'PY'
-import json
-import sys
-
-payload = json.loads(sys.argv[1] or "{}")
-rows = payload.get("data") or []
-print(sum(1 for row in rows if row.get("status") == "REQUESTED"))
-PY
-}
-
-echo ">> [2/8] Seed fixtures"
-if api_healthy; then
-	SEED_SCRIPT="$LUNA_POS_SERVICE_DIR/scripts/seed-production-request-delete-qa.sh"
-	if [ -x "$SEED_SCRIPT" ]; then
-		"$SEED_SCRIPT" "$API_URL" >/tmp/pos-60-3-seed.log 2>&1 || true
-	fi
-	ADMIN_LOGIN="$(curl -sf --max-time 10 -X POST "${API_URL%/}/api/v1/auth/login" \
-		-H 'Content-Type: application/json' \
-		-d '{"email":"admin-test@cymonevo.com","password":"LunaTesting123!"}')" || true
-	ADMIN_TOKEN="$(python3 - "$ADMIN_LOGIN" <<'PY'
-import json
-import sys
-print((json.loads(sys.argv[1] or "{}").get("data") or {}).get("tokens", {}).get("access_token") or "")
-PY
-)"
-	REQUESTED_COUNT="$(count_requested_rows "$ADMIN_TOKEN")"
-	if [ "${REQUESTED_COUNT:-0}" -lt 1 ]; then
-		echo "   No REQUESTED rows after seed script — creating fallback REQUESTED row"
-		create_requested_fallback || true
-		REQUESTED_COUNT="$(count_requested_rows "$ADMIN_TOKEN")"
-	fi
-	if [ "${REQUESTED_COUNT:-0}" -ge 1 ]; then
-		pass "seed_fixtures" "${REQUESTED_COUNT} REQUESTED row(s) available for live delete QA"
-	else
-		fail "seed_fixtures" "no REQUESTED rows after seed — see /tmp/pos-60-3-seed.log"
-		cat /tmp/pos-60-3-seed.log >&2
-		mark_live_blocked "seed fixtures unavailable"
-	fi
-else
-	fail "seed_fixtures" "skipped — API down"
-fi
-
-echo ">> [3/8] Web dev server"
-if web_healthy; then
-	pass "web_readiness" "dev server already running at $WEB_BASE"
-else
-	echo "   Starting dev server with NEXT_PUBLIC_API_URL=$API_URL"
-	NEXT_PUBLIC_API_URL="$API_URL" npm run dev >/tmp/pos-60-3-dev.log 2>&1 &
-	DEV_PID=$!
-	STARTED_DEV=1
-	WEB_READY=0
-	for _ in $(seq 1 30); do
-		if web_healthy; then
-			WEB_READY=1
-			break
-		fi
-		sleep 2
-	done
-	if [ "$WEB_READY" -eq 1 ]; then
-		pass "web_readiness" "dev server ready at $WEB_BASE (pid $DEV_PID)"
-	else
-		fail "web_readiness" "dev server not ready after 60s — see /tmp/pos-60-3-dev.log"
-		cat /tmp/pos-60-3-dev.log >&2
-	fi
-fi
-
-echo ">> [4/8] Playwright chromium"
-ensure_playwright
-
-pause_live_api() {
-	if ! api_healthy; then
-		return 1
-	fi
-	if pgrep -f "/tmp/luna-api" >/dev/null 2>&1; then
-		pkill -f "/tmp/luna-api" 2>/dev/null || true
-		sleep 1
-		return 0
-	fi
-	if command -v docker >/dev/null 2>&1 && [ -f "$LUNA_POS_SERVICE_DIR/docker-compose.yml" ]; then
-		(
-			cd "$LUNA_POS_SERVICE_DIR"
-			docker compose stop api 2>/dev/null || docker-compose stop api 2>/dev/null || true
-		)
-		sleep 2
-		if ! api_healthy; then
-			return 0
-		fi
-	fi
-	return 1
-}
-
-resume_live_api() {
-	if api_healthy; then
-		return 0
-	fi
-	if [ -x /tmp/luna-api ]; then
-		tmux -f /exec-daemon/tmux.portal.conf has-session -t "=luna-api" 2>/dev/null || \
-			tmux -f /exec-daemon/tmux.portal.conf new-session -d -s "luna-api" -c "$LUNA_POS_SERVICE_DIR" -- "${SHELL:-bash}" -l
-		tmux -f /exec-daemon/tmux.portal.conf send-keys -t "luna-api:0.0" \
-			'APP_ENV=development HTTP_PORT=8087 DB_DRIVER=postgres DB_URI="postgres://postgres@127.0.0.1:5437/luna_pos_service?sslmode=disable" CACHE_DRIVER=redis QUEUE_DRIVER=redis REDIS_ADDR=127.0.0.1:6387 RATE_LIMIT_ENABLED=false CORS_ALLOWED_ORIGINS="http://localhost:3000" UPLOAD_PUBLIC_BASE_URL="http://localhost:8087" MIGRATIONS_PATH="file:///workspace/luna_pos_service/migrations" /tmp/luna-api' C-m
-		for _ in $(seq 1 20); do
-			if api_healthy; then
-				return 0
-			fi
-			sleep 1
-		done
-	fi
-	if [ -x "$LUNA_POS_SERVICE_DIR/scripts/docker-wait-healthy.sh" ] && [ -d "$LUNA_POS_SERVICE_DIR" ]; then
-		(
-			cd "$LUNA_POS_SERVICE_DIR"
-			make docker-up-d 2>/dev/null || docker compose up -d api 2>/dev/null || true
-			"$LUNA_POS_SERVICE_DIR/scripts/docker-wait-healthy.sh" 2>/dev/null || true
-		) >/tmp/pos-60-3-docker-resume.log 2>&1 || true
-	fi
-	api_healthy
-}
-
-echo ">> [5/8] Mocked browser verification regression"
-API_PAUSED=0
-if web_healthy; then
-	if pause_live_api; then
-		API_PAUSED=1
-	fi
-	if npm run verify:pos-60-3-browser >/tmp/pos-60-3-mocked-browser.log 2>&1; then
-		PASS_COUNT="$(grep -c '^PASS:' /tmp/pos-60-3-mocked-browser.log || true)"
-		if [ "$PASS_COUNT" -ge 6 ]; then
-			pass "mocked_browser" "${PASS_COUNT} mocked PASS lines + exit 0"
-		else
-			pass "mocked_browser" "mocked browser script exit 0 ($PASS_COUNT PASS lines)"
-		fi
-	else
-		fail "mocked_browser" "see /tmp/pos-60-3-mocked-browser.log"
-		cat /tmp/pos-60-3-mocked-browser.log >&2
-	fi
-	if [ "$API_PAUSED" -eq 1 ]; then
-		resume_live_api || true
-	fi
-else
-	fail "mocked_browser" "dev server not running at $WEB_BASE"
-fi
-
-echo ">> [6/8] Live browser verification"
-if ! api_healthy && [ "${API_PAUSED:-0}" -eq 1 ]; then
-	resume_live_api || true
-fi
-if ! api_healthy; then
-	mark_live_blocked "API unreachable"
-elif ! web_healthy; then
-	mark_live_blocked "dev server not running at $WEB_BASE"
-else
-	if MOCK_API=0 LIVE_DELETE=1 NEXT_PUBLIC_API_URL="$API_URL" WEB_BASE="$WEB_BASE" LUNA_POS_SERVICE_DIR="$LUNA_POS_SERVICE_DIR" npm run verify:pos-60-3-browser >/tmp/pos-60-3-live-browser.log 2>&1; then
-		mark_live_pass_from_log /tmp/pos-60-3-live-browser.log
-	else
-		cat /tmp/pos-60-3-live-browser.log >&2
-		mark_live_blocked "see /tmp/pos-60-3-live-browser.log"
-	fi
-fi
-
-echo ">> [7/8] Component test regression"
+echo ">> [1/10] Component tests regression"
 if npx vitest run src/components/admin/production-request-detail-content.test.tsx >/tmp/pos-60-3-component.log 2>&1; then
 	pass "component_tests" "18/18 production-request-detail-content tests passed"
 else
 	fail "component_tests" "see /tmp/pos-60-3-component.log"
 	cat /tmp/pos-60-3-component.log >&2
+fi
+
+echo ">> [2/10] Lint and typecheck"
+LINT_OK=1
+TYPECHECK_OK=1
+if npm run lint >/tmp/pos-60-3-lint.log 2>&1; then
+	:
+else
+	LINT_OK=0
+	cat /tmp/pos-60-3-lint.log >&2
+fi
+if npm run typecheck >/tmp/pos-60-3-typecheck.log 2>&1; then
+	:
+else
+	TYPECHECK_OK=0
+	cat /tmp/pos-60-3-typecheck.log >&2
+fi
+if [ "$LINT_OK" -eq 1 ] && [ "$TYPECHECK_OK" -eq 1 ]; then
+	pass "lint_typecheck" "eslint + tsc --noEmit exit 0"
+else
+	fail "lint_typecheck" "see /tmp/pos-60-3-lint.log and /tmp/pos-60-3-typecheck.log"
+fi
+
+echo ">> [3/10] API preflight fails fast when API down"
+START_TS="$(date +%s)"
+if MOCK_API=0 NEXT_PUBLIC_API_URL="$CLOSED_API_URL" WEB_BASE="$WEB_BASE" node "$SCRIPT_DIR/verify-pos-60-3-browser.mjs" >/tmp/pos-60-3-preflight.log 2>&1; then
+	fail "api_preflight" "expected exit 1 against closed port"
+	cat /tmp/pos-60-3-preflight.log >&2
+else
+	END_TS="$(date +%s)"
+	ELAPSED=$((END_TS - START_TS))
+	if [ "$ELAPSED" -gt 8 ]; then
+		fail "api_preflight" "took ${ELAPSED}s — expected fast failure within ~8s"
+	elif ! grep -qiE 'API unreachable|healthz' /tmp/pos-60-3-preflight.log; then
+		fail "api_preflight" "missing actionable API unreachable message"
+		cat /tmp/pos-60-3-preflight.log >&2
+	elif ! grep -qiE 'qa-api-up|docker-up-d' /tmp/pos-60-3-preflight.log; then
+		fail "api_preflight" "missing qa-api-up or docker-up-d hint"
+		cat /tmp/pos-60-3-preflight.log >&2
+	else
+		pass "api_preflight" "failed in ${ELAPSED}s with actionable API unreachable error"
+	fi
+fi
+
+echo ">> [4/10] Web bootstrap + mocked browser verification regression"
+if bootstrap_web; then
+	ensure_playwright
+	if MOCK_API=1 NEXT_PUBLIC_API_URL="$API_URL" WEB_BASE="$WEB_BASE" node "$SCRIPT_DIR/verify-pos-60-3-browser.mjs" >/tmp/pos-60-3-mocked-browser.log 2>&1; then
+		PASS_COUNT="$(grep -c '^PASS:' /tmp/pos-60-3-mocked-browser.log || true)"
+		if [ "$PASS_COUNT" -ge 6 ] && grep -q "All POS-60-3 browser checks passed" /tmp/pos-60-3-mocked-browser.log; then
+			pass "mocked_browser" "${PASS_COUNT} mocked PASS lines + final success message"
+		else
+			pass "mocked_browser" "mocked browser script exit 0 (${PASS_COUNT} PASS lines)"
+		fi
+	else
+		fail "mocked_browser" "see /tmp/pos-60-3-mocked-browser.log"
+		cat /tmp/pos-60-3-mocked-browser.log >&2
+	fi
+else
+	fail "mocked_browser" "dev server not ready at $WEB_BASE after 90s — see $WEB_DEV_LOG"
+	cat "$WEB_DEV_LOG" >&2 || true
+fi
+
+echo ">> [5/10] API bootstrap for live browser"
+if bootstrap_api; then
+	echo "   API healthy at ${API_URL%/}/healthz"
+else
+	LIVE_FAIL_NOTE="API unreachable — run scripts/qa-api-up.sh in sibling luna_pos_service or make docker-up-d manually"
+	mark_live_fail "$LIVE_FAIL_NOTE"
+fi
+
+echo ">> [6/10] Seed fixtures"
+if api_healthy; then
+	seed_fixtures || true
+fi
+
+echo ">> [7/10] Live browser verification"
+if ! api_healthy; then
+	:
+elif ! web_healthy; then
+	mark_live_fail "dev server not running at $WEB_BASE"
+else
+	ensure_playwright
+	if MOCK_API=0 NEXT_PUBLIC_API_URL="$API_URL" WEB_BASE="$WEB_BASE" LUNA_POS_SERVICE_DIR="$SERVICE_DIR" node "$SCRIPT_DIR/verify-pos-60-3-browser.mjs" >/tmp/pos-60-3-live-browser.log 2>&1; then
+		mark_live_pass_from_log /tmp/pos-60-3-live-browser.log
+	else
+		cat /tmp/pos-60-3-live-browser.log >&2
+		mark_live_fail "see /tmp/pos-60-3-live-browser.log"
+	fi
+fi
+
+if printf '%s\n' "${RESULTS[@]}" | grep -q FAIL; then
+	fail "orchestrator" "one or more checklist cases failed"
+else
+	pass "orchestrator" "all checklist cases passed"
 fi
 
 print_summary
