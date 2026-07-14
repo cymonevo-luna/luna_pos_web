@@ -33,6 +33,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { isAdminOnlyUser } from "@/lib/auth/roles";
 import { useRoles } from "@/lib/auth/use-roles";
 import {
   Dialog,
@@ -258,8 +259,9 @@ function LineStockEstimationTable({
 
 export function ProductionRequestDetailContent({ id }: { id: string }) {
   const router = useRouter();
-  const { hasRole } = useRoles();
+  const { roles, hasRole } = useRoles();
   const isAdmin = hasRole("admin");
+  const showMutationControls = !isAdminOnlyUser({ roles });
   const [request, setRequest] = useState<ProductionRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -510,7 +512,7 @@ export function ProductionRequestDetailContent({ id }: { id: string }) {
             </Card>
           ) : null}
 
-          {request.status === "REQUESTED" ? (
+          {request.status === "REQUESTED" && showMutationControls ? (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Edit request</CardTitle>
@@ -554,7 +556,7 @@ export function ProductionRequestDetailContent({ id }: { id: string }) {
             </Card>
           ) : null}
 
-          {request.status === "ACCEPTED" ? (
+          {request.status === "ACCEPTED" && showMutationControls ? (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Production progress</CardTitle>
@@ -587,7 +589,8 @@ export function ProductionRequestDetailContent({ id }: { id: string }) {
             </Card>
           ) : null}
 
-          {request.notes?.trim() && request.status !== "REQUESTED" ? (
+          {request.notes?.trim() &&
+          (request.status !== "REQUESTED" || !showMutationControls) ? (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Notes</CardTitle>
@@ -676,7 +679,7 @@ export function ProductionRequestDetailContent({ id }: { id: string }) {
                         Quantity: {item.quantity}
                       </p>
                     </div>
-                    {request.status === "ACCEPTED" ? (
+                    {request.status === "ACCEPTED" && showMutationControls ? (
                       <label className="flex items-center gap-2 text-sm">
                         <input
                           type="checkbox"
