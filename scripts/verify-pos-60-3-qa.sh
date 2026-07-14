@@ -53,7 +53,7 @@ DEV_PID=""
 STARTED_DEV=0
 API_PAUSE_METHOD=""
 QA_MANAGED_STACK=0
-DB_URI="${DB_URI:-postgres://postgres:postgres@127.0.0.1:5432/luna_pos_service?sslmode=disable}"
+DB_URI="${DB_URI:-postgres://postgres:postgres@127.0.0.1:5437/luna_pos_service?sslmode=disable}"
 
 declare -A RESULTS
 declare -A NOTES
@@ -92,10 +92,13 @@ bootstrap_api() {
 	if [ ! -d "$LUNA_POS_SERVICE_DIR" ]; then
 		return 1
 	fi
+	if ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
+		QA_API_SKIP_DOCKER=1
+	fi
 	local bootstrap_log="/tmp/pos-60-3-api-bootstrap.log"
 	local qa_up="$LUNA_POS_SERVICE_DIR/scripts/qa-api-up.sh"
 	if [ -x "$qa_up" ]; then
-		echo "   API down — running $qa_up"
+		echo "   API down — running $qa_up (QA_API_SKIP_DOCKER=${QA_API_SKIP_DOCKER:-0})"
 		if API_HOST_PORT="$API_PORT" QA_API_SKIP_DOCKER="${QA_API_SKIP_DOCKER:-}" DB_URI="$DB_URI" \
 			"$qa_up" >"$bootstrap_log" 2>&1; then
 			QA_MANAGED_STACK=1
@@ -254,8 +257,15 @@ PY
 echo ">> [2/8] Seed fixtures"
 if api_healthy; then
 	SEED_SCRIPT="$LUNA_POS_SERVICE_DIR/scripts/seed-production-request-delete-qa.sh"
+	SEED_LOG_OK=0
 	if [ -x "$SEED_SCRIPT" ]; then
 		"$SEED_SCRIPT" "$API_URL" >/tmp/pos-60-3-seed.log 2>&1 || true
+		if grep -qE 'PASS: production-request delete QA fixtures seeded|SKIP: production requests already seeded' \
+			/tmp/pos-60-3-seed.log 2>/dev/null; then
+			SEED_LOG_OK=1
+		fi
+	else
+		: >/tmp/pos-60-3-seed.log
 	fi
 	ADMIN_LOGIN="$(curl -sf --max-time 10 -X POST "${API_URL%/}/api/v1/auth/login" \
 		-H 'Content-Type: application/json' \
@@ -272,9 +282,13 @@ PY
 		create_requested_fallback || true
 		REQUESTED_COUNT="$(count_requested_rows "$ADMIN_TOKEN")"
 	fi
-	if [ "${REQUESTED_COUNT:-0}" -ge 1 ]; then
+	if [ "${REQUESTED_COUNT:-0}" -ge 1 ] && { [ "$SEED_LOG_OK" -eq 1 ] || [ ! -x "$SEED_SCRIPT" ]; }; then
 		pass "seed_fixtures" "${REQUESTED_COUNT} REQUESTED row(s) available for live delete QA"
-	else
+	elif [ "${REQUESTED_COUNT:-0}" -ge 1 ] && [ "$SEED_LOG_OK" -eq 0 ]; then
+		fail "seed_fixtures" "seed log missing PASS/SKIP line — see /tmp/pos-60-3-seed.log"
+		cat /tmp/pos-60-3-seed.log >&2
+		mark_live_blocked "seed fixtures log invalid"
+	elif [ "${REQUESTED_COUNT:-0}" -lt 1 ]; then
 		fail "seed_fixtures" "no REQUESTED rows after seed — see /tmp/pos-60-3-seed.log"
 		cat /tmp/pos-60-3-seed.log >&2
 		mark_live_blocked "seed fixtures unavailable"
@@ -367,7 +381,7 @@ resume_live_api() {
 		native)
 			if [ -x "$LUNA_POS_SERVICE_DIR/scripts/qa-api-up.sh" ]; then
 				echo "   Resuming native QA API via qa-api-up.sh"
-				QA_API_SKIP_DOCKER=1 DB_URI="${DB_URI:-postgres://postgres:postgres@127.0.0.1:5432/luna_pos_service?sslmode=disable}" \
+				API_HOST_PORT="$API_PORT" QA_API_SKIP_DOCKER=1 DB_URI="$DB_URI" \
 					"$LUNA_POS_SERVICE_DIR/scripts/qa-api-up.sh" >/tmp/pos-60-3-api-resume.log 2>&1 || true
 			fi
 			;;

@@ -55,7 +55,8 @@ const ACCEPTED_ID = "prod-verify-60-3-accepted";
 const ADMIN_USER_ID = "user-admin-verify-60-3";
 
 const API_UNREACHABLE_HINT =
-  "start luna_pos_service (make docker-up-d) and re-run";
+  "start luna_pos_service via scripts/qa-api-up.sh in sibling luna_pos_service " +
+  "(set QA_API_SKIP_DOCKER=1 when Docker is unavailable) or make docker-up-d as fallback";
 
 const lineStockEstimation = {
   has_formula: true,
