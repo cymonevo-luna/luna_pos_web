@@ -16,7 +16,6 @@
  *   TEST_OPERATIONAL_EMAIL — operational login for ACCEPTED fixture seeding
  *   TEST_OPERATIONAL_PASSWORD — operational password for ACCEPTED fixture seeding
  *   MOCK_API              — "0" / "false" / "no" for live stack; otherwise mocked (default)
- *   LIVE_DELETE           — "1" / "true" for full live delete E2E; otherwise lighter smoke (default 0)
  */
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -41,9 +40,6 @@ const OPERATIONAL_PASSWORD =
 const MOCK_API = !["0", "false", "no"].includes(
   String(process.env.MOCK_API ?? "1").toLowerCase(),
 );
-const LIVE_DELETE = ["1", "true", "yes"].includes(
-  String(process.env.LIVE_DELETE ?? "0").toLowerCase(),
-);
 
 const SEED_NOTES = "Rush order for POS-60-3 verification";
 const SEED_ACCEPTED_NOTES =
@@ -54,7 +50,9 @@ const ACCEPTED_ID = "prod-verify-60-3-accepted";
 const ADMIN_USER_ID = "user-admin-verify-60-3";
 
 const API_UNREACHABLE_HINT =
-  "start luna_pos_service (make docker-up-d) and re-run";
+  "start luna_pos_service via scripts/qa-api-up.sh in the sibling luna_pos_service repo " +
+  "(fallback: make docker-up-d), set NEXT_PUBLIC_API_URL, and run " +
+  "scripts/seed-production-request-browser-qa.sh";
 
 const lineStockEstimation = {
   has_formula: true,
@@ -184,9 +182,10 @@ async function assertApiReachable() {
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
-  } catch {
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `Live stack unavailable at ${API_BASE} — ${API_UNREACHABLE_HINT}`,
+      `API unreachable at ${API_BASE}/healthz (${detail}). ${API_UNREACHABLE_HINT}`,
     );
   }
 }
@@ -348,52 +347,76 @@ function resolveSeedScript() {
   const serviceDir =
     process.env.LUNA_POS_SERVICE_DIR ??
     join(__dirname, "..", "..", "luna_pos_service");
+  const repoRoot = join(__dirname, "..");
   const candidates = [
-    join(serviceDir, "scripts/seed-production-request-delete-qa.sh"),
     join(serviceDir, "scripts/seed-production-request-browser-qa.sh"),
-    join(__dirname, "..", "../luna_pos_service/scripts/seed-production-request-delete-qa.sh"),
-    join(__dirname, "..", "../luna_pos_service/scripts/seed-production-request-browser-qa.sh"),
-    join(__dirname, "..", "luna_pos_service/scripts/seed-production-request-delete-qa.sh"),
-    join(__dirname, "..", "luna_pos_service/scripts/seed-production-request-browser-qa.sh"),
+    join(serviceDir, "scripts/seed-production-request-delete-qa.sh"),
+    join(repoRoot, "../luna_pos_service/scripts/seed-production-request-browser-qa.sh"),
+    join(repoRoot, "../luna_pos_service/scripts/seed-production-request-delete-qa.sh"),
+    join(repoRoot, "luna_pos_service/scripts/seed-production-request-browser-qa.sh"),
+    join(repoRoot, "luna_pos_service/scripts/seed-production-request-delete-qa.sh"),
   ];
   return candidates.find((path) => existsSync(path)) ?? null;
 }
 
-async function listProductionRequests(token) {
-  const list = await apiJson(
-    "/api/admin/production-requests?page=1&per_page=50",
-    token,
+async function ensureAcceptedHasFinishedItem(acceptedId) {
+  const operationalToken = await apiLogin(
+    OPERATIONAL_EMAIL,
+    OPERATIONAL_PASSWORD,
   );
-  return list?.data ?? [];
+  const detail = await apiJson(
+    `/api/admin/production-requests/${acceptedId}`,
+    operationalToken,
+  );
+  const unfinished = detail?.data?.items?.find((item) => !item.is_finished);
+  if (!unfinished?.id) {
+    return;
+  }
+  await apiJson(
+    `/api/admin/production-requests/${acceptedId}/items/${unfinished.id}`,
+    operationalToken,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ is_finished: true }),
+    },
+  );
 }
 
 async function bootstrapLiveFixtures() {
-  const managerToken = await apiLogin(MANAGER_EMAIL, MANAGER_PASSWORD);
-  let rows = await listProductionRequests(managerToken);
-  if (rows.some((row) => row.status === "REQUESTED")) {
-    return;
-  }
-
   const seedScript = resolveSeedScript();
   if (seedScript) {
-    try {
-      execFileSync("bash", [seedScript, API_BASE], { stdio: "pipe" });
-    } catch {
-      // Partial fixtures or idempotent seed conflicts — fall back to inline seeding.
+    execFileSync("bash", [seedScript, API_BASE], { stdio: "inherit" });
+    const managerToken = await apiLogin(MANAGER_EMAIL, MANAGER_PASSWORD);
+    const list = await apiJson(
+      "/api/admin/production-requests?page=1&per_page=50",
+      managerToken,
+    );
+    const rows = list?.data ?? [];
+    const requestedId = rows.find((row) => row.status === "REQUESTED")?.id;
+    const acceptedId = rows.find((row) => row.status === "ACCEPTED")?.id;
+    if (!requestedId) {
+      throw new Error(
+        `Seed script ran but no REQUESTED production request found. ${API_UNREACHABLE_HINT}`,
+      );
     }
-    rows = await listProductionRequests(managerToken);
-    if (rows.some((row) => row.status === "REQUESTED")) {
-      return;
+    if (acceptedId) {
+      await ensureAcceptedHasFinishedItem(acceptedId);
     }
+    return { requestedId, acceptedId };
   }
 
-  await inlineSeedLiveFixtures();
-  rows = await listProductionRequests(managerToken);
-  if (!rows.some((row) => row.status === "REQUESTED")) {
-    throw new Error(
-      `No REQUESTED production request found after seeding. Live stack unavailable at ${API_BASE} — ${API_UNREACHABLE_HINT}`,
-    );
-  }
+  return inlineSeedLiveFixtures();
+}
+
+async function createDisposableRequestedRow() {
+  const managerToken = await apiLogin(MANAGER_EMAIL, MANAGER_PASSWORD);
+  const menus = await ensureMenus(managerToken);
+  const created = await createProductionRequest(
+    managerToken,
+    [{ menu_id: menus[0].id, quantity: 1 }],
+    "POS-60-3 disposable delete QA row",
+  );
+  return created.id;
 }
 
 async function installApiMocks(page, state) {
@@ -496,18 +519,7 @@ async function login(page) {
   await page.fill('input[type="email"]', ADMIN_EMAIL);
   await page.fill('input[type="password"]', ADMIN_PASSWORD);
   await page.click('button[type="submit"]');
-  try {
-    await page.waitForURL(/\/admin\/(?!login)/, { timeout: 15000 });
-  } catch (error) {
-    if (!MOCK_API) {
-      throw new Error(
-        `Admin login did not redirect off /admin/login within 15s (API_BASE=${API_BASE}, TEST_ADMIN_EMAIL=${ADMIN_EMAIL}). ` +
-          `Ensure luna_pos_service is healthy and NEXT_PUBLIC_API_URL matches the running API.`,
-        { cause: error },
-      );
-    }
-    throw error;
-  }
+  await page.waitForURL(/\/admin\/(?!login)/, { timeout: 15000 });
 }
 
 async function assertMutationControlsAbsent(page) {
@@ -657,41 +669,74 @@ async function runMockedFlow(page, state) {
   console.log("PASS: Mocked delete confirms and redirects");
 }
 
-function extractDetailIdFromUrl(page) {
-  const match = page.url().match(/\/admin\/production-requests\/([^/?#]+)/);
-  return match?.[1] ?? null;
-}
-
-async function assertRowAbsentFromList(page, detailId) {
-  if (!/\/admin\/production-requests$/.test(new URL(page.url()).pathname)) {
-    await page.goto(`${WEB_BASE}/admin/production-requests`, {
-      waitUntil: "networkidle",
-    });
+async function runLiveFlow(page, fixtures) {
+  // 1. Admin login
+  await login(page);
+  if (page.url().includes("/admin/login")) {
+    throw new Error("Admin login did not redirect off /admin/login");
   }
+  console.log("PASS: Live admin login succeeds");
 
-  const absent = await page.evaluate(
-    async ({ apiBase, id }) => {
-      const token = localStorage.getItem("nt_access_token");
-      if (!token) {
-        throw new Error("Missing access token in localStorage");
-      }
-      const response = await fetch(
-        `${apiBase}/api/admin/production-requests?page=1&per_page=50`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      const body = await response.json();
-      const ids = (body?.data ?? []).map((row) => row.id);
-      return !ids.includes(id);
-    },
-    { apiBase: API_BASE, id: detailId },
+  // 2. Navigate list to REQUESTED detail
+  await openRequestedDetailFromList(page);
+  console.log("PASS: Live admin navigates list to detail");
+
+  // 3. REQUESTED detail read-only for admin
+  if (await page.getByText("Edit request").count()) {
+    throw new Error("Edit request should not be visible for admin-only REQUESTED");
+  }
+  if (await page.getByRole("button", { name: "Approve to ACCEPTED" }).count()) {
+    throw new Error("Approve control should not be visible for admin-only REQUESTED");
+  }
+  if (await page.getByRole("button", { name: "Save changes" }).count()) {
+    throw new Error("Save changes should not be visible for admin-only REQUESTED");
+  }
+  const notesLocator = page.getByText(SEED_NOTES);
+  if (await notesLocator.count()) {
+    if (!(await notesLocator.first().isVisible())) {
+      throw new Error("Seeded notes should be visible on REQUESTED detail");
+    }
+  }
+  await assertMutationControlsAbsent(page);
+  const requestedDeleteButton = page.getByRole("button", {
+    name: "Delete production request",
+  });
+  if (!(await requestedDeleteButton.isVisible())) {
+    throw new Error("Delete production request button not visible on REQUESTED detail");
+  }
+  console.log("PASS: Live REQUESTED detail is read-only for admin");
+
+  // 4. ACCEPTED detail hides operational controls
+  if (!fixtures.acceptedId) {
+    throw new Error("Live fixtures missing ACCEPTED production request");
+  }
+  await page.goto(
+    `${WEB_BASE}/admin/production-requests/${fixtures.acceptedId}`,
+    { waitUntil: "networkidle" },
   );
+  await page.getByRole("heading", { name: "Production request" }).waitFor({
+    timeout: 15000,
+  });
+  await assertAcceptedDetailReadOnly(page);
+  console.log("PASS: Live ACCEPTED detail hides operational controls");
 
-  if (!absent) {
-    throw new Error(`Deleted production request ${detailId} still visible in list`);
+  // 5. Disposable delete flow
+  const disposableId = await createDisposableRequestedRow();
+  await page.goto(
+    `${WEB_BASE}/admin/production-requests/${disposableId}`,
+    { waitUntil: "networkidle" },
+  );
+  await page.getByRole("heading", { name: "Production request" }).waitFor({
+    timeout: 15000,
+  });
+
+  const deleteButton = page.getByRole("button", {
+    name: "Delete production request",
+  });
+  if (!(await deleteButton.isVisible())) {
+    throw new Error("Delete production request button not visible on disposable REQUESTED");
   }
-}
 
-async function runLiveDeleteFlow(page, deleteButton) {
   await deleteButton.click();
   const dialog = page.getByRole("dialog");
   await dialog.waitFor({ timeout: 10000 });
@@ -703,43 +748,20 @@ async function runLiveDeleteFlow(page, deleteButton) {
   await dialog.getByRole("button", { name: "Delete", exact: true }).click();
   await page.waitForURL(/\/admin\/production-requests$/, { timeout: 15000 });
   await page.getByText("Production request deleted").waitFor({ timeout: 10000 });
-}
 
-async function runLiveFlow(page) {
-  // 1. Admin login
-  await login(page);
-  if (page.url().includes("/admin/login")) {
-    throw new Error("Admin login did not redirect off /admin/login");
-  }
-  console.log("PASS: Live admin login succeeds");
-
-  // 2. Navigate list to REQUESTED detail (same row filter as openRequestedDetailFromList)
-  await openRequestedDetailFromList(page);
-  console.log("PASS: Live admin navigates list to detail");
-
-  const detailId = extractDetailIdFromUrl(page);
-  if (!detailId) {
-    throw new Error("Could not determine production request id from detail URL");
+  const adminToken = await apiLogin(ADMIN_EMAIL, ADMIN_PASSWORD);
+  const deletedCheck = await fetch(
+    `${API_BASE}/api/admin/production-requests/${disposableId}`,
+    {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      signal: AbortSignal.timeout(10000),
+    },
+  );
+  if (deletedCheck.ok) {
+    throw new Error("Deleted production request still exists in API");
   }
 
-  // 3. REQUESTED detail read-only for admin
-  await assertMutationControlsAbsent(page);
-  const deleteButton = page.getByRole("button", {
-    name: "Delete production request",
-  });
-  if (!(await deleteButton.isVisible())) {
-    throw new Error("Delete production request button not visible on REQUESTED detail");
-  }
-  console.log("PASS: Live REQUESTED detail is read-only for admin");
-
-  if (!LIVE_DELETE) {
-    return;
-  }
-
-  // 4. Full delete flow on seeded REQUESTED row
-  await runLiveDeleteFlow(page, deleteButton);
-  await assertRowAbsentFromList(page, detailId);
-  console.log("PASS: Live delete confirms and redirects");
+  console.log("PASS: Live delete dialog and confirm flow");
 }
 
 async function main() {
@@ -752,14 +774,15 @@ async function main() {
     deleteCalls: [],
   };
 
+  let fixtures = null;
   if (MOCK_API) {
     console.log(`Running mocked browser verification (API_BASE=${API_BASE})`);
   } else {
     console.log(
-      `Running live browser verification (WEB_BASE=${WEB_BASE}, API_BASE=${API_BASE}, LIVE_DELETE=${LIVE_DELETE})`,
+      `Running live browser verification (WEB_BASE=${WEB_BASE}, API_BASE=${API_BASE})`,
     );
     await assertApiReachable();
-    await bootstrapLiveFixtures();
+    fixtures = await bootstrapLiveFixtures();
   }
 
   const browser = await chromium.launch({ headless: true });
@@ -768,7 +791,7 @@ async function main() {
   if (MOCK_API) {
     await runMockedFlow(page, state);
   } else {
-    await runLiveFlow(page);
+    await runLiveFlow(page, fixtures);
   }
 
   await browser.close();
