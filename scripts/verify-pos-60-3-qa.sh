@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # POS-70-1 live-stack QA orchestration for POS-60-3 browser verification.
 #
-# Brings up luna_pos_service (when Docker is available), seeds disposable REQUESTED
+# Brings up luna_pos_service via qa-api-up.sh (or docker fallback), seeds disposable REQUESTED
 # rows, starts or detects the Next.js dev server, and runs mocked + live browser checks.
 #
 # Environment:
@@ -23,6 +23,7 @@ resolve_luna_pos_service_dir() {
 	local candidate
 	for candidate in \
 		"${LUNA_POS_SERVICE_DIR:-}" \
+		"$REPO_DIR/../../luna_pos_service" \
 		"$REPO_DIR/../luna_pos_service" \
 		"$REPO_DIR/luna_pos_service"; do
 		if [ -n "$candidate" ] && [ -d "$candidate" ]; then
@@ -37,9 +38,22 @@ API_URL="${NEXT_PUBLIC_API_URL:-http://localhost:8087}"
 WEB_BASE="${WEB_BASE:-http://localhost:3000}"
 LUNA_POS_SERVICE_DIR="$(resolve_luna_pos_service_dir)"
 
+api_port_from_url() {
+	local url="$1"
+	if [[ "$url" =~ :([0-9]+)(/|$) ]]; then
+		echo "${BASH_REMATCH[1]}"
+	else
+		echo "8087"
+	fi
+}
+
+API_PORT="$(api_port_from_url "$API_URL")"
+
 DEV_PID=""
 STARTED_DEV=0
 API_PAUSE_METHOD=""
+QA_MANAGED_STACK=0
+DB_URI="${DB_URI:-postgres://postgres:postgres@127.0.0.1:5432/luna_pos_service?sslmode=disable}"
 
 declare -A RESULTS
 declare -A NOTES
@@ -65,8 +79,46 @@ cleanup() {
 		kill "$DEV_PID" 2>/dev/null || true
 		wait "$DEV_PID" 2>/dev/null || true
 	fi
+	if [ "$QA_MANAGED_STACK" -eq 1 ] && [ -x "$LUNA_POS_SERVICE_DIR/scripts/qa-api-down.sh" ]; then
+		"$LUNA_POS_SERVICE_DIR/scripts/qa-api-down.sh" >/tmp/pos-60-3-api-down.log 2>&1 || true
+	fi
 }
-trap cleanup EXIT
+trap cleanup EXIT INT TERM
+
+bootstrap_api() {
+	if api_healthy; then
+		return 0
+	fi
+	if [ ! -d "$LUNA_POS_SERVICE_DIR" ]; then
+		return 1
+	fi
+	local bootstrap_log="/tmp/pos-60-3-api-bootstrap.log"
+	local qa_up="$LUNA_POS_SERVICE_DIR/scripts/qa-api-up.sh"
+	if [ -x "$qa_up" ]; then
+		echo "   API down — running $qa_up"
+		if API_HOST_PORT="$API_PORT" QA_API_SKIP_DOCKER="${QA_API_SKIP_DOCKER:-}" DB_URI="$DB_URI" \
+			"$qa_up" >"$bootstrap_log" 2>&1; then
+			QA_MANAGED_STACK=1
+			api_healthy && return 0
+		fi
+		cat "$bootstrap_log" >&2 || true
+	fi
+	if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+		echo "   API down — running make docker-up-d in $LUNA_POS_SERVICE_DIR"
+		if (
+			cd "$LUNA_POS_SERVICE_DIR"
+			make docker-up-d
+			if [ -x "$LUNA_POS_SERVICE_DIR/scripts/docker-wait-healthy.sh" ]; then
+				"$LUNA_POS_SERVICE_DIR/scripts/docker-wait-healthy.sh"
+			fi
+		) >"$bootstrap_log" 2>&1; then
+			QA_MANAGED_STACK=1
+			api_healthy && return 0
+		fi
+		cat "$bootstrap_log" >&2 || true
+	fi
+	return 1
+}
 
 print_summary() {
 	echo
@@ -136,28 +188,15 @@ cd "$REPO_DIR"
 echo ">> [1/8] API readiness"
 if api_healthy; then
 	pass "api_readiness" "GET ${API_URL%/}/healthz returned HTTP 200"
+elif bootstrap_api; then
+	pass "api_readiness" "qa-api-up.sh or docker-up-d + healthz OK"
 else
 	if [ ! -d "$LUNA_POS_SERVICE_DIR" ]; then
 		fail "api_readiness" "API down and LUNA_POS_SERVICE_DIR not found at $LUNA_POS_SERVICE_DIR"
-		mark_live_blocked "API unreachable"
-	elif ! command -v docker >/dev/null 2>&1; then
-		fail "api_readiness" "API down and Docker unavailable — start luna_pos_service manually"
-		mark_live_blocked "API unreachable"
 	else
-		echo "   API down — running make docker-up-d in $LUNA_POS_SERVICE_DIR"
-		if (
-			cd "$LUNA_POS_SERVICE_DIR"
-			make docker-up-d
-			if [ -x "$LUNA_POS_SERVICE_DIR/scripts/docker-wait-healthy.sh" ]; then
-				"$LUNA_POS_SERVICE_DIR/scripts/docker-wait-healthy.sh"
-			fi
-		) >/tmp/pos-60-3-docker.log 2>&1 && api_healthy; then
-			pass "api_readiness" "docker-up-d + healthz OK"
-		else
-			fail "api_readiness" "API still down — see /tmp/pos-60-3-docker.log"
-			mark_live_blocked "API unreachable after docker-up-d"
-		fi
+		fail "api_readiness" "API still down — run scripts/qa-api-up.sh in luna_pos_service or make docker-up-d"
 	fi
+	mark_live_blocked "API unreachable"
 fi
 
 create_requested_fallback() {

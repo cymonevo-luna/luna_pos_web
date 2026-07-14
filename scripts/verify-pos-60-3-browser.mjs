@@ -352,6 +352,7 @@ function resolveServiceDirs() {
     dirs.push(process.env.LUNA_POS_SERVICE_DIR);
   }
   dirs.push(
+    join(repoRoot, "..", "..", "luna_pos_service"),
     join(repoRoot, "..", "luna_pos_service"),
     join(repoRoot, "luna_pos_service"),
   );
