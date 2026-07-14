@@ -142,6 +142,7 @@ describe("foodSuppliesAdminApi", () => {
       unit: "ml" as const,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
+      manual_edit_history: [],
     };
 
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
@@ -271,5 +272,42 @@ describe("normalizeFoodSupply", () => {
       updated_at: "2026-01-01T00:00:00Z",
     });
     expect(normalized.stock_quantity).toBe(2500);
+  });
+
+  it("defaults manual_edit_history to an empty array when omitted", () => {
+    const normalized = normalizeFoodSupply({
+      id: "fs-1",
+      title: "Flour",
+      stock_quantity: 10,
+      unit: "gr",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+    expect(normalized.manual_edit_history).toEqual([]);
+  });
+
+  it("preserves manual_edit_history entries from the API", () => {
+    const normalized = normalizeFoodSupply({
+      id: "fs-1",
+      title: "Flour",
+      stock_quantity: "10",
+      unit: "gr",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      manual_edit_history: [
+        {
+          delta_quantity: "5",
+          previous_quantity: "5",
+          new_quantity: "10",
+          changed_by_username: "ops-user",
+          created_at: "2026-03-01T10:00:00Z",
+        },
+      ],
+    });
+    expect(normalized.manual_edit_history).toHaveLength(1);
+    expect(normalized.manual_edit_history[0]).toMatchObject({
+      delta_quantity: "5",
+      changed_by_username: "ops-user",
+    });
   });
 });

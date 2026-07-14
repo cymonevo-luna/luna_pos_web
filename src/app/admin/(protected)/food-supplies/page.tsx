@@ -22,6 +22,7 @@ import {
   FoodSupplyForm,
   type FoodSupplyFormHandle,
 } from "@/components/admin/food-supply-form";
+import { FoodSupplyManualEditHistory } from "@/components/admin/food-supply-manual-edit-history";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -32,7 +33,7 @@ const PER_PAGE = 10;
 
 type SupplyDialogState =
   | { mode: "create" }
-  | { mode: "edit"; supply: FoodSupply }
+  | { mode: "edit"; supply: FoodSupply; loadingDetail?: boolean }
   | null;
 
 function supplyToFormValues(supply: FoodSupply): Partial<FoodSupplyFormValues> {
@@ -112,6 +113,31 @@ export default function AdminFoodSuppliesPage() {
     setDialog(null);
   };
 
+  const openEditDialog = async (supply: FoodSupply) => {
+    setDialog({ mode: "edit", supply, loadingDetail: true });
+    try {
+      const res = await foodSuppliesAdminApi.get(supply.id);
+      setDialog({ mode: "edit", supply: res.data });
+    } catch (err) {
+      setDialog(null);
+      toast.error(
+        err instanceof ApiError
+          ? err.message
+          : "Failed to load food supply details",
+      );
+    }
+  };
+
+  const refreshEditDetail = async (id: string) => {
+    const res = await foodSuppliesAdminApi.get(id);
+    setDialog((current) =>
+      current?.mode === "edit" && current.supply.id === id
+        ? { mode: "edit", supply: res.data }
+        : current,
+    );
+    return res.data;
+  };
+
   const handleFormSubmit = async (values: FoodSupplyFormValues) => {
     if (!dialog) return;
     setSaving(true);
@@ -120,12 +146,15 @@ export default function AdminFoodSuppliesPage() {
       if (dialog.mode === "create") {
         await foodSuppliesAdminApi.create(payload);
         toast.success("Food supply created");
+        setDialog(null);
+        void load();
       } else {
         await foodSuppliesAdminApi.update(dialog.supply.id, payload);
         toast.success("Food supply updated");
+        const refreshed = await refreshEditDetail(dialog.supply.id);
+        formRef.current?.reset(supplyToFormValues(refreshed));
+        void load();
       }
-      setDialog(null);
-      void load();
     } catch (err) {
       if (err instanceof ApiError && err.fields) {
         formRef.current?.applyServerErrors(err.fields);
@@ -234,9 +263,7 @@ export default function AdminFoodSuppliesPage() {
                           size="icon"
                           className="h-8 w-8"
                           aria-label="Edit food supply"
-                          onClick={() =>
-                            setDialog({ mode: "edit", supply })
-                          }
+                          onClick={() => void openEditDialog(supply)}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -287,18 +314,36 @@ export default function AdminFoodSuppliesPage() {
 
       <Dialog open={dialog !== null} onClose={closeDialog} className="max-w-lg">
         <DialogTitle>{dialogTitle}</DialogTitle>
-        {dialog && (
-          <FoodSupplyForm
-            key={
-              dialog.mode === "edit" ? `edit-${dialog.supply.id}` : "create"
-            }
-            ref={formRef}
-            defaultValues={formDefaultValues}
-            onSubmit={handleFormSubmit}
-            onCancel={closeDialog}
-            isLoading={saving}
-            submitLabel={dialog.mode === "edit" ? "Save changes" : "Add supply"}
-          />
+        {dialog?.mode === "edit" && dialog.loadingDetail ? (
+          <div className="space-y-3 py-2">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        ) : (
+          dialog && (
+            <>
+              <FoodSupplyForm
+                key={
+                  dialog.mode === "edit" ? `edit-${dialog.supply.id}` : "create"
+                }
+                ref={formRef}
+                defaultValues={formDefaultValues}
+                onSubmit={handleFormSubmit}
+                onCancel={closeDialog}
+                isLoading={saving}
+                submitLabel={
+                  dialog.mode === "edit" ? "Save changes" : "Add supply"
+                }
+              />
+              {dialog.mode === "edit" ? (
+                <FoodSupplyManualEditHistory
+                  history={dialog.supply.manual_edit_history}
+                  unit={dialog.supply.unit}
+                />
+              ) : null}
+            </>
+          )
         )}
       </Dialog>
 
