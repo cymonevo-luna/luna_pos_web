@@ -18,7 +18,8 @@
     "test:integration:production-requests-list": "RUN_INTEGRATION_TESTS=1 vitest run src/testing/production-requests-list.integration.test.ts",
     "test:integration:production-request-estimate": "RUN_INTEGRATION_TESTS=1 NEXT_PUBLIC_API_URL=http://localhost:8087 vitest run src/testing/production-request-estimate.integration.test.ts",
     "format": "prettier --write .",
-    "verify:pos-60-3-browser": "node scripts/verify-pos-60-3-browser.mjs"
+    "verify:pos-60-3-browser": "node scripts/verify-pos-60-3-browser.mjs",
+    "verify:pos-60-3-qa": "bash scripts/verify-pos-60-3-qa.sh"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

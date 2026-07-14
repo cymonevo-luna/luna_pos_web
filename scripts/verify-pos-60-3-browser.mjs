@@ -1,28 +1,57 @@
 #!/usr/bin/env node
 /**
- * Browser verification for POS-60-3 / POS-62-2: admin-only production request
- * detail is read-only with delete available.
+ * Browser verification for POS-60-3 / POS-62-2 / POS-63-2: admin-only production
+ * request detail is read-only with delete available.
+ *
+ * Live mode requires Next.js started with NEXT_PUBLIC_API_URL matching API_BASE
+ * (e.g. NEXT_PUBLIC_API_URL=http://localhost:8087 npm run dev).
  *
  * Environment:
  *   WEB_BASE              — Next.js app URL (default http://localhost:3000)
  *   NEXT_PUBLIC_API_URL   — API base URL (default http://localhost:8087)
  *   TEST_ADMIN_EMAIL      — admin login email (default admin-test@cymonevo.com)
  *   TEST_ADMIN_PASSWORD   — admin login password (default LunaTesting123!)
+ *   TEST_MANAGER_EMAIL    — manager login for fixture seeding
+ *   TEST_MANAGER_PASSWORD — manager password for fixture seeding
+ *   TEST_OPERATIONAL_EMAIL — operational login for ACCEPTED fixture seeding
+ *   TEST_OPERATIONAL_PASSWORD — operational password for ACCEPTED fixture seeding
  *   MOCK_API              — "0" / "false" / "no" for live stack; otherwise mocked (default)
  */
+import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const WEB_BASE = process.env.WEB_BASE ?? "http://localhost:3000";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8087";
 const ADMIN_EMAIL = process.env.TEST_ADMIN_EMAIL ?? "admin-test@cymonevo.com";
 const ADMIN_PASSWORD = process.env.TEST_ADMIN_PASSWORD ?? "LunaTesting123!";
+const MANAGER_EMAIL =
+  process.env.TEST_MANAGER_EMAIL ?? "manager-test@cymonevo.com";
+const MANAGER_PASSWORD =
+  process.env.TEST_MANAGER_PASSWORD ?? "LunaTesting123!";
+const OPERATIONAL_EMAIL =
+  process.env.TEST_OPERATIONAL_EMAIL ?? "operation-test@cymonevo.com";
+const OPERATIONAL_PASSWORD =
+  process.env.TEST_OPERATIONAL_PASSWORD ?? "LunaTesting123!";
 const MOCK_API = !["0", "false", "no"].includes(
   String(process.env.MOCK_API ?? "1").toLowerCase(),
 );
 
+const SEED_NOTES = "Rush order for POS-60-3 verification";
+const SEED_ACCEPTED_NOTES =
+  "POS-60-3 ACCEPTED fixture (seeded — do not delete in browser QA)";
+
 const REQUESTED_ID = "prod-verify-60-3-requested";
 const ACCEPTED_ID = "prod-verify-60-3-accepted";
 const ADMIN_USER_ID = "user-admin-verify-60-3";
+
+const API_UNREACHABLE_HINT =
+  "Start luna_pos_service with `make docker-up-d` in the sibling repo, set NEXT_PUBLIC_API_URL, " +
+  "and run seed script `scripts/seed-production-request-browser-qa.sh`.";
 
 const lineStockEstimation = {
   has_formula: true,
@@ -75,7 +104,7 @@ function buildProductionRequest(id, overrides = {}) {
     id,
     status,
     is_fully_producible: true,
-    notes: "Rush order for POS-60-3 verification",
+    notes: SEED_NOTES,
     created_by_username: "manager1",
     status_history: [
       {
@@ -142,6 +171,244 @@ function buildSummary(request) {
     created_at: request.created_at,
     updated_at: request.updated_at,
   };
+}
+
+async function assertApiReachable() {
+  try {
+    const res = await fetch(`${API_BASE}/healthz`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `API unreachable at ${API_BASE}/healthz (${detail}). ${API_UNREACHABLE_HINT}`,
+    );
+  }
+}
+
+async function apiLogin(email, password) {
+  const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) {
+    throw new Error(`Login failed for ${email}: HTTP ${res.status}`);
+  }
+  const body = await res.json();
+  const token = body?.data?.tokens?.access_token;
+  if (!token) {
+    throw new Error(`Login response missing access_token for ${email}`);
+  }
+  return token;
+}
+
+async function apiJson(path, token, options = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+  const text = await res.text();
+  let body = null;
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = text;
+    }
+  }
+  if (!res.ok) {
+    const message =
+      typeof body === "object" && body?.message
+        ? body.message
+        : `HTTP ${res.status}`;
+    throw new Error(`${options.method ?? "GET"} ${path} failed: ${message}`);
+  }
+  return body;
+}
+
+async function ensureMenus(token) {
+  const list = await apiJson("/api/admin/menus?page=1&per_page=10", token);
+  const menus = list?.data ?? [];
+  if (menus.length > 0) {
+    return menus;
+  }
+
+  const category = await apiJson("/api/admin/categories", token, {
+    method: "POST",
+    body: JSON.stringify({ name: "POS-60-3 QA" }),
+  });
+  const categoryId = category.data.id;
+
+  const menu = await apiJson("/api/admin/menus", token, {
+    method: "POST",
+    body: JSON.stringify({
+      title: "POS-60-3 QA Menu",
+      category_id: categoryId,
+      available_stock: 100,
+      sell_price: 15000,
+    }),
+  });
+
+  return [menu.data];
+}
+
+async function createProductionRequest(token, items, notes) {
+  const created = await apiJson("/api/admin/production-requests", token, {
+    method: "POST",
+    body: JSON.stringify({ items, notes }),
+  });
+  return created.data;
+}
+
+async function inlineSeedLiveFixtures() {
+  const managerToken = await apiLogin(MANAGER_EMAIL, MANAGER_PASSWORD);
+  const operationalToken = await apiLogin(
+    OPERATIONAL_EMAIL,
+    OPERATIONAL_PASSWORD,
+  );
+  const menus = await ensureMenus(managerToken);
+  const menuA = menus[0];
+  const menuB = menus[1] ?? menus[0];
+
+  const list = await apiJson(
+    "/api/admin/production-requests?page=1&per_page=50",
+    managerToken,
+  );
+  const rows = list?.data ?? [];
+
+  let requestedId = rows.find(
+    (row) => row.status === "REQUESTED" && row.id,
+  )?.id;
+  let acceptedId = rows.find((row) => row.status === "ACCEPTED")?.id;
+
+  if (!requestedId) {
+    const created = await createProductionRequest(
+      managerToken,
+      [{ menu_id: menuA.id, quantity: 2 }],
+      SEED_NOTES,
+    );
+    requestedId = created.id;
+  }
+
+  if (!acceptedId) {
+    const created = await createProductionRequest(
+      managerToken,
+      [
+        { menu_id: menuA.id, quantity: 10 },
+        { menu_id: menuB.id, quantity: 5 },
+      ],
+      SEED_ACCEPTED_NOTES,
+    );
+    const acceptedRequestId = created.id;
+
+    await apiJson(
+      `/api/admin/production-requests/${acceptedRequestId}/status`,
+      operationalToken,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ status: "ACCEPTED" }),
+      },
+    );
+
+    const detail = await apiJson(
+      `/api/admin/production-requests/${acceptedRequestId}`,
+      operationalToken,
+    );
+    const firstItem = detail?.data?.items?.[0];
+    if (firstItem?.id) {
+      await apiJson(
+        `/api/admin/production-requests/${acceptedRequestId}/items/${firstItem.id}`,
+        operationalToken,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ is_finished: true }),
+        },
+      );
+    }
+
+    acceptedId = acceptedRequestId;
+  }
+
+  return { requestedId, acceptedId };
+}
+
+function resolveSeedScript() {
+  const repoRoot = join(__dirname, "..");
+  const candidates = [
+    join(repoRoot, "../luna_pos_service/scripts/seed-production-request-browser-qa.sh"),
+    join(repoRoot, "luna_pos_service/scripts/seed-production-request-browser-qa.sh"),
+  ];
+  return candidates.find((path) => existsSync(path)) ?? null;
+}
+
+async function ensureAcceptedHasFinishedItem(acceptedId) {
+  const operationalToken = await apiLogin(
+    OPERATIONAL_EMAIL,
+    OPERATIONAL_PASSWORD,
+  );
+  const detail = await apiJson(
+    `/api/admin/production-requests/${acceptedId}`,
+    operationalToken,
+  );
+  const unfinished = detail?.data?.items?.find((item) => !item.is_finished);
+  if (!unfinished?.id) {
+    return;
+  }
+  await apiJson(
+    `/api/admin/production-requests/${acceptedId}/items/${unfinished.id}`,
+    operationalToken,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ is_finished: true }),
+    },
+  );
+}
+
+async function bootstrapLiveFixtures() {
+  const seedScript = resolveSeedScript();
+  if (seedScript) {
+    execFileSync("bash", [seedScript, API_BASE], { stdio: "inherit" });
+    const managerToken = await apiLogin(MANAGER_EMAIL, MANAGER_PASSWORD);
+    const list = await apiJson(
+      "/api/admin/production-requests?page=1&per_page=50",
+      managerToken,
+    );
+    const rows = list?.data ?? [];
+    const requestedId = rows.find((row) => row.status === "REQUESTED")?.id;
+    const acceptedId = rows.find((row) => row.status === "ACCEPTED")?.id;
+    if (!requestedId) {
+      throw new Error(
+        `Seed script ran but no REQUESTED production request found. ${API_UNREACHABLE_HINT}`,
+      );
+    }
+    if (acceptedId) {
+      await ensureAcceptedHasFinishedItem(acceptedId);
+    }
+    return { requestedId, acceptedId };
+  }
+
+  return inlineSeedLiveFixtures();
+}
+
+async function createDisposableRequestedRow() {
+  const managerToken = await apiLogin(MANAGER_EMAIL, MANAGER_PASSWORD);
+  const menus = await ensureMenus(managerToken);
+  const created = await createProductionRequest(
+    managerToken,
+    [{ menu_id: menus[0].id, quantity: 1 }],
+    "POS-60-3 disposable delete QA row",
+  );
+  return created.id;
 }
 
 async function installApiMocks(page, state) {
@@ -298,6 +565,27 @@ async function openRequestedDetailFromList(page) {
   });
 }
 
+async function assertAcceptedDetailReadOnly(page) {
+  if (await page.getByText("Production progress").count()) {
+    throw new Error("Production progress should be hidden for admin-only ACCEPTED");
+  }
+  if (await page.getByRole("button", { name: "Ready to pick" }).count()) {
+    throw new Error("Ready to pick should be hidden for admin-only ACCEPTED");
+  }
+  if (await page.getByRole("checkbox", { name: /Mark .+ finished/ }).count()) {
+    throw new Error("Mark finished checkbox should be hidden for admin-only ACCEPTED");
+  }
+  if (!(await page.getByText("Finished", { exact: true }).isVisible())) {
+    throw new Error("Finished badge should be visible for completed ACCEPTED items");
+  }
+  const deleteButton = page.getByRole("button", {
+    name: "Delete production request",
+  });
+  if (!(await deleteButton.isVisible())) {
+    throw new Error("Delete production request button not visible on ACCEPTED detail");
+  }
+}
+
 async function runMockedFlow(page, state) {
   await installApiMocks(page, state);
   await login(page);
@@ -316,7 +604,7 @@ async function runMockedFlow(page, state) {
   if (await page.getByRole("button", { name: "Save changes" }).count()) {
     throw new Error("Save changes should not be visible for admin-only REQUESTED");
   }
-  if (!(await page.getByText("Rush order for POS-60-3 verification").isVisible())) {
+  if (!(await page.getByText(SEED_NOTES).isVisible())) {
     throw new Error("Notes section should remain visible when notes are present");
   }
   console.log("PASS: Mocked admin-only REQUESTED detail is read-only");
@@ -332,18 +620,7 @@ async function runMockedFlow(page, state) {
   await page.getByRole("heading", { name: "Production request" }).waitFor({
     timeout: 15000,
   });
-  if (await page.getByText("Production progress").count()) {
-    throw new Error("Production progress should be hidden for admin-only ACCEPTED");
-  }
-  if (await page.getByRole("button", { name: "Ready to pick" }).count()) {
-    throw new Error("Ready to pick should be hidden for admin-only ACCEPTED");
-  }
-  if (await page.getByRole("checkbox", { name: "Mark Nasi Goreng finished" }).count()) {
-    throw new Error("Mark finished checkbox should be hidden for admin-only ACCEPTED");
-  }
-  if (!(await page.getByText("Finished", { exact: true }).isVisible())) {
-    throw new Error("Finished badge should be visible for completed ACCEPTED items");
-  }
+  await assertAcceptedDetailReadOnly(page);
   await assertMutationControlsAbsent(page);
   console.log("PASS: Mocked admin-only ACCEPTED detail is read-only");
 
@@ -384,22 +661,63 @@ async function runMockedFlow(page, state) {
   console.log("PASS: Mocked delete confirms and redirects");
 }
 
-async function runLiveFlow(page) {
+async function runLiveFlow(page, fixtures) {
+  // 1. Admin login
   await login(page);
-
-  await page.goto(`${WEB_BASE}/admin/production-requests`, {
-    waitUntil: "networkidle",
-  });
-  await page.waitForSelector("table tbody tr", { timeout: 15000 });
-  const rowCount = await page.locator("table tbody tr").count();
-  if (rowCount < 1) {
-    throw new Error("Live stack: production requests list has no rows");
+  if (page.url().includes("/admin/login")) {
+    throw new Error("Admin login did not redirect off /admin/login");
   }
+  console.log("PASS: Live admin login succeeds");
 
-  await page.locator("table tbody tr").first().click();
-  await page.waitForURL(/\/admin\/production-requests\/[^/]+$/, {
+  // 2. Navigate list to REQUESTED detail
+  await openRequestedDetailFromList(page);
+  console.log("PASS: Live admin navigates list to detail");
+
+  // 3. REQUESTED detail read-only for admin
+  if (await page.getByText("Edit request").count()) {
+    throw new Error("Edit request should not be visible for admin-only REQUESTED");
+  }
+  if (await page.getByRole("button", { name: "Approve to ACCEPTED" }).count()) {
+    throw new Error("Approve control should not be visible for admin-only REQUESTED");
+  }
+  if (await page.getByRole("button", { name: "Save changes" }).count()) {
+    throw new Error("Save changes should not be visible for admin-only REQUESTED");
+  }
+  const notesLocator = page.getByText(SEED_NOTES);
+  if (await notesLocator.count()) {
+    if (!(await notesLocator.first().isVisible())) {
+      throw new Error("Seeded notes should be visible on REQUESTED detail");
+    }
+  }
+  await assertMutationControlsAbsent(page);
+  const requestedDeleteButton = page.getByRole("button", {
+    name: "Delete production request",
+  });
+  if (!(await requestedDeleteButton.isVisible())) {
+    throw new Error("Delete production request button not visible on REQUESTED detail");
+  }
+  console.log("PASS: Live REQUESTED detail is read-only for admin");
+
+  // 4. ACCEPTED detail hides operational controls
+  if (!fixtures.acceptedId) {
+    throw new Error("Live fixtures missing ACCEPTED production request");
+  }
+  await page.goto(
+    `${WEB_BASE}/admin/production-requests/${fixtures.acceptedId}`,
+    { waitUntil: "networkidle" },
+  );
+  await page.getByRole("heading", { name: "Production request" }).waitFor({
     timeout: 15000,
   });
+  await assertAcceptedDetailReadOnly(page);
+  console.log("PASS: Live ACCEPTED detail hides operational controls");
+
+  // 5. Disposable delete flow
+  const disposableId = await createDisposableRequestedRow();
+  await page.goto(
+    `${WEB_BASE}/admin/production-requests/${disposableId}`,
+    { waitUntil: "networkidle" },
+  );
   await page.getByRole("heading", { name: "Production request" }).waitFor({
     timeout: 15000,
   });
@@ -408,11 +726,34 @@ async function runLiveFlow(page) {
     name: "Delete production request",
   });
   if (!(await deleteButton.isVisible())) {
-    throw new Error("Live stack: delete button not visible for admin-only user");
+    throw new Error("Delete production request button not visible on disposable REQUESTED");
   }
 
-  await assertMutationControlsAbsent(page);
-  console.log("PASS: Live local stack browser verification");
+  await deleteButton.click();
+  const dialog = page.getByRole("dialog");
+  await dialog.waitFor({ timeout: 10000 });
+  const dialogText = await dialog.innerText();
+  if (!/cannot be undone/i.test(dialogText)) {
+    throw new Error("Delete dialog missing cannot-be-undone messaging");
+  }
+
+  await dialog.getByRole("button", { name: "Delete", exact: true }).click();
+  await page.waitForURL(/\/admin\/production-requests$/, { timeout: 15000 });
+  await page.getByText("Production request deleted").waitFor({ timeout: 10000 });
+
+  const adminToken = await apiLogin(ADMIN_EMAIL, ADMIN_PASSWORD);
+  const deletedCheck = await fetch(
+    `${API_BASE}/api/admin/production-requests/${disposableId}`,
+    {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      signal: AbortSignal.timeout(10000),
+    },
+  );
+  if (deletedCheck.ok) {
+    throw new Error("Deleted production request still exists in API");
+  }
+
+  console.log("PASS: Live delete dialog and confirm flow");
 }
 
 async function main() {
@@ -425,17 +766,24 @@ async function main() {
     deleteCalls: [],
   };
 
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
-
+  let fixtures = null;
   if (MOCK_API) {
     console.log(`Running mocked browser verification (API_BASE=${API_BASE})`);
-    await runMockedFlow(page, state);
   } else {
     console.log(
       `Running live browser verification (WEB_BASE=${WEB_BASE}, API_BASE=${API_BASE})`,
     );
-    await runLiveFlow(page);
+    await assertApiReachable();
+    fixtures = await bootstrapLiveFixtures();
+  }
+
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+
+  if (MOCK_API) {
+    await runMockedFlow(page, state);
+  } else {
+    await runLiveFlow(page, fixtures);
   }
 
   await browser.close();
