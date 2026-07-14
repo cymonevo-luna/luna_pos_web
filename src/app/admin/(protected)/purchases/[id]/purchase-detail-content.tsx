@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Camera, MessageCircle, Upload } from "lucide-react";
 import {
   purchaseRequestsAdminApi,
@@ -24,6 +25,7 @@ import {
   formatSupplierUnitPrice,
   menuPhotoUrl,
 } from "@/lib/utils";
+import { useRoles } from "@/lib/auth/use-roles";
 import { toast } from "sonner";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -130,10 +132,15 @@ function statusHistoryPhotoAltText(toStatus: string) {
 }
 
 export function AdminPurchaseDetailContent({ id }: { id: string }) {
+  const router = useRouter();
+  const { hasRole } = useRoles();
+  const isAdmin = hasRole("admin");
   const [purchase, setPurchase] = useState<PurchaseRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [advancingStatus, setAdvancingStatus] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [statusActionError, setStatusActionError] = useState<string | null>(
     null,
   );
@@ -296,6 +303,22 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
     window.open(url, "_blank");
   };
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await purchaseRequestsAdminApi.delete(id);
+      toast.success("Purchase request deleted");
+      router.push("/admin/purchases");
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : "Failed to delete purchase request";
+      toast.error(message);
+      setDeleting(false);
+    }
+  };
+
   const nextStatus = purchase ? getNextStatus(purchase.status) : null;
   const statusActionLabel = purchase
     ? STATUS_ACTION_LABELS[purchase.status]
@@ -339,6 +362,16 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              {isAdmin && !advancingStatus ? (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  aria-label="Delete purchase"
+                >
+                  Delete purchase
+                </Button>
+              ) : null}
               {purchase.supplier_contact_info ? (
                 <span title={whatsAppPhone ? undefined : "No WhatsApp number in contact info"}>
                   <Button
@@ -552,6 +585,41 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
               </table>
             </div>
           </Card>
+
+          <Dialog
+            open={deleteDialogOpen}
+            onClose={() => {
+              if (!deleting) setDeleteDialogOpen(false);
+            }}
+          >
+            <DialogTitle>Delete purchase</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this purchase request? This action
+              cannot be undone.
+              {purchase.status === "DELIVERED"
+                ? " Inventory stock added by this delivery will be reversed."
+                : " If this purchase was delivered, inventory stock will be reversed."}
+            </DialogDescription>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDeleteDialogOpen(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => void handleDelete()}
+                isLoading={deleting}
+                disabled={deleting}
+              >
+                Delete
+              </Button>
+            </DialogFooter>
+          </Dialog>
 
           <Dialog open={photoModalOpen} onClose={resetPhotoModal}>
             <DialogTitle>{photoPrompt?.modalTitle ?? "Upload photo"}</DialogTitle>

@@ -7,12 +7,24 @@ import { uploadPurchasePhoto } from "@/lib/api/uploads";
 import { ApiError } from "@/lib/api/client";
 import type { PurchaseRequest } from "@/lib/api/types";
 import { config } from "@/lib/config";
+import { useRoles } from "@/lib/auth/use-roles";
 import { toast } from "sonner";
+
+const mockPush = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
+
+vi.mock("@/lib/auth/use-roles", () => ({
+  useRoles: vi.fn(),
+}));
 
 vi.mock("@/lib/api/purchase-requests", () => ({
   purchaseRequestsAdminApi: {
     get: vi.fn(),
     updateStatus: vi.fn(),
+    delete: vi.fn(),
   },
 }));
 
@@ -84,9 +96,26 @@ const purchase: PurchaseRequest = {
   updated_at: "2026-01-01T00:00:00Z",
 };
 
+function mockAdminRoles() {
+  vi.mocked(useRoles).mockReturnValue({
+    roles: ["admin"],
+    hasRole: (role) => role === "admin",
+    hasAnyRole: (roles) => roles.includes("admin"),
+  });
+}
+
+function mockOperationalRoles() {
+  vi.mocked(useRoles).mockReturnValue({
+    roles: ["operational"],
+    hasRole: () => false,
+    hasAnyRole: (roles) => roles.includes("operational"),
+  });
+}
+
 describe("AdminPurchaseDetailContent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAdminRoles();
     vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({ data: purchase });
   });
 
@@ -550,5 +579,77 @@ describe("AdminPurchaseDetailContent", () => {
     render(<AdminPurchaseDetailContent id="pr-1" />);
 
     expect(await screen.findByText("No status history yet")).toBeInTheDocument();
+  });
+
+  it("shows Delete purchase button for admin users", async () => {
+    render(<AdminPurchaseDetailContent id="pr-1" />);
+
+    expect(
+      await screen.findByRole("button", { name: "Delete purchase" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides Delete purchase button for operational users but keeps status actions", async () => {
+    mockOperationalRoles();
+
+    render(<AdminPurchaseDetailContent id="pr-1" />);
+
+    await screen.findByText("Beras Supplier");
+
+    expect(
+      screen.queryByRole("button", { name: "Delete purchase" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Mark as Requested" }),
+    ).toBeInTheDocument();
+  });
+
+  it("redirects to purchases list after successful delete confirmation", async () => {
+    const user = userEvent.setup();
+    vi.mocked(purchaseRequestsAdminApi.delete).mockResolvedValue({
+      data: undefined,
+    });
+
+    render(<AdminPurchaseDetailContent id="pr-1" />);
+    await screen.findByText("Beras Supplier");
+
+    await user.click(screen.getByRole("button", { name: "Delete purchase" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Delete purchase")).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/inventory stock will be reversed/i),
+    ).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(purchaseRequestsAdminApi.delete).toHaveBeenCalledWith("pr-1");
+      expect(toast.success).toHaveBeenCalledWith("Purchase request deleted");
+      expect(mockPush).toHaveBeenCalledWith("/admin/purchases");
+    });
+  });
+
+  it("shows error toast and stays on detail page when delete fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(purchaseRequestsAdminApi.delete).mockRejectedValue(
+      new ApiError(403, "forbidden", "Not allowed to delete purchase requests"),
+    );
+
+    render(<AdminPurchaseDetailContent id="pr-1" />);
+    await screen.findByText("Beras Supplier");
+
+    await user.click(screen.getByRole("button", { name: "Delete purchase" }));
+
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "Not allowed to delete purchase requests",
+      );
+    });
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(screen.getByText("Beras Supplier")).toBeInTheDocument();
   });
 });

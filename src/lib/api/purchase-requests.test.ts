@@ -296,6 +296,31 @@ describe("purchaseRequestsAdminApi", () => {
     expect(fetchMock).toHaveBeenCalled();
   });
 
+  it("calls DELETE on the correct endpoint for delete", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async (input, init) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+
+        if (
+          method === "DELETE" &&
+          url.endsWith("/api/admin/purchase-requests/pr-1")
+        ) {
+          return new Response(null, { status: 204 });
+        }
+        return jsonResponse({ success: false }, 404);
+      },
+    );
+
+    await purchaseRequestsAdminApi.delete("pr-1");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/purchase-requests/pr-1",
+    );
+    expect(init?.method).toBe("DELETE");
+  });
+
   it("normalizes string amounts from list API", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({

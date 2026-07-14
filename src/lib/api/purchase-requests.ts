@@ -167,6 +167,9 @@ export const purchaseRequestsAdminApi = {
     );
     return normalizeItemResult(result);
   },
+
+  delete: (id: string) =>
+    api.delete<void>(`/api/admin/purchase-requests/${id}`),
 };
 
 export interface UpdatePurchaseStatusPayload {
