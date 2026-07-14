@@ -60,6 +60,9 @@ export const transactionsAdminApi = {
 
   get: (id: string) => api.get<Transaction>(`/api/admin/transactions/${id}`),
 
+  delete: (id: string) =>
+    api.delete<void>(`/api/admin/transactions/${id}`),
+
   summary: ({ period, dateFrom = "", dateTo = "" }: SummaryTransactionsParams) => {
     const params = new URLSearchParams({ period });
     if (dateFrom) params.set("date_from", dateInputToIso(dateFrom, false));
