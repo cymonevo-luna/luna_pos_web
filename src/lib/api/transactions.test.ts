@@ -124,4 +124,16 @@ describe("transactionsAdminApi", () => {
     );
     expect(got.data).toEqual(summary);
   });
+
+  it("issues DELETE to /api/admin/transactions/{id}", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, { status: 204 }),
+    );
+
+    await transactionsAdminApi.delete("txn-1");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://localhost:8080/api/admin/transactions/txn-1");
+    expect(init?.method).toBe("DELETE");
+  });
 });
