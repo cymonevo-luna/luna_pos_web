@@ -1,22 +1,23 @@
 #!/usr/bin/env node
 /**
- * Browser verification for POS-60-3 / POS-62-2 / POS-63-2: admin-only production
- * request detail is read-only with delete available.
+ * Browser verification for POS-60-3 / POS-62-2 / POS-63-2 / POS-70-1: admin-only
+ * production request detail is read-only with delete available.
  *
  * Live mode requires Next.js started with NEXT_PUBLIC_API_URL matching API_BASE
  * (e.g. NEXT_PUBLIC_API_URL=http://localhost:8087 npm run dev).
  *
- * Environment:
- *   WEB_BASE              — Next.js app URL (default http://localhost:3000)
- *   NEXT_PUBLIC_API_URL   — API base URL (default http://localhost:8087)
- *   TEST_ADMIN_EMAIL      — admin login email (default admin-test@cymonevo.com)
- *   TEST_ADMIN_PASSWORD   — admin login password (default LunaTesting123!)
- *   TEST_MANAGER_EMAIL    — manager login for fixture seeding
- *   TEST_MANAGER_PASSWORD — manager password for fixture seeding
- *   TEST_OPERATIONAL_EMAIL — operational login for ACCEPTED fixture seeding
- *   TEST_OPERATIONAL_PASSWORD — operational password for ACCEPTED fixture seeding
- *   MOCK_API              — "0" / "false" / "no" for live stack; otherwise mocked (default)
- *   LIVE_DELETE           — "1" / "true" for full live delete E2E; otherwise lighter smoke (default 0)
+ * Environment contract:
+ * | Variable | Default | Purpose |
+ * |---|---|---|
+ * | WEB_BASE | http://localhost:3000 | Next.js app URL |
+ * | NEXT_PUBLIC_API_URL | http://localhost:8087 | API base (API_BASE in script) |
+ * | TEST_ADMIN_EMAIL | admin-test@cymonevo.com | Admin login |
+ * | TEST_ADMIN_PASSWORD | LunaTesting123! | Admin password |
+ * | TEST_MANAGER_EMAIL / TEST_MANAGER_PASSWORD | manager-test defaults | Fixture seeding |
+ * | TEST_OPERATIONAL_EMAIL / TEST_OPERATIONAL_PASSWORD | operation-test defaults | ACCEPTED fixture seeding (mocked only) |
+ * | MOCK_API | 1 (mocked) | Set 0/false/no for live stack |
+ * | LIVE_DELETE | 0 | Set 1/true/yes for full live delete E2E |
+ * | LUNA_POS_SERVICE_DIR | ../luna_pos_service | Resolve sibling service seed scripts |
  */
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -344,19 +345,40 @@ async function inlineSeedLiveFixtures() {
   return { requestedId, acceptedId };
 }
 
+function resolveServiceDirs() {
+  const repoRoot = join(__dirname, "..");
+  const dirs = [];
+  if (process.env.LUNA_POS_SERVICE_DIR) {
+    dirs.push(process.env.LUNA_POS_SERVICE_DIR);
+  }
+  dirs.push(
+    join(repoRoot, "..", "luna_pos_service"),
+    join(repoRoot, "luna_pos_service"),
+  );
+  return [...new Set(dirs.map((dir) => dir.replace(/\/$/, "")))];
+}
+
 function resolveSeedScript() {
-  const serviceDir =
-    process.env.LUNA_POS_SERVICE_DIR ??
-    join(__dirname, "..", "..", "luna_pos_service");
-  const candidates = [
-    join(serviceDir, "scripts/seed-production-request-delete-qa.sh"),
-    join(serviceDir, "scripts/seed-production-request-browser-qa.sh"),
-    join(__dirname, "..", "../luna_pos_service/scripts/seed-production-request-delete-qa.sh"),
-    join(__dirname, "..", "../luna_pos_service/scripts/seed-production-request-browser-qa.sh"),
-    join(__dirname, "..", "luna_pos_service/scripts/seed-production-request-delete-qa.sh"),
-    join(__dirname, "..", "luna_pos_service/scripts/seed-production-request-browser-qa.sh"),
-  ];
-  return candidates.find((path) => existsSync(path)) ?? null;
+  const dirs = resolveServiceDirs();
+  for (const dir of dirs) {
+    const deleteScript = join(
+      dir,
+      "scripts/seed-production-request-delete-qa.sh",
+    );
+    if (existsSync(deleteScript)) {
+      return deleteScript;
+    }
+  }
+  for (const dir of dirs) {
+    const browserScript = join(
+      dir,
+      "scripts/seed-production-request-browser-qa.sh",
+    );
+    if (existsSync(browserScript)) {
+      return browserScript;
+    }
+  }
+  return null;
 }
 
 async function listProductionRequests(token) {

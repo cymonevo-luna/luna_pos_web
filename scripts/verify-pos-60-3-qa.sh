@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# POS-64-2 live-stack QA orchestration for POS-60-3 browser verification.
+# POS-70-1 live-stack QA orchestration for POS-60-3 browser verification.
 #
 # Brings up luna_pos_service (when Docker is available), seeds disposable REQUESTED
 # rows, starts or detects the Next.js dev server, and runs mocked + live browser checks.
@@ -19,12 +19,27 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
 REPO_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
+resolve_luna_pos_service_dir() {
+	local candidate
+	for candidate in \
+		"${LUNA_POS_SERVICE_DIR:-}" \
+		"$REPO_DIR/../luna_pos_service" \
+		"$REPO_DIR/luna_pos_service"; do
+		if [ -n "$candidate" ] && [ -d "$candidate" ]; then
+			printf '%s' "$candidate"
+			return 0
+		fi
+	done
+	printf '%s' "$REPO_DIR/../luna_pos_service"
+}
+
 API_URL="${NEXT_PUBLIC_API_URL:-http://localhost:8087}"
 WEB_BASE="${WEB_BASE:-http://localhost:3000}"
-LUNA_POS_SERVICE_DIR="${LUNA_POS_SERVICE_DIR:-$REPO_DIR/../luna_pos_service}"
+LUNA_POS_SERVICE_DIR="$(resolve_luna_pos_service_dir)"
 
 DEV_PID=""
 STARTED_DEV=0
+API_PAUSE_METHOD=""
 
 declare -A RESULTS
 declare -A NOTES
@@ -45,6 +60,8 @@ fail() {
 
 cleanup() {
 	if [ "$STARTED_DEV" -eq 1 ] && [ -n "$DEV_PID" ]; then
+		kill -- -"$DEV_PID" 2>/dev/null || true
+		pkill -P "$DEV_PID" 2>/dev/null || true
 		kill "$DEV_PID" 2>/dev/null || true
 		wait "$DEV_PID" 2>/dev/null || true
 	fi
@@ -108,7 +125,7 @@ mark_live_pass_from_log() {
 	fi
 }
 
-echo "== POS-60-3 / POS-64-2 QA verification =="
+echo "== POS-60-3 / POS-70-1 QA verification =="
 echo "API_URL=$API_URL"
 echo "WEB_BASE=$WEB_BASE"
 echo "LUNA_POS_SERVICE_DIR=$LUNA_POS_SERVICE_DIR"
@@ -232,7 +249,7 @@ if web_healthy; then
 	pass "web_readiness" "dev server already running at $WEB_BASE"
 else
 	echo "   Starting dev server with NEXT_PUBLIC_API_URL=$API_URL"
-	NEXT_PUBLIC_API_URL="$API_URL" npm run dev >/tmp/pos-60-3-dev.log 2>&1 &
+	setsid env NEXT_PUBLIC_API_URL="$API_URL" npm run dev >/tmp/pos-60-3-dev.log 2>&1 &
 	DEV_PID=$!
 	STARTED_DEV=1
 	WEB_READY=0
@@ -258,18 +275,44 @@ pause_live_api() {
 	if ! api_healthy; then
 		return 1
 	fi
+
+	local native_pid_file="${TMPDIR:-/tmp}/luna_pos_service-qa-api.pid"
+	if [ -f "$native_pid_file" ]; then
+		local native_pid
+		native_pid="$(cat "$native_pid_file" 2>/dev/null || true)"
+		if [ -n "$native_pid" ] && kill -0 "$native_pid" 2>/dev/null; then
+			echo "   Pausing native QA API (pid ${native_pid}) for mocked regression"
+			kill "$native_pid" 2>/dev/null || true
+			wait "$native_pid" 2>/dev/null || true
+			rm -f "$native_pid_file"
+			sleep 1
+			if ! api_healthy; then
+				API_PAUSE_METHOD="native"
+				return 0
+			fi
+		fi
+	fi
+
 	if pgrep -f "/tmp/luna-api" >/dev/null 2>&1; then
+		echo "   Pausing /tmp/luna-api for mocked regression"
 		pkill -f "/tmp/luna-api" 2>/dev/null || true
 		sleep 1
-		return 0
+		if ! api_healthy; then
+			API_PAUSE_METHOD="legacy"
+			return 0
+		fi
 	fi
-	if command -v docker >/dev/null 2>&1 && [ -f "$LUNA_POS_SERVICE_DIR/docker-compose.yml" ]; then
+
+	if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1 \
+		&& [ -f "$LUNA_POS_SERVICE_DIR/docker-compose.yml" ]; then
+		echo "   Pausing Docker API container for mocked regression"
 		(
 			cd "$LUNA_POS_SERVICE_DIR"
 			docker compose stop api 2>/dev/null || docker-compose stop api 2>/dev/null || true
 		)
 		sleep 2
 		if ! api_healthy; then
+			API_PAUSE_METHOD="docker"
 			return 0
 		fi
 	fi
@@ -280,25 +323,39 @@ resume_live_api() {
 	if api_healthy; then
 		return 0
 	fi
-	if [ -x /tmp/luna-api ]; then
-		tmux -f /exec-daemon/tmux.portal.conf has-session -t "=luna-api" 2>/dev/null || \
-			tmux -f /exec-daemon/tmux.portal.conf new-session -d -s "luna-api" -c "$LUNA_POS_SERVICE_DIR" -- "${SHELL:-bash}" -l
-		tmux -f /exec-daemon/tmux.portal.conf send-keys -t "luna-api:0.0" \
-			'APP_ENV=development HTTP_PORT=8087 DB_DRIVER=postgres DB_URI="postgres://postgres@127.0.0.1:5437/luna_pos_service?sslmode=disable" CACHE_DRIVER=redis QUEUE_DRIVER=redis REDIS_ADDR=127.0.0.1:6387 RATE_LIMIT_ENABLED=false CORS_ALLOWED_ORIGINS="http://localhost:3000" UPLOAD_PUBLIC_BASE_URL="http://localhost:8087" MIGRATIONS_PATH="file:///workspace/luna_pos_service/migrations" /tmp/luna-api' C-m
-		for _ in $(seq 1 20); do
-			if api_healthy; then
-				return 0
+
+	case "$API_PAUSE_METHOD" in
+		native)
+			if [ -x "$LUNA_POS_SERVICE_DIR/scripts/qa-api-up.sh" ]; then
+				echo "   Resuming native QA API via qa-api-up.sh"
+				QA_API_SKIP_DOCKER=1 DB_URI="${DB_URI:-postgres://postgres:postgres@127.0.0.1:5432/luna_pos_service?sslmode=disable}" \
+					"$LUNA_POS_SERVICE_DIR/scripts/qa-api-up.sh" >/tmp/pos-60-3-api-resume.log 2>&1 || true
 			fi
-			sleep 1
-		done
-	fi
-	if [ -x "$LUNA_POS_SERVICE_DIR/scripts/docker-wait-healthy.sh" ] && [ -d "$LUNA_POS_SERVICE_DIR" ]; then
-		(
-			cd "$LUNA_POS_SERVICE_DIR"
-			make docker-up-d 2>/dev/null || docker compose up -d api 2>/dev/null || true
-			"$LUNA_POS_SERVICE_DIR/scripts/docker-wait-healthy.sh" 2>/dev/null || true
-		) >/tmp/pos-60-3-docker-resume.log 2>&1 || true
-	fi
+			;;
+		legacy)
+			if [ -x /tmp/luna-api ]; then
+				tmux -f /exec-daemon/tmux.portal.conf has-session -t "=luna-api" 2>/dev/null || \
+					tmux -f /exec-daemon/tmux.portal.conf new-session -d -s "luna-api" -c "$LUNA_POS_SERVICE_DIR" -- "${SHELL:-bash}" -l
+				tmux -f /exec-daemon/tmux.portal.conf send-keys -t "luna-api:0.0" \
+					'APP_ENV=development HTTP_PORT=8087 DB_DRIVER=postgres DB_URI="postgres://postgres@127.0.0.1:5437/luna_pos_service?sslmode=disable" CACHE_DRIVER=redis QUEUE_DRIVER=redis REDIS_ADDR=127.0.0.1:6387 RATE_LIMIT_ENABLED=false CORS_ALLOWED_ORIGINS="http://localhost:3000" UPLOAD_PUBLIC_BASE_URL="http://localhost:8087" MIGRATIONS_PATH="file:///workspace/luna_pos_service/migrations" /tmp/luna-api' C-m
+				for _ in $(seq 1 20); do
+					if api_healthy; then
+						return 0
+					fi
+					sleep 1
+				done
+			fi
+			;;
+		docker)
+			if [ -x "$LUNA_POS_SERVICE_DIR/scripts/docker-wait-healthy.sh" ] && [ -d "$LUNA_POS_SERVICE_DIR" ]; then
+				(
+					cd "$LUNA_POS_SERVICE_DIR"
+					make docker-up-d 2>/dev/null || docker compose up -d api 2>/dev/null || true
+					"$LUNA_POS_SERVICE_DIR/scripts/docker-wait-healthy.sh" 2>/dev/null || true
+				) >/tmp/pos-60-3-docker-resume.log 2>&1 || true
+			fi
+			;;
+	esac
 	api_healthy
 }
 
@@ -313,7 +370,7 @@ if web_healthy; then
 		if [ "$PASS_COUNT" -ge 6 ]; then
 			pass "mocked_browser" "${PASS_COUNT} mocked PASS lines + exit 0"
 		else
-			pass "mocked_browser" "mocked browser script exit 0 ($PASS_COUNT PASS lines)"
+			fail "mocked_browser" "expected >=6 PASS lines, got ${PASS_COUNT} — see /tmp/pos-60-3-mocked-browser.log"
 		fi
 	else
 		fail "mocked_browser" "see /tmp/pos-60-3-mocked-browser.log"
