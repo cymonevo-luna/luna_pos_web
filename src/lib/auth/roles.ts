@@ -65,6 +65,7 @@ type AdminRouteRule = {
 /** Per-route RBAC aligned with backend scopes. Longest-prefix wins. */
 const ADMIN_ROUTE_RULES: AdminRouteRule[] = [
   { prefix: "/admin/users", roles: ["admin"] as const },
+  { prefix: "/admin/staff", roles: ["admin"] as const },
   { prefix: "/admin/food-supplies", roles: ["manager", "operational"] as const },
   { prefix: "/admin/branch-assets", roles: ["manager"] as const },
   { prefix: "/admin/categories", roles: ["manager"] as const },

@@ -3,6 +3,7 @@
 import {
   LayoutDashboard,
   Users,
+  UserCog,
   Package,
   Box,
   Truck,
@@ -32,6 +33,7 @@ import type { MerchantRole } from "@/lib/api/types";
 const allNavItems: NavItem[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/users", label: "Users", icon: Users, roles: ["admin"] },
+  { href: "/admin/staff", label: "Staff", icon: UserCog, roles: ["admin"] },
   { href: "/admin/food-supplies", label: "Food Supplies", icon: Package, roles: ["manager", "operational"] },
   { href: "/admin/branch-assets", label: "Branch Assets", icon: Box, roles: ["manager"] },
   { href: "/admin/categories", label: "Categories", icon: Tags, roles: ["manager"] },
