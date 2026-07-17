@@ -8,9 +8,13 @@ import { parseStockQuantity } from "./food-supplies";
 
 /** Wire format from the Go backend (`decimal.Decimal` marshals as JSON string). */
 interface MenuIngredientRaw
-  extends Omit<MenuIngredient, "quantity_per_unit" | "food_supply_stock_quantity"> {
+  extends Omit<
+    MenuIngredient,
+    "quantity_per_unit" | "food_supply_stock_quantity" | "entry_quantity"
+  > {
   quantity_per_unit: number | string;
   food_supply_stock_quantity: number | string;
+  entry_quantity?: number | string;
 }
 
 interface FormulaResponseRaw extends Omit<FormulaResponse, "ingredients"> {
@@ -18,11 +22,16 @@ interface FormulaResponseRaw extends Omit<FormulaResponse, "ingredients"> {
 }
 
 function normalizeMenuIngredient(raw: MenuIngredientRaw): MenuIngredient {
-  return {
-    ...raw,
+  const { entry_quantity: rawEntryQuantity, ...rest } = raw;
+  const ingredient: MenuIngredient = {
+    ...rest,
     quantity_per_unit: parseStockQuantity(raw.quantity_per_unit),
     food_supply_stock_quantity: parseStockQuantity(raw.food_supply_stock_quantity),
   };
+  if (rawEntryQuantity != null) {
+    ingredient.entry_quantity = parseStockQuantity(rawEntryQuantity);
+  }
+  return ingredient;
 }
 
 function normalizeFormulaResponse(raw: FormulaResponseRaw): FormulaResponse {

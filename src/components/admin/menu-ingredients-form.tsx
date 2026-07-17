@@ -8,24 +8,38 @@ import {
   getMenuIngredients,
   replaceMenuIngredients,
 } from "@/lib/api/menu-ingredients";
+import { foodSuppliesAdminApi } from "@/lib/api/food-supplies";
 import { ApiError } from "@/lib/api/client";
-import type { FoodSupply, MenuIngredient } from "@/lib/api/types";
+import type { CookingMeasurement, FoodSupply, MenuIngredient } from "@/lib/api/types";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FoodSupplyPicker } from "@/components/admin/food-supply-picker";
 import {
   MenuFormulaIngredientQuantityHelp,
   MenuFormulaPerPortionPreview,
 } from "@/components/admin/menu-formula-ingredient-quantity";
+import {
+  BASE_UNIT_SELECTION,
+  buildUnitOptions,
+  computeBaseQuantityHint,
+  getIngredientDisplayQuantity,
+  getIngredientUnitSelection,
+  getSelectedUnitLabel,
+  hasCookingUnitOptions,
+} from "@/lib/menu-ingredient-units";
 import { MENU_COGS_DEFAULTS } from "@/lib/menu-cogs";
+import { getUnitLabel } from "@/lib/units";
 
 interface IngredientRowState {
   key: string;
   food_supply_id: string;
-  quantity_per_unit: string;
+  quantity: string;
+  unit_selection: string;
+  cooking_measurements: CookingMeasurement[];
   supply: Pick<FoodSupply, "id" | "title" | "unit" | "stock_quantity"> | null;
 }
 
@@ -45,7 +59,9 @@ function ingredientToRow(ingredient: MenuIngredient): IngredientRowState {
   return {
     key: createRowKey(),
     food_supply_id: ingredient.food_supply_id,
-    quantity_per_unit: String(ingredient.quantity_per_unit),
+    quantity: getIngredientDisplayQuantity(ingredient),
+    unit_selection: getIngredientUnitSelection(ingredient),
+    cooking_measurements: [],
     supply: {
       id: ingredient.food_supply_id,
       title: ingredient.food_supply_title,
@@ -59,7 +75,9 @@ function createBlankRow(): IngredientRowState {
   return {
     key: createRowKey(),
     food_supply_id: "",
-    quantity_per_unit: "",
+    quantity: "",
+    unit_selection: BASE_UNIT_SELECTION,
+    cooking_measurements: [],
     supply: null,
   };
 }
@@ -83,7 +101,7 @@ function validateRows(rows: IngredientRowState[]) {
       errors.food_supply_id = "Select a food supply";
     }
 
-    const quantity = parsePositiveQuantity(row.quantity_per_unit);
+    const quantity = parsePositiveQuantity(row.quantity);
     if (quantity === null) {
       errors.quantity_per_unit = "Enter a quantity greater than 0";
     }
@@ -126,10 +144,16 @@ function mapServerFieldErrors(
       const property = match[2];
       const row = rows[index];
       if (!row) continue;
-      if (property === "food_supply_id" || property === "quantity_per_unit") {
+      if (
+        property === "food_supply_id" ||
+        property === "quantity_per_unit" ||
+        property === "cooking_measurement_id"
+      ) {
+        const mappedProperty =
+          property === "cooking_measurement_id" ? "quantity_per_unit" : property;
         rowErrors[row.key] = {
           ...rowErrors[row.key],
-          [property]: message,
+          [mappedProperty]: message,
         };
       }
       continue;
@@ -144,6 +168,27 @@ function mapServerFieldErrors(
   }
 
   return { rowErrors, generalError };
+}
+
+function rowToPayload(row: IngredientRowState) {
+  const quantity = parsePositiveQuantity(row.quantity) as number;
+  if (row.unit_selection === BASE_UNIT_SELECTION) {
+    return {
+      food_supply_id: row.food_supply_id,
+      quantity_per_unit: quantity,
+    };
+  }
+
+  return {
+    food_supply_id: row.food_supply_id,
+    quantity_per_unit: quantity,
+    cooking_measurement_id: row.unit_selection,
+  };
+}
+
+async function loadCookingMeasurementsForSupply(supplyId: string) {
+  const result = await foodSuppliesAdminApi.get(supplyId);
+  return result.data.cooking_measurements;
 }
 
 export interface MenuIngredientsFormProps {
@@ -164,6 +209,36 @@ export function MenuIngredientsForm({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const hydrateRowCookingMeasurements = useCallback(
+    async (rowKey: string, supplyId: string, fallback?: CookingMeasurement[]) => {
+      if (fallback && fallback.length > 0) {
+        setRows((current) =>
+          current.map((row) =>
+            row.key === rowKey && row.food_supply_id === supplyId
+              ? { ...row, cooking_measurements: fallback }
+              : row,
+          ),
+        );
+      }
+
+      try {
+        const measurements = await loadCookingMeasurementsForSupply(supplyId);
+        setRows((current) =>
+          current.map((row) =>
+            row.key === rowKey && row.food_supply_id === supplyId
+              ? { ...row, cooking_measurements: measurements }
+              : row,
+          ),
+        );
+      } catch {
+        if (!fallback?.length) {
+          return;
+        }
+      }
+    },
+    [],
+  );
+
   const loadIngredients = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
@@ -176,6 +251,17 @@ export function MenuIngredientsForm({
       setRows(nextRows);
       setRowErrors({});
       setGeneralError(null);
+
+      const uniqueSupplyIds = [
+        ...new Set(nextRows.map((row) => row.food_supply_id).filter(Boolean)),
+      ];
+      await Promise.all(
+        uniqueSupplyIds.map(async (supplyId) => {
+          const row = nextRows.find((item) => item.food_supply_id === supplyId);
+          if (!row) return;
+          await hydrateRowCookingMeasurements(row.key, supplyId);
+        }),
+      );
     } catch (err) {
       setLoadError(
         err instanceof ApiError
@@ -185,7 +271,7 @@ export function MenuIngredientsForm({
     } finally {
       setLoading(false);
     }
-  }, [menuId]);
+  }, [hydrateRowCookingMeasurements, menuId]);
 
   useEffect(() => {
     void loadIngredients();
@@ -220,6 +306,25 @@ export function MenuIngredientsForm({
     setGeneralError(null);
   };
 
+  const handleSupplyChange = (rowKey: string, supply: FoodSupply) => {
+    updateRow(rowKey, {
+      food_supply_id: supply.id,
+      unit_selection: BASE_UNIT_SELECTION,
+      cooking_measurements: supply.cooking_measurements,
+      supply: {
+        id: supply.id,
+        title: supply.title,
+        unit: supply.unit,
+        stock_quantity: supply.stock_quantity,
+      },
+    });
+    void hydrateRowCookingMeasurements(
+      rowKey,
+      supply.id,
+      supply.cooking_measurements,
+    );
+  };
+
   const handleSave = async () => {
     const nextErrors = validateRows(rows);
     if (Object.keys(nextErrors).length > 0) {
@@ -231,10 +336,7 @@ export function MenuIngredientsForm({
     setSaving(true);
     setGeneralError(null);
     try {
-      const payload = rows.map((row) => ({
-        food_supply_id: row.food_supply_id,
-        quantity_per_unit: parsePositiveQuantity(row.quantity_per_unit) as number,
-      }));
+      const payload = rows.map(rowToPayload);
       const result = await replaceMenuIngredients(menuId, payload);
       const nextRows =
         result.data.ingredients.length > 0
@@ -242,6 +344,18 @@ export function MenuIngredientsForm({
           : [];
       setRows(nextRows);
       setRowErrors({});
+
+      const uniqueSupplyIds = [
+        ...new Set(nextRows.map((row) => row.food_supply_id).filter(Boolean)),
+      ];
+      await Promise.all(
+        uniqueSupplyIds.map(async (supplyId) => {
+          const row = nextRows.find((item) => item.food_supply_id === supplyId);
+          if (!row) return;
+          await hydrateRowCookingMeasurements(row.key, supplyId);
+        }),
+      );
+
       toast.success("Ingredients saved");
     } catch (err) {
       if (err instanceof ApiError && err.fields) {
@@ -297,82 +411,123 @@ export function MenuIngredientsForm({
             </p>
           ) : (
             <div className="space-y-3">
-              {rows.map((row, index) => (
-                <div
-                  key={row.key}
-                  className="grid gap-3 rounded-xl border border-border p-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_auto]"
-                >
-                  <FoodSupplyPicker
-                    id={`ingredient-supply-${row.key}`}
-                    label={`Ingredient ${index + 1}`}
-                    value={row.food_supply_id}
-                    selectedSupply={row.supply}
-                    excludeIds={selectedSupplyIds}
-                    disabled={disabled || saving}
-                    error={rowErrors[row.key]?.food_supply_id}
-                    onChange={(supply) =>
-                      updateRow(row.key, {
-                        food_supply_id: supply.id,
-                        supply: {
-                          id: supply.id,
-                          title: supply.title,
-                          unit: supply.unit,
-                          stock_quantity: supply.stock_quantity,
-                        },
-                      })
-                    }
-                  />
+              {rows.map((row, index) => {
+                const baseUnit = row.supply?.unit;
+                const unitOptions =
+                  baseUnit && hasCookingUnitOptions(row.cooking_measurements)
+                    ? buildUnitOptions(baseUnit, row.cooking_measurements)
+                    : [];
+                const selectedUnitLabel =
+                  baseUnit != null
+                    ? getSelectedUnitLabel(
+                        row.unit_selection,
+                        baseUnit,
+                        row.cooking_measurements,
+                      )
+                    : "—";
+                const parsedQuantity = Number(row.quantity);
+                const baseQuantityHint =
+                  baseUnit != null &&
+                  Number.isFinite(parsedQuantity) &&
+                  parsedQuantity > 0
+                    ? computeBaseQuantityHint(
+                        parsedQuantity,
+                        row.unit_selection,
+                        row.cooking_measurements,
+                        baseUnit,
+                      )
+                    : null;
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor={`ingredient-quantity-${row.key}`}>
-                      Quantity per unit
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id={`ingredient-quantity-${row.key}`}
-                        type="number"
-                        step="any"
-                        min="0"
-                        inputMode="decimal"
-                        value={row.quantity_per_unit}
-                        disabled={disabled || saving}
-                        onChange={(event) =>
-                          updateRow(row.key, {
-                            quantity_per_unit: event.target.value,
-                          })
-                        }
-                      />
-                      <span className="text-muted-foreground min-w-12 text-sm">
-                        {row.supply?.unit ?? "—"}
-                      </span>
-                    </div>
-                    {rowErrors[row.key]?.quantity_per_unit && (
-                      <p className="text-destructive text-sm">
-                        {rowErrors[row.key]?.quantity_per_unit}
-                      </p>
-                    )}
-                    <MenuFormulaPerPortionPreview
-                      quantity={Number(row.quantity_per_unit)}
-                      unit={row.supply?.unit ?? "—"}
-                      recipeYield={recipeYield}
-                    />
-                  </div>
-
-                  <div className="flex items-end justify-end">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive h-11 w-11"
-                      aria-label={`Remove ingredient ${index + 1}`}
+                return (
+                  <div
+                    key={row.key}
+                    className="grid gap-3 rounded-xl border border-border p-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto]"
+                  >
+                    <FoodSupplyPicker
+                      id={`ingredient-supply-${row.key}`}
+                      label={`Ingredient ${index + 1}`}
+                      value={row.food_supply_id}
+                      selectedSupply={row.supply}
+                      excludeIds={selectedSupplyIds}
                       disabled={disabled || saving}
-                      onClick={() => handleRemoveRow(row.key)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      error={rowErrors[row.key]?.food_supply_id}
+                      onChange={(supply) => handleSupplyChange(row.key, supply)}
+                    />
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`ingredient-quantity-${row.key}`}>
+                        Quantity per unit
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id={`ingredient-quantity-${row.key}`}
+                          type="number"
+                          step="any"
+                          min="0"
+                          inputMode="decimal"
+                          value={row.quantity}
+                          disabled={disabled || saving}
+                          onChange={(event) =>
+                            updateRow(row.key, {
+                              quantity: event.target.value,
+                            })
+                          }
+                        />
+                        {unitOptions.length > 0 ? (
+                          <Select
+                            aria-label={`Unit for ingredient ${index + 1}`}
+                            className="min-w-28"
+                            value={row.unit_selection}
+                            disabled={disabled || saving}
+                            options={unitOptions}
+                            onChange={(event) =>
+                              updateRow(row.key, {
+                                unit_selection: event.target.value,
+                              })
+                            }
+                          />
+                        ) : (
+                          <span className="text-muted-foreground min-w-12 text-sm">
+                            {baseUnit ? getUnitLabel(baseUnit) : "—"}
+                          </span>
+                        )}
+                      </div>
+                      {baseQuantityHint && (
+                        <p
+                          className="text-muted-foreground text-xs"
+                          data-testid={`base-quantity-hint-${row.key}`}
+                        >
+                          {baseQuantityHint}
+                        </p>
+                      )}
+                      {rowErrors[row.key]?.quantity_per_unit && (
+                        <p className="text-destructive text-sm">
+                          {rowErrors[row.key]?.quantity_per_unit}
+                        </p>
+                      )}
+                      <MenuFormulaPerPortionPreview
+                        quantity={parsedQuantity}
+                        unit={selectedUnitLabel}
+                        recipeYield={recipeYield}
+                      />
+                    </div>
+
+                    <div className="flex items-end justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive h-11 w-11"
+                        aria-label={`Remove ingredient ${index + 1}`}
+                        disabled={disabled || saving}
+                        onClick={() => handleRemoveRow(row.key)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
