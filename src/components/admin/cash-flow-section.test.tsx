@@ -139,4 +139,112 @@ describe("CashFlowSection", () => {
       expect(toast.error).toHaveBeenCalledWith("Server error");
     });
   });
+
+  describe("POS-79-6 expense outflow reflection", () => {
+    const baseInflow = 2_000_000;
+    const baseOutflow = 500_000;
+    const expenseAmount = 100_000;
+
+    function summaryWithOutflow(outflowAmount: number) {
+      return {
+        period: "daily" as const,
+        totals: {
+          inflow_amount: baseInflow,
+          inflow_count: 15,
+          outflow_amount: outflowAmount,
+          outflow_count: 3,
+          net_amount: baseInflow - outflowAmount,
+        },
+        buckets: [
+          {
+            period_start: "2026-07-17T00:00:00Z",
+            period_label: "Jul 17",
+            inflow_amount: baseInflow,
+            outflow_amount: outflowAmount,
+            net_amount: baseInflow - outflowAmount,
+          },
+        ],
+        inflow_by_method: [
+          { method: "CASH", total_amount: 1_200_000, count: 10 },
+          { method: "QRIS", total_amount: 800_000, count: 5 },
+        ],
+      };
+    }
+
+    it("renders backend outflow totals that include expenses", async () => {
+      const outflowWithExpense = baseOutflow + expenseAmount;
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          success: true,
+          data: summaryWithOutflow(outflowWithExpense),
+        }),
+      );
+
+      render(<CashFlowSection />);
+
+      expect(await screen.findByText("Rp 2.000.000")).toBeInTheDocument();
+      expect(screen.getAllByText("Rp 600.000").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Rp 1.400.000").length).toBeGreaterThan(0);
+    });
+
+    it("keeps inflow unchanged when only outflow increases after an expense", async () => {
+      const outflowWithExpense = baseOutflow + expenseAmount;
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          success: true,
+          data: summaryWithOutflow(outflowWithExpense),
+        }),
+      );
+
+      render(<CashFlowSection />);
+
+      await screen.findByText("Total inflow");
+      expect(screen.getByText("Rp 2.000.000")).toBeInTheDocument();
+      expect(screen.getByText("CASH")).toBeInTheDocument();
+      expect(screen.getByText("QRIS")).toBeInTheDocument();
+      expect(screen.getAllByText("Rp 600.000").length).toBeGreaterThan(0);
+    });
+
+    it("refetches and shows higher outflow after date range change", async () => {
+      const user = userEvent.setup();
+      let outflowAmount = baseOutflow;
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+        Promise.resolve(
+          jsonResponse({
+            success: true,
+            data: summaryWithOutflow(outflowAmount),
+          }),
+        ),
+      );
+
+      render(<CashFlowSection />);
+      await screen.findByText("Rp 500.000");
+
+      outflowAmount = baseOutflow + expenseAmount;
+      await user.clear(screen.getByLabelText("Cash flow date from"));
+      await user.type(screen.getByLabelText("Cash flow date from"), "2026-07-17");
+
+      await waitFor(() => {
+        expect(fetchMock.mock.calls.length).toBeGreaterThan(1);
+        expect(screen.getAllByText("Rp 600.000").length).toBeGreaterThan(0);
+        expect(screen.getAllByText("Rp 1.400.000").length).toBeGreaterThan(0);
+      });
+    });
+
+    it("renders bucket chart from buckets[].outflow_amount without hard-coded sources", async () => {
+      const outflowWithExpense = baseOutflow + expenseAmount;
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          success: true,
+          data: summaryWithOutflow(outflowWithExpense),
+        }),
+      );
+
+      render(<CashFlowSection />);
+
+      expect(await screen.findByTestId("cash-flow-chart")).toBeInTheDocument();
+      expect(screen.queryByText(/purchase request/i)).not.toBeInTheDocument();
+      expect(screen.getByText("Inflows, outflows, and net cash movement")).toBeInTheDocument();
+    });
+  });
 });
