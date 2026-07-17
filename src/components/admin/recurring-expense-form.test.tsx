@@ -115,4 +115,31 @@ describe("RecurringExpenseForm", () => {
 
     expect(screen.getByLabelText("Active")).toBeInTheDocument();
   });
+
+  it("renders read-only state without submit button when readOnly is true", () => {
+    render(
+      <RecurringExpenseForm
+        onSubmit={() => {}}
+        onCancel={() => {}}
+        readOnly
+        defaultValues={{
+          title: "Alice salary",
+          amount: 5_000_000,
+          is_active: true,
+          recurring: {
+            interval: "DATE",
+            value: 1,
+            time: { hour: 9, minute: 0, second: 0 },
+          },
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("recurring-expense-readonly-notice"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Title")).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+  });
 });

@@ -21,8 +21,21 @@ export function normalizeRecurringExpense(
   return {
     ...raw,
     amount: parseNumeric(raw.amount),
+    staff_id: raw.staff_id ?? null,
   };
 }
+
+export function isStaffManagedRecurringExpense(
+  expense: Pick<RecurringExpense, "staff_id">,
+): boolean {
+  return expense.staff_id != null && expense.staff_id !== "";
+}
+
+export const STAFF_MANAGED_RECURRING_EXPENSE_MESSAGE =
+  "This recurring expense is managed via Staff salary and cannot be edited or deleted here.";
+
+export const STAFF_MANAGED_RECURRING_EXPENSE_TOOLTIP =
+  "Managed via Staff salary; view only. Salary is configured on the staff record (admin only).";
 
 function normalizeListResult(
   result: ApiResult<RecurringExpenseRaw[]>,

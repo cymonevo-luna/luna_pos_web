@@ -11,8 +11,11 @@ import {
 } from "lucide-react";
 import {
   formatRecurringScheduleSummary,
+  isStaffManagedRecurringExpense,
   recurringExpensesAdminApi,
   recurringExpenseFormToPayload,
+  STAFF_MANAGED_RECURRING_EXPENSE_MESSAGE,
+  STAFF_MANAGED_RECURRING_EXPENSE_TOOLTIP,
 } from "@/lib/api/recurring-expenses";
 import { ApiError } from "@/lib/api/client";
 import type { RecurringExpense } from "@/lib/api/types";
@@ -116,11 +119,15 @@ export default function AdminRecurringExpensesPage() {
       setPendingDelete(null);
       void load();
     } catch (err) {
-      toast.error(
-        err instanceof ApiError
-          ? err.message
-          : "Failed to delete recurring expense",
-      );
+      if (err instanceof ApiError && err.status === 409) {
+        toast.error(STAFF_MANAGED_RECURRING_EXPENSE_MESSAGE);
+      } else {
+        toast.error(
+          err instanceof ApiError
+            ? err.message
+            : "Failed to delete recurring expense",
+        );
+      }
     } finally {
       setDeleting(false);
     }
@@ -149,11 +156,15 @@ export default function AdminRecurringExpensesPage() {
       if (err instanceof ApiError && err.fields) {
         formRef.current?.applyServerErrors(err.fields);
       }
-      toast.error(
-        err instanceof ApiError
-          ? err.message
-          : "Failed to save recurring expense",
-      );
+      if (err instanceof ApiError && err.status === 409) {
+        toast.error(STAFF_MANAGED_RECURRING_EXPENSE_MESSAGE);
+      } else {
+        toast.error(
+          err instanceof ApiError
+            ? err.message
+            : "Failed to save recurring expense",
+        );
+      }
     } finally {
       setSaving(false);
     }
@@ -170,6 +181,10 @@ export default function AdminRecurringExpensesPage() {
     dialog?.mode === "edit"
       ? expenseToFormValues(dialog.expense)
       : undefined;
+
+  const editingStaffManagedExpense =
+    dialog?.mode === "edit" &&
+    isStaffManagedRecurringExpense(dialog.expense);
 
   return (
     <div className="space-y-6" data-testid="recurring-expenses-page">
@@ -238,12 +253,28 @@ export default function AdminRecurringExpensesPage() {
                   </td>
                 </tr>
               ) : (
-                expenses.map((expense) => (
+                expenses.map((expense) => {
+                  const staffManaged = isStaffManagedRecurringExpense(expense);
+
+                  return (
                   <tr
                     key={expense.id}
                     className="border-b border-border last:border-0 hover:bg-muted/30"
                   >
-                    <td className="px-4 py-3 font-medium">{expense.title}</td>
+                    <td className="px-4 py-3 font-medium">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{expense.title}</span>
+                        {staffManaged && (
+                          <Badge
+                            variant="outline"
+                            title={STAFF_MANAGED_RECURRING_EXPENSE_TOOLTIP}
+                            data-testid="staff-salary-badge"
+                          >
+                            Staff salary
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       {formatRupiah(expense.amount)}
                     </td>
@@ -263,6 +294,11 @@ export default function AdminRecurringExpensesPage() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
+                      {staffManaged ? (
+                        <span className="text-muted-foreground text-xs">
+                          View only
+                        </span>
+                      ) : (
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
@@ -285,9 +321,11 @@ export default function AdminRecurringExpensesPage() {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
+                      )}
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -335,6 +373,7 @@ export default function AdminRecurringExpensesPage() {
             onCancel={closeDialog}
             isLoading={saving}
             showIsActive={dialog.mode === "edit"}
+            readOnly={editingStaffManagedExpense}
             submitLabel={
               dialog.mode === "edit" ? "Save changes" : "Create"
             }

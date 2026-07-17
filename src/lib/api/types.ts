@@ -136,6 +136,8 @@ export interface RecurringExpense {
   is_active: boolean;
   recurring: RecurringExpenseSchedule;
   next_run_at?: string | null;
+  /** Set when this expense is auto-managed from a staff salary record. */
+  staff_id?: string | null;
   created_at: string;
   updated_at: string;
 }
