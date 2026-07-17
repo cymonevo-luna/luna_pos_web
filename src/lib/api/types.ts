@@ -91,6 +91,12 @@ export interface FoodSupplyManualEditHistoryEntry {
   created_at: string;
 }
 
+export interface CookingMeasurement {
+  id: string;
+  name: string;
+  conversion_quantity: string;
+}
+
 export interface FoodSupply {
   id: string;
   title: string;
@@ -100,6 +106,7 @@ export interface FoodSupply {
   created_at: string;
   updated_at: string;
   manual_edit_history: FoodSupplyManualEditHistoryEntry[];
+  cooking_measurements: CookingMeasurement[];
 }
 
 export interface BranchAsset {

@@ -42,7 +42,17 @@ function supplyToFormValues(supply: FoodSupply): Partial<FoodSupplyFormValues> {
     description: supply.description ?? "",
     stock_quantity: supply.stock_quantity,
     unit: supply.unit,
+    cooking_measurements: supply.cooking_measurements.map((measurement) => ({
+      id: measurement.id,
+      name: measurement.name,
+      conversion_quantity: measurement.conversion_quantity,
+    })),
   };
+}
+
+function formatCookingMeasurementCount(count: number) {
+  if (count === 0) return null;
+  return `${count} cooking measurement${count === 1 ? "" : "s"}`;
 }
 
 export default function AdminFoodSuppliesPage() {
@@ -246,7 +256,18 @@ export default function AdminFoodSuppliesPage() {
                     key={supply.id}
                     className="border-b border-border last:border-0 hover:bg-muted/30"
                   >
-                    <td className="px-4 py-3 font-medium">{supply.title}</td>
+                    <td className="px-4 py-3 font-medium">
+                      <div>{supply.title}</div>
+                      {formatCookingMeasurementCount(
+                        supply.cooking_measurements.length,
+                      ) ? (
+                        <p className="text-xs font-normal text-muted-foreground">
+                          {formatCookingMeasurementCount(
+                            supply.cooking_measurements.length,
+                          )}
+                        </p>
+                      ) : null}
+                    </td>
                     <td className="max-w-xs px-4 py-3 text-muted-foreground">
                       {displayDescription(supply.description)}
                     </td>
@@ -312,7 +333,7 @@ export default function AdminFoodSuppliesPage() {
         </div>
       </div>
 
-      <Dialog open={dialog !== null} onClose={closeDialog} className="max-w-lg">
+      <Dialog open={dialog !== null} onClose={closeDialog} className="max-w-2xl">
         <DialogTitle>{dialogTitle}</DialogTitle>
         {dialog?.mode === "edit" && dialog.loadingDetail ? (
           <div className="space-y-3 py-2">

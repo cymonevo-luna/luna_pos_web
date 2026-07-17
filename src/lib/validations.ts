@@ -64,24 +64,76 @@ export const merchantRegisterSchema = z
 
 export type MerchantRegisterValues = z.infer<typeof merchantRegisterSchema>;
 
-export const foodSupplySchema = z.object({
-  title: z
+export const cookingMeasurementSchema = z.object({
+  id: z.string().optional(),
+  name: z
     .string()
-    .min(2, "Title must be at least 2 characters")
-    .max(200, "Title is too long"),
-  description: z
+    .trim()
+    .min(1, "Name is required")
+    .max(100, "Name is too long"),
+  conversion_quantity: z
     .string()
-    .max(2000, "Description is too long")
-    .optional()
-    .or(z.literal("")),
-  stock_quantity: z
-    .number({ error: "Stock quantity is required" })
-    .min(0, "Stock quantity cannot be negative"),
-  unit: z.enum(["ml", "piece", "gr"], {
-    error: "Select a valid unit",
-  }),
+    .trim()
+    .min(1, "Conversion is required")
+    .refine((value) => {
+      const n = Number(value);
+      return Number.isFinite(n) && n > 0;
+    }, "Conversion must be greater than 0"),
 });
 
+export const foodSupplySchema = z
+  .object({
+    title: z
+      .string()
+      .min(2, "Title must be at least 2 characters")
+      .max(200, "Title is too long"),
+    description: z
+      .string()
+      .max(2000, "Description is too long")
+      .optional()
+      .or(z.literal("")),
+    stock_quantity: z
+      .number({ error: "Stock quantity is required" })
+      .min(0, "Stock quantity cannot be negative"),
+    unit: z.enum(["ml", "piece", "gr"], {
+      error: "Select a valid unit",
+    }),
+    cooking_measurements: z.array(cookingMeasurementSchema),
+  })
+  .superRefine((data, ctx) => {
+    const seen = new Map<string, number>();
+    data.cooking_measurements.forEach((measurement, index) => {
+      const normalized = measurement.name.trim().toLowerCase();
+      if (!normalized) return;
+      const firstIndex = seen.get(normalized);
+      if (firstIndex !== undefined) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Measurement name must be unique",
+          path: ["cooking_measurements", index, "name"],
+        });
+        const alreadyFlaggedFirst = ctx.issues.some(
+          (issue) =>
+            issue.path?.[0] === "cooking_measurements" &&
+            issue.path?.[1] === firstIndex &&
+            issue.path?.[2] === "name",
+        );
+        if (!alreadyFlaggedFirst) {
+          ctx.addIssue({
+            code: "custom",
+            message: "Measurement name must be unique",
+            path: ["cooking_measurements", firstIndex, "name"],
+          });
+        }
+      } else {
+        seen.set(normalized, index);
+      }
+    });
+  });
+
+export type CookingMeasurementFormValues = z.infer<
+  typeof cookingMeasurementSchema
+>;
 export type FoodSupplyFormValues = z.infer<typeof foodSupplySchema>;
 
 export const branchAssetSchema = z.object({
