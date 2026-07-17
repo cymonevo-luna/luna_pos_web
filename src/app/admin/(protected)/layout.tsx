@@ -17,6 +17,7 @@ import {
   Printer,
   TrendingUp,
   Repeat,
+  ListOrdered,
   Wallet,
 } from "lucide-react";
 import {
@@ -46,6 +47,7 @@ const allNavItems: NavItem[] = [
   { href: "/admin/expenses", label: "Expenses", icon: Wallet, roles: ["manager", "operational"] },
   { href: "/admin/recurring-expenses", label: "Recurring Expenses", icon: Repeat, roles: ["manager", "operational"] },
   { href: "/admin/store-settings", label: "Receipt Settings", icon: Printer, roles: ["manager"] },
+  { href: "/admin/order-options", label: "Order Options", icon: ListOrdered, roles: ["manager"] },
   { href: "/admin/suppliers", label: "Suppliers", icon: Truck, roles: ["operational"] },
   { href: "/admin/purchases", label: "Purchases", icon: ShoppingCart, roles: ["operational"] },
   { href: "/admin/production-requests", label: "Production", icon: ChefHat, roles: ["admin", "manager", "operational"] },

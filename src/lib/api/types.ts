@@ -197,6 +197,15 @@ export interface Category {
   updated_at: string;
 }
 
+export interface OrderOption {
+  id: string;
+  name: string;
+  priority: number;
+  ingredient_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Menu {
   id: string;
   title: string;

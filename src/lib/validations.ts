@@ -387,6 +387,16 @@ export const categorySchema = z.object({
 
 export type CategoryFormValues = z.infer<typeof categorySchema>;
 
+export const orderOptionSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name is too long"),
+});
+
+export type OrderOptionFormValues = z.infer<typeof orderOptionSchema>;
+
 export const menuBasicSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(200, "Title is too long"),
   description: z

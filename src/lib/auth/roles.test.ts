@@ -78,11 +78,13 @@ describe("canAccessRoute", () => {
     expect(canAccessRoute("/admin/cogs", ["operational"])).toBe(false);
     expect(canAccessRoute("/admin/menus", ["operational"])).toBe(false);
     expect(canAccessRoute("/admin/cash-flow", ["operational"])).toBe(false);
+    expect(canAccessRoute("/admin/order-options", ["operational"])).toBe(false);
   });
 
   it("allows manager users on manager routes", () => {
     expect(canAccessRoute("/admin/cogs", ["manager"])).toBe(true);
     expect(canAccessRoute("/admin/cash-flow", ["manager"])).toBe(true);
+    expect(canAccessRoute("/admin/order-options", ["manager"])).toBe(true);
     expect(canAccessRoute("/admin/menus/menu-1/ingredients", ["manager"])).toBe(
       true,
     );
