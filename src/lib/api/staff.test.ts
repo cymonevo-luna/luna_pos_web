@@ -176,6 +176,35 @@ describe("normalizeStaff", () => {
     });
     expect(normalized.salary_amount).toBe(5000000);
   });
+
+  it("passes through recurring_expense_id", () => {
+    const normalized = normalizeStaff({
+      id: "staff-1",
+      name: "Budi Santoso",
+      nik: "3201010101010001",
+      address: "Jl. Merdeka No. 10",
+      job_title: "Cashier",
+      salary_amount: 5000000,
+      recurring_expense_id: "recurring-expense-1",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+    expect(normalized.recurring_expense_id).toBe("recurring-expense-1");
+  });
+
+  it("normalizes missing recurring_expense_id to null", () => {
+    const normalized = normalizeStaff({
+      id: "staff-1",
+      name: "Budi Santoso",
+      nik: "3201010101010001",
+      address: "Jl. Merdeka No. 10",
+      job_title: "Cashier",
+      salary_amount: 5000000,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+    expect(normalized.recurring_expense_id).toBeNull();
+  });
 });
 
 describe("staffAdminApi", () => {

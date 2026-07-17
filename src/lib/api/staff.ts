@@ -12,6 +12,7 @@ export function normalizeStaff(raw: StaffRaw): Staff {
   return {
     ...raw,
     salary_amount: parseNumeric(raw.salary_amount),
+    recurring_expense_id: raw.recurring_expense_id ?? null,
   };
 }
 
