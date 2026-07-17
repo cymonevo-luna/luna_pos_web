@@ -68,6 +68,8 @@ export interface RecurringExpenseFormProps {
   isLoading?: boolean;
   submitLabel?: string;
   showIsActive?: boolean;
+  /** When true, all fields are disabled and submit is hidden (staff-managed records). */
+  readOnly?: boolean;
 }
 
 export interface RecurringExpenseFormHandle {
@@ -86,10 +88,12 @@ export const RecurringExpenseForm = React.forwardRef<
     isLoading = false,
     submitLabel = "Save",
     showIsActive = false,
+    readOnly = false,
   },
   ref,
 ) {
   const initialValuesRef = useRef(buildDefaultValues(defaultValues));
+  const fieldsDisabled = readOnly || isLoading;
 
   const {
     register,
@@ -153,11 +157,21 @@ export const RecurringExpenseForm = React.forwardRef<
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+      {readOnly && (
+        <p
+          className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground"
+          data-testid="recurring-expense-readonly-notice"
+        >
+          This recurring expense is managed via Staff salary and is read-only
+          here.
+        </p>
+      )}
       <div className="space-y-1.5">
         <Label htmlFor="recurring-expense-title">Title</Label>
         <Input
           id="recurring-expense-title"
           autoComplete="off"
+          disabled={fieldsDisabled}
           {...register("title")}
         />
         {errors.title && (
@@ -173,6 +187,7 @@ export const RecurringExpenseForm = React.forwardRef<
         <Textarea
           id="recurring-expense-description"
           rows={3}
+          disabled={fieldsDisabled}
           {...register("description")}
         />
         {errors.description && (
@@ -190,6 +205,7 @@ export const RecurringExpenseForm = React.forwardRef<
           step="1"
           min="1"
           inputMode="numeric"
+          disabled={fieldsDisabled}
           onKeyDown={blockDecimalInput}
           {...register("amount", { valueAsNumber: true })}
         />
@@ -203,6 +219,7 @@ export const RecurringExpenseForm = React.forwardRef<
         <Select
           id="recurring-expense-interval"
           options={INTERVAL_OPTIONS}
+          disabled={fieldsDisabled}
           {...register("recurring.interval")}
         />
         {errors.recurring?.interval && (
@@ -222,6 +239,7 @@ export const RecurringExpenseForm = React.forwardRef<
             max="31"
             step="1"
             inputMode="numeric"
+            disabled={fieldsDisabled}
             onKeyDown={blockDecimalInput}
             {...register("recurring.value", { valueAsNumber: true })}
           />
@@ -243,6 +261,7 @@ export const RecurringExpenseForm = React.forwardRef<
             id="recurring-expense-weekday"
             placeholder="Select weekday"
             options={WEEKDAY_OPTIONS}
+            disabled={fieldsDisabled}
             {...register("recurring.value", {
               setValueAs: (value) => {
                 if (value === "" || value === null || value === undefined) {
@@ -271,6 +290,7 @@ export const RecurringExpenseForm = React.forwardRef<
             max="23"
             step="1"
             inputMode="numeric"
+            disabled={fieldsDisabled}
             onKeyDown={blockDecimalInput}
             {...register("recurring.time.hour", { valueAsNumber: true })}
           />
@@ -290,6 +310,7 @@ export const RecurringExpenseForm = React.forwardRef<
             max="59"
             step="1"
             inputMode="numeric"
+            disabled={fieldsDisabled}
             onKeyDown={blockDecimalInput}
             {...register("recurring.time.minute", { valueAsNumber: true })}
           />
@@ -309,6 +330,7 @@ export const RecurringExpenseForm = React.forwardRef<
             max="59"
             step="1"
             inputMode="numeric"
+            disabled={fieldsDisabled}
             onKeyDown={blockDecimalInput}
             {...register("recurring.time.second", { valueAsNumber: true })}
           />
@@ -326,6 +348,7 @@ export const RecurringExpenseForm = React.forwardRef<
             id="recurring-expense-is-active"
             type="checkbox"
             className="border-input h-4 w-4 rounded border"
+            disabled={fieldsDisabled}
             {...register("is_active")}
           />
           <Label htmlFor="recurring-expense-is-active">Active</Label>
@@ -342,11 +365,13 @@ export const RecurringExpenseForm = React.forwardRef<
           onClick={onCancel}
           disabled={isLoading}
         >
-          Cancel
+          {readOnly ? "Close" : "Cancel"}
         </Button>
-        <Button type="submit" isLoading={isLoading}>
-          {submitLabel}
-        </Button>
+        {!readOnly && (
+          <Button type="submit" isLoading={isLoading}>
+            {submitLabel}
+          </Button>
+        )}
       </div>
     </form>
   );

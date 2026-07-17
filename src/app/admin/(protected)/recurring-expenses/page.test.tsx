@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import AdminRecurringExpensesPage from "./page";
-import { recurringExpensesAdminApi } from "@/lib/api/recurring-expenses";
+import {
+  recurringExpensesAdminApi,
+  STAFF_MANAGED_RECURRING_EXPENSE_MESSAGE,
+} from "@/lib/api/recurring-expenses";
 import { ApiError } from "@/lib/api/client";
 import type { RecurringExpense } from "@/lib/api/types";
 import { formatRupiah } from "@/lib/utils";
@@ -12,42 +15,46 @@ vi.mock("next/navigation", () => ({
   usePathname: vi.fn(() => "/admin/recurring-expenses"),
 }));
 
-vi.mock("@/lib/api/recurring-expenses", () => ({
-  recurringExpensesAdminApi: {
-    list: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-  },
-  recurringExpenseFormToPayload: vi.fn((values) => ({
-    title: values.title.trim(),
-    amount: values.amount,
-    is_active: values.is_active,
-    recurring: {
-      interval: values.recurring.interval,
-      time: values.recurring.time,
-      ...(values.recurring.interval !== "DAILY" &&
-      values.recurring.value != null
-        ? { value: values.recurring.value }
-        : {}),
+vi.mock("@/lib/api/recurring-expenses", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api/recurring-expenses")>();
+  return {
+    ...actual,
+    recurringExpensesAdminApi: {
+      list: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
     },
-    ...(values.description?.trim()
-      ? { description: values.description.trim() }
-      : {}),
-  })),
-  formatRecurringScheduleSummary: vi.fn((recurring) => {
-    const time = [
-      recurring.time.hour,
-      recurring.time.minute,
-      recurring.time.second,
-    ]
-      .map((part: number) => String(part).padStart(2, "0"))
-      .join(":");
-    if (recurring.interval === "DAILY") return `Every day at ${time}`;
-    if (recurring.interval === "DAY") return `Every Mon at ${time}`;
-    return `Day ${recurring.value} of month at ${time}`;
-  }),
-}));
+    recurringExpenseFormToPayload: vi.fn((values) => ({
+      title: values.title.trim(),
+      amount: values.amount,
+      is_active: values.is_active,
+      recurring: {
+        interval: values.recurring.interval,
+        time: values.recurring.time,
+        ...(values.recurring.interval !== "DAILY" &&
+        values.recurring.value != null
+          ? { value: values.recurring.value }
+          : {}),
+      },
+      ...(values.description?.trim()
+        ? { description: values.description.trim() }
+        : {}),
+    })),
+    formatRecurringScheduleSummary: vi.fn((recurring) => {
+      const time = [
+        recurring.time.hour,
+        recurring.time.minute,
+        recurring.time.second,
+      ]
+        .map((part: number) => String(part).padStart(2, "0"))
+        .join(":");
+      if (recurring.interval === "DAILY") return `Every day at ${time}`;
+      if (recurring.interval === "DAY") return `Every Mon at ${time}`;
+      return `Day ${recurring.value} of month at ${time}`;
+    }),
+  };
+});
 
 vi.mock("sonner", () => ({
   toast: {
@@ -70,6 +77,13 @@ const expense: RecurringExpense = {
   next_run_at: "2026-07-21T09:00:00Z",
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-15T00:00:00Z",
+};
+
+const staffManagedExpense: RecurringExpense = {
+  ...expense,
+  id: "re-staff-1",
+  title: "Alice salary",
+  staff_id: "staff-1",
 };
 
 describe("AdminRecurringExpensesPage", () => {
@@ -311,5 +325,79 @@ describe("AdminRecurringExpensesPage", () => {
       await screen.findByText("Amount must be positive"),
     ).toBeInTheDocument();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("shows Staff salary badge for staff-managed recurring expense", async () => {
+    vi.mocked(recurringExpensesAdminApi.list).mockResolvedValue({
+      data: [staffManagedExpense],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminRecurringExpensesPage />);
+
+    expect(await screen.findByText("Alice salary")).toBeInTheDocument();
+    expect(screen.getByTestId("staff-salary-badge")).toHaveTextContent(
+      "Staff salary",
+    );
+  });
+
+  it("hides edit and delete actions for staff-managed recurring expense", async () => {
+    vi.mocked(recurringExpensesAdminApi.list).mockResolvedValue({
+      data: [staffManagedExpense],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminRecurringExpensesPage />);
+
+    await screen.findByText("Alice salary");
+
+    expect(
+      screen.queryByLabelText("Edit recurring expense"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Delete recurring expense"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("View only")).toBeInTheDocument();
+  });
+
+  it("keeps edit and delete actions for manual recurring expense", async () => {
+    render(<AdminRecurringExpensesPage />);
+
+    await screen.findByText("Office rent");
+
+    expect(
+      screen.getByLabelText("Edit recurring expense"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Delete recurring expense"),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("staff-salary-badge")).not.toBeInTheDocument();
+  });
+
+  it("shows user-friendly toast when edit returns 409 for staff-managed expense", async () => {
+    const user = userEvent.setup();
+    vi.mocked(recurringExpensesAdminApi.list).mockResolvedValue({
+      data: [expense, staffManagedExpense],
+      meta: { page: 1, per_page: 10, total: 2 },
+    });
+    vi.mocked(recurringExpensesAdminApi.update).mockRejectedValue(
+      new ApiError(
+        409,
+        "conflict",
+        "Recurring expense is managed via staff salary",
+      ),
+    );
+
+    render(<AdminRecurringExpensesPage />);
+    await screen.findByText("Office rent");
+
+    await user.click(screen.getByLabelText("Edit recurring expense"));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        STAFF_MANAGED_RECURRING_EXPENSE_MESSAGE,
+      );
+    });
   });
 });

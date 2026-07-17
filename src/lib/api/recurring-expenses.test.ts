@@ -307,4 +307,38 @@ describe("normalizeRecurringExpense", () => {
     });
     expect(normalized.amount).toBe(50_000);
   });
+
+  it("passes through staff_id when present", () => {
+    const normalized = normalizeRecurringExpense({
+      id: "re-1",
+      title: "Salary",
+      amount: "5000000",
+      is_active: true,
+      staff_id: "staff-1",
+      recurring: {
+        interval: "DATE",
+        value: 1,
+        time: { hour: 9, minute: 0, second: 0 },
+      },
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+    expect(normalized.staff_id).toBe("staff-1");
+  });
+
+  it("normalizes missing staff_id to null", () => {
+    const normalized = normalizeRecurringExpense({
+      id: "re-1",
+      title: "Rent",
+      amount: "50000",
+      is_active: true,
+      recurring: {
+        interval: "DAILY",
+        time: { hour: 9, minute: 0, second: 0 },
+      },
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+    expect(normalized.staff_id).toBeNull();
+  });
 });
