@@ -1,6 +1,7 @@
 import { api, type ApiResult } from "./client";
 import { parseNumeric } from "./suppliers";
 import type { Expense } from "./types";
+import type { ExpenseFormValues } from "@/lib/validations";
 
 /** Wire format from the Go backend (`decimal.Decimal` marshals as JSON string). */
 interface ExpenseRaw extends Omit<Expense, "amount"> {
@@ -46,6 +47,42 @@ export interface CreateExpensePayload {
 }
 
 export type UpdateExpensePayload = CreateExpensePayload;
+
+/** Map form values to an API payload. */
+export function expenseFormToPayload(
+  values: ExpenseFormValues,
+  options?: { includeEmptyReceipt?: boolean },
+): CreateExpensePayload {
+  const payload: CreateExpensePayload = {
+    title: values.title.trim(),
+    amount: values.amount,
+  };
+
+  const description = values.description?.trim();
+  if (description) {
+    payload.description = description;
+  }
+
+  const receiptUrl = values.receipt_url?.trim() ?? "";
+  if (receiptUrl) {
+    payload.receipt_url = receiptUrl;
+  } else if (options?.includeEmptyReceipt) {
+    payload.receipt_url = "";
+  }
+
+  return payload;
+}
+
+export function expenseToFormValues(
+  expense: Expense,
+): Partial<ExpenseFormValues> {
+  return {
+    title: expense.title,
+    description: expense.description ?? "",
+    amount: expense.amount,
+    receipt_url: expense.receipt_url ?? "",
+  };
+}
 
 export async function listExpenses({
   page = 1,

@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   createExpense,
   deleteExpense,
+  expenseFormToPayload,
+  expenseToFormValues,
   expensesAdminApi,
   getExpense,
   listExpenses,
@@ -136,6 +138,77 @@ describe("normalizeExpense", () => {
       updated_at: "2026-01-01T00:00:00Z",
     });
     expect(normalized.amount).toBe(250_000);
+  });
+});
+
+describe("expenseFormToPayload", () => {
+  it("maps form values without receipt on create", () => {
+    expect(
+      expenseFormToPayload({
+        title: "  Office supplies  ",
+        description: "Printer paper",
+        amount: 150_000,
+        receipt_url: "",
+      }),
+    ).toEqual({
+      title: "Office supplies",
+      description: "Printer paper",
+      amount: 150_000,
+    });
+  });
+
+  it("includes receipt_url when present", () => {
+    expect(
+      expenseFormToPayload({
+        title: "Office supplies",
+        description: "",
+        amount: 150_000,
+        receipt_url: "https://cdn.example.com/receipt.jpg",
+      }),
+    ).toEqual({
+      title: "Office supplies",
+      amount: 150_000,
+      receipt_url: "https://cdn.example.com/receipt.jpg",
+    });
+  });
+
+  it("sends empty receipt_url when clearing on edit", () => {
+    expect(
+      expenseFormToPayload(
+        {
+          title: "Office supplies",
+          description: "",
+          amount: 150_000,
+          receipt_url: "",
+        },
+        { includeEmptyReceipt: true },
+      ),
+    ).toEqual({
+      title: "Office supplies",
+      amount: 150_000,
+      receipt_url: "",
+    });
+  });
+});
+
+describe("expenseToFormValues", () => {
+  it("maps expense fields to form defaults", () => {
+    expect(
+      expenseToFormValues({
+        id: "exp-1",
+        title: "Utilities",
+        description: null,
+        amount: 250_000,
+        receipt_url: "https://cdn.example.com/receipt.jpg",
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      }),
+    ).toEqual({
+      title: "Utilities",
+      description: "",
+      amount: 250_000,
+      receipt_url: "https://cdn.example.com/receipt.jpg",
+    });
   });
 });
 

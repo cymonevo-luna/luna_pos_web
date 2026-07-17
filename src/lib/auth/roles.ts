@@ -72,6 +72,7 @@ const ADMIN_ROUTE_RULES: AdminRouteRule[] = [
   { prefix: "/admin/cogs", roles: ["manager"] as const },
   { prefix: "/admin/transactions", roles: ["manager"] as const },
   { prefix: "/admin/cash-flow", roles: ["manager"] as const },
+  { prefix: "/admin/expenses", roles: ["manager", "operational"] as const },
   { prefix: "/admin/recurring-expenses", roles: ["manager", "operational"] as const },
   { prefix: "/admin/store-settings", roles: ["manager"] as const },
   { prefix: "/admin/suppliers", roles: ["operational"] as const },
