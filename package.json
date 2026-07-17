@@ -22,6 +22,7 @@
     "verify:pos-60-3-qa": "bash scripts/verify-pos-60-3-qa.sh",
     "verify:pos-76-2-browser": "node scripts/verify-pos-76-2-browser.mjs",
     "verify:pos-79-3-browser": "node scripts/verify-pos-79-3-browser.mjs",
+    "verify:pos-79-4-browser": "node scripts/verify-pos-79-4-browser.mjs",
     "verify:pos-79-5-browser": "node scripts/verify-pos-79-5-browser.mjs",
     "verify:pos-79-6-browser": "node scripts/verify-pos-79-6-browser.mjs"
   },
