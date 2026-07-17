@@ -206,6 +206,22 @@ export interface OrderOption {
   updated_at: string;
 }
 
+export interface OrderOptionIngredientInput {
+  food_supply_id: string;
+  quantity: number;
+}
+
+export interface OrderOptionIngredient extends OrderOptionIngredientInput {
+  food_supply_title: string;
+  food_supply_unit: FoodSupplyUnit;
+  current_stock_quantity: number;
+}
+
+export interface OrderOptionIngredientsResponse {
+  order_option_id: string;
+  ingredients: OrderOptionIngredient[];
+}
+
 export interface Menu {
   id: string;
   title: string;
