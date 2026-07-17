@@ -11,6 +11,7 @@ import {
   Printer,
   ChefHat,
   TrendingUp,
+  Repeat,
 } from "lucide-react";
 import type { MerchantRole } from "@/lib/api/types";
 
@@ -50,6 +51,13 @@ export const overviewCards: OverviewCard[] = [
     href: "/admin/cash-flow",
     icon: TrendingUp,
     roles: ["manager"],
+  },
+  {
+    title: "Recurring expenses",
+    description: "Manage scheduled recurring expense templates.",
+    href: "/admin/recurring-expenses",
+    icon: Repeat,
+    roles: ["manager", "operational"],
   },
   {
     title: "Menus",

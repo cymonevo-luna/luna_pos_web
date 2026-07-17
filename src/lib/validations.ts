@@ -114,6 +114,95 @@ export const branchAssetSchema = z.object({
 
 export type BranchAssetFormValues = z.infer<typeof branchAssetSchema>;
 
+const recurringExpenseTimeSchema = z.object({
+  hour: z
+    .number({ error: "Hour is required" })
+    .int("Hour must be a whole number")
+    .min(0, "Hour must be between 0 and 23")
+    .max(23, "Hour must be between 0 and 23"),
+  minute: z
+    .number({ error: "Minute is required" })
+    .int("Minute must be a whole number")
+    .min(0, "Minute must be between 0 and 59")
+    .max(59, "Minute must be between 0 and 59"),
+  second: z
+    .number({ error: "Second is required" })
+    .int("Second must be a whole number")
+    .min(0, "Second must be between 0 and 59")
+    .max(59, "Second must be between 0 and 59"),
+});
+
+const recurringExpenseScheduleSchema = z
+  .object({
+    interval: z.enum(["DATE", "DAY", "DAILY"], {
+      error: "Select a valid interval",
+    }),
+    value: z
+      .number({ error: "Value must be a number" })
+      .int("Value must be a whole number")
+      .optional(),
+    time: recurringExpenseTimeSchema,
+  })
+  .superRefine((data, ctx) => {
+    if (data.interval === "DATE") {
+      if (data.value === undefined || Number.isNaN(data.value)) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Day of month is required",
+          path: ["value"],
+        });
+        return;
+      }
+      if (data.value < 1 || data.value > 31) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Day of month must be between 1 and 31",
+          path: ["value"],
+        });
+      }
+      return;
+    }
+
+    if (data.interval === "DAY") {
+      if (data.value === undefined || Number.isNaN(data.value)) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Weekday is required",
+          path: ["value"],
+        });
+        return;
+      }
+      if (data.value < 1 || data.value > 7) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Weekday must be between 1 and 7",
+          path: ["value"],
+        });
+      }
+    }
+  });
+
+export const recurringExpenseSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(2, "Title must be at least 2 characters")
+    .max(200, "Title is too long"),
+  description: z
+    .string()
+    .max(2000, "Description is too long")
+    .optional()
+    .or(z.literal("")),
+  amount: z
+    .number({ error: "Amount is required" })
+    .int("Amount must be a whole number")
+    .min(1, "Amount must be at least 1"),
+  is_active: z.boolean(),
+  recurring: recurringExpenseScheduleSchema,
+});
+
+export type RecurringExpenseFormValues = z.infer<typeof recurringExpenseSchema>;
+
 export const supplierSchema = z
   .object({
     name: z
