@@ -22,6 +22,21 @@ vi.mock("@/lib/api/food-supplies", () => ({
     ...(values.description?.trim()
       ? { description: values.description.trim() }
       : {}),
+    ...(values.cooking_measurements?.length
+      ? {
+          cooking_measurements: values.cooking_measurements.map(
+            (measurement: {
+              id?: string;
+              name: string;
+              conversion_quantity: string;
+            }) => ({
+              ...(measurement.id ? { id: measurement.id } : {}),
+              name: measurement.name.trim(),
+              conversion_quantity: measurement.conversion_quantity.trim(),
+            }),
+          ),
+        }
+      : {}),
   })),
 }));
 
@@ -41,6 +56,7 @@ const supply: FoodSupply = {
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-15T00:00:00Z",
   manual_edit_history: [],
+  cooking_measurements: [],
 };
 
 describe("AdminFoodSuppliesPage", () => {

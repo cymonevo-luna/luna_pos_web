@@ -58,6 +58,7 @@ describe("FoodSupplyForm", () => {
         description: "",
         stock_quantity: 12,
         unit: "piece",
+        cooking_measurements: [],
       });
     });
   });
@@ -87,6 +88,7 @@ describe("FoodSupplyForm", () => {
         description: "House recipe",
         stock_quantity: 750,
         unit: "ml",
+        cooking_measurements: [],
       });
     });
   });
@@ -132,6 +134,13 @@ describe("FoodSupplyForm", () => {
           description: "White",
           stock_quantity: 1000,
           unit: "gr",
+          cooking_measurements: [
+            {
+              id: "cm-1",
+              name: "Tablespoon",
+              conversion_quantity: "10",
+            },
+          ],
         }}
         onSubmit={() => {}}
         onCancel={() => {}}
@@ -142,6 +151,8 @@ describe("FoodSupplyForm", () => {
     expect(screen.getByLabelText(/Description/)).toHaveValue("White");
     expect(screen.getByLabelText("Stock quantity")).toHaveValue(1000);
     expect(screen.getByLabelText("Unit")).toHaveValue("gr");
+    expect(screen.getByLabelText("Name")).toHaveValue("Tablespoon");
+    expect(screen.getByLabelText("Conversion")).toHaveValue("10");
   });
 
   it("applies server field errors via ref", async () => {
@@ -154,6 +165,32 @@ describe("FoodSupplyForm", () => {
     ref.current?.applyServerErrors({ unit: "Invalid unit value" });
 
     expect(await screen.findByText("Invalid unit value")).toBeInTheDocument();
+  });
+
+  it("applies nested cooking measurement server errors via ref", async () => {
+    const ref = createRef<FoodSupplyFormHandle>();
+
+    render(
+      <FoodSupplyForm
+        ref={ref}
+        defaultValues={{
+          title: "Sugar",
+          stock_quantity: 1,
+          unit: "gr",
+          cooking_measurements: [
+            { id: "cm-1", name: "Tablespoon", conversion_quantity: "10" },
+          ],
+        }}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+
+    ref.current?.applyServerErrors({
+      "cooking_measurements[0].name": "Name already exists",
+    });
+
+    expect(await screen.findByText("Name already exists")).toBeInTheDocument();
   });
 
   it("calls onCancel without submitting", async () => {
@@ -169,6 +206,181 @@ describe("FoodSupplyForm", () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(onCancel).toHaveBeenCalled();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("creates food supply with cooking measurements", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <FoodSupplyForm
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+        submitLabel="Add supply"
+      />,
+    );
+
+    await user.type(screen.getByLabelText("Title"), "Flour");
+    await user.type(screen.getByLabelText("Stock quantity"), "1000");
+    await user.selectOptions(screen.getByLabelText("Unit"), "gr");
+    await user.click(screen.getByRole("button", { name: "Add measurement" }));
+    await user.type(screen.getByLabelText("Name"), "Tablespoon");
+    await user.type(screen.getByLabelText("Conversion"), "10");
+    await user.click(screen.getByRole("button", { name: "Add measurement" }));
+    const conversionInputs = screen.getAllByLabelText("Conversion");
+    const nameInputs = screen.getAllByLabelText("Name");
+    await user.type(nameInputs[1], "Teaspoon");
+    await user.type(conversionInputs[1], "3.33");
+    await user.click(screen.getByRole("button", { name: "Add supply" }));
+
+    await waitFor(() => {
+      expect(onSubmit.mock.calls[0]?.[0]).toEqual({
+        title: "Flour",
+        description: "",
+        stock_quantity: 1000,
+        unit: "gr",
+        cooking_measurements: [
+          { name: "Tablespoon", conversion_quantity: "10" },
+          { name: "Teaspoon", conversion_quantity: "3.33" },
+        ],
+      });
+    });
+  });
+
+  it("updates conversion helper text when unit changes", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <FoodSupplyForm
+        defaultValues={{
+          title: "Flour",
+          stock_quantity: 1000,
+          unit: "gr",
+          cooking_measurements: [
+            { name: "Tablespoon", conversion_quantity: "10" },
+          ],
+        }}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+
+    expect(
+      screen.getByText("1 Tablespoon equals 10 gr"),
+    ).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Unit"), "ml");
+
+    expect(
+      screen.getByText("1 Tablespoon equals 10 ml"),
+    ).toBeInTheDocument();
+  });
+
+  it("removes a cooking measurement row", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <FoodSupplyForm
+        defaultValues={{
+          title: "Flour",
+          stock_quantity: 1000,
+          unit: "gr",
+          cooking_measurements: [
+            { id: "cm-1", name: "Tablespoon", conversion_quantity: "10" },
+            { id: "cm-2", name: "Teaspoon", conversion_quantity: "3.33" },
+          ],
+        }}
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+        submitLabel="Save changes"
+      />,
+    );
+
+    await user.click(screen.getAllByLabelText("Remove cooking measurement")[0]);
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(onSubmit.mock.calls[0]?.[0].cooking_measurements).toEqual([
+        { id: "cm-2", name: "Teaspoon", conversion_quantity: "3.33" },
+      ]);
+    });
+  });
+
+  it("blocks submit when cooking measurement conversion is zero", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <FoodSupplyForm
+        defaultValues={{
+          title: "Flour",
+          stock_quantity: 1000,
+          unit: "gr",
+          cooking_measurements: [{ name: "Tablespoon", conversion_quantity: "0" }],
+        }}
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("Conversion must be greater than 0"),
+    ).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("blocks submit when cooking measurement name is empty", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <FoodSupplyForm
+        defaultValues={{
+          title: "Flour",
+          stock_quantity: 1000,
+          unit: "gr",
+          cooking_measurements: [{ name: "", conversion_quantity: "10" }],
+        }}
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Name is required")).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("blocks submit when cooking measurement names are duplicated", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <FoodSupplyForm
+        defaultValues={{
+          title: "Flour",
+          stock_quantity: 1000,
+          unit: "gr",
+          cooking_measurements: [
+            { name: "Tablespoon", conversion_quantity: "10" },
+            { name: "tablespoon", conversion_quantity: "12" },
+          ],
+        }}
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findAllByText("Measurement name must be unique"),
+    ).toHaveLength(2);
     expect(onSubmit).not.toHaveBeenCalled();
   });
 });
