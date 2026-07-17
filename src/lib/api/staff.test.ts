@@ -58,6 +58,28 @@ describe("staffSchema", () => {
       ).toBe(true);
     }
   });
+
+  it("accepts undefined salary", () => {
+    const result = staffSchema.safeParse({
+      ...base,
+      salary_amount: undefined,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.salary_amount).toBeUndefined();
+    }
+  });
+
+  it("accepts NaN salary as undefined", () => {
+    const result = staffSchema.safeParse({
+      ...base,
+      salary_amount: Number.NaN,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.salary_amount).toBeUndefined();
+    }
+  });
 });
 
 describe("staffFormToPayload", () => {
@@ -114,6 +136,28 @@ describe("staffFormToPayload", () => {
     ).toMatchObject({
       name: "Budi Santoso",
       nik: "3201010101010001",
+    });
+  });
+
+  it("maps undefined salary to zero", () => {
+    expect(
+      staffFormToPayload({
+        ...base,
+        salary_amount: undefined,
+      }),
+    ).toMatchObject({
+      salary_amount: 0,
+    });
+  });
+
+  it("maps NaN salary to zero", () => {
+    expect(
+      staffFormToPayload({
+        ...base,
+        salary_amount: Number.NaN,
+      }),
+    ).toMatchObject({
+      salary_amount: 0,
     });
   });
 });

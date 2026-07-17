@@ -210,7 +210,9 @@ export default function AdminStaffPage() {
                     <td className="px-4 py-3">{staff.nik}</td>
                     <td className="px-4 py-3">{staff.job_title}</td>
                     <td className="px-4 py-3">
-                      {formatRupiah(staff.salary_amount)}
+                      {staff.salary_amount === 0
+                        ? "Not set"
+                        : formatRupiah(staff.salary_amount)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">

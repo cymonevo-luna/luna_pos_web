@@ -22,7 +22,10 @@ vi.mock("@/lib/api/staff", () => ({
     nik: values.nik.trim(),
     address: values.address,
     job_title: values.job_title,
-    salary_amount: values.salary_amount,
+    salary_amount:
+      values.salary_amount === undefined || Number.isNaN(values.salary_amount)
+        ? 0
+        : values.salary_amount,
     ...(values.ktp_photo_url?.trim()
       ? { ktp_photo_url: values.ktp_photo_url.trim() }
       : {}),
@@ -73,6 +76,19 @@ describe("AdminStaffPage", () => {
     expect(screen.getByText(formatRupiah(5_000_000))).toBeInTheDocument();
     expect(screen.getByText("1 total")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Staff" })).toBeInTheDocument();
+  });
+
+  it("shows Not set for zero salary", async () => {
+    vi.mocked(staffAdminApi.list).mockResolvedValue({
+      data: [{ ...staffMember, salary_amount: 0 }],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminStaffPage />);
+
+    expect(await screen.findByText("Budi Santoso")).toBeInTheDocument();
+    expect(screen.getByText("Not set")).toBeInTheDocument();
+    expect(screen.queryByText(formatRupiah(0))).not.toBeInTheDocument();
   });
 
   it("opens create dialog when Add staff is clicked", async () => {
