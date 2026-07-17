@@ -566,6 +566,18 @@ export interface BranchAssetsProfitSource {
   net_amount_total: number;
 }
 
+export interface Expense {
+  id: string;
+  title: string;
+  description?: string | null;
+  amount: number;
+  receipt_url?: string | null;
+  created_by_user_id?: string | null;
+  created_by_username?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 /** Wire `data` payload from GET /api/admin/branch-assets/summary. */
 export interface BranchAssetsSummary {
   total_asset_value: number;

@@ -177,6 +177,7 @@ export async function uploadPurchasePhoto(
 }
 
 export type BranchAssetPhotoUploadResult = PhotoUploadResult;
+export type ExpenseReceiptUploadResult = PhotoUploadResult;
 
 async function uploadBranchAssetPhotoRequest(
   file: File,
@@ -245,4 +246,73 @@ export async function uploadBranchAssetPhoto(
     throw new ApiError(400, "validation_error", validationError);
   }
   return uploadBranchAssetPhotoRequest(file);
+}
+
+async function uploadExpenseReceiptRequest(
+  file: File,
+  _retried = false,
+): Promise<ExpenseReceiptUploadResult> {
+  if (!isLoginRoute() && (tokenStore.access || tokenStore.refresh)) {
+    const fresh = await ensureFreshAccessToken();
+    if (!fresh) {
+      clearSessionAndRedirectToLogin();
+      throw new ApiError(401, "unauthorized", "Session expired");
+    }
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const headers = new Headers();
+  if (!isLoginRoute()) {
+    const token = tokenStore.access;
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const res = await fetch(
+    `${config.apiBaseUrl}/api/admin/uploads/expense-receipt`,
+    {
+      method: "POST",
+      headers,
+      body: formData,
+    },
+  );
+
+  if (res.status === 401 && !_retried && !isLoginRoute()) {
+    const refreshed = await performSessionRefresh();
+    if (refreshed) {
+      return uploadExpenseReceiptRequest(file, true);
+    }
+    clearSessionAndRedirectToLogin();
+  }
+
+  let json: Envelope<ExpenseReceiptUploadResult>;
+  try {
+    json = (await res.json()) as Envelope<ExpenseReceiptUploadResult>;
+  } catch {
+    throw new ApiError(res.status, "invalid_response", res.statusText);
+  }
+
+  if (!res.ok || json.success === false) {
+    const err = json.error;
+    throw new ApiError(
+      res.status,
+      err?.code ?? "error",
+      err?.message ?? "Upload failed",
+      err?.fields,
+    );
+  }
+
+  return json.data as ExpenseReceiptUploadResult;
+}
+
+/** Upload an expense receipt and return the hosted URL for `receipt_url`. */
+export async function uploadExpenseReceipt(
+  file: File,
+): Promise<ExpenseReceiptUploadResult> {
+  const validationError = validateMenuPhotoFile(file);
+  if (validationError) {
+    throw new ApiError(400, "validation_error", validationError);
+  }
+  return uploadExpenseReceiptRequest(file);
 }
