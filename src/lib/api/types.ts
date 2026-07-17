@@ -139,6 +139,19 @@ export interface Supplier {
   updated_at: string;
 }
 
+export interface Staff {
+  id: string;
+  name: string;
+  nik: string;
+  ktp_photo_url?: string | null;
+  address: string;
+  job_title: string;
+  salary_amount: number;
+  benefits?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Category {
   id: string;
   name: string;

@@ -258,3 +258,53 @@ describe("uploadBranchAssetPhoto", () => {
     expect(body.get("file")).toBe(file);
   });
 });
+
+describe("uploadStaffKtpPhoto", () => {
+  beforeEach(() => {
+    tokenStore.clear();
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("uploads with FormData to the staff-ktp-photo endpoint", async () => {
+    tokenStore.set("token-abc", "refresh-abc");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        {
+          success: true,
+          data: {
+            url: "http://localhost:8080/static/uploads/staff-ktp/ktp.webp",
+            filename: "ktp.webp",
+            size_bytes: 2048,
+          },
+        },
+        201,
+      ),
+    );
+
+    const file = createImageFile("ktp.webp", "image/webp");
+    const { uploadStaffKtpPhoto } = await import("./uploads");
+    const result = await uploadStaffKtpPhoto(file);
+
+    expect(result).toEqual({
+      url: "http://localhost:8080/static/uploads/staff-ktp/ktp.webp",
+      filename: "ktp.webp",
+      size_bytes: 2048,
+    });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/uploads/staff-ktp-photo",
+    );
+    expect(init?.method).toBe("POST");
+
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer token-abc");
+
+    const body = init?.body as FormData;
+    expect(body.get("file")).toBe(file);
+  });
+});
