@@ -112,6 +112,7 @@ describe("POS-18-12 manager-scoped page guards", () => {
       "/admin/categories",
       "/admin/menus",
       "/admin/menus/menu-1/ingredients",
+      "/admin/order-options",
       "/admin/production-requests/new",
       "/admin/cash-flow",
       "/admin/branch-assets",
