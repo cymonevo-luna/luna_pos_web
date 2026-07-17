@@ -16,6 +16,7 @@ import {
   Printer,
   TrendingUp,
   Repeat,
+  Wallet,
 } from "lucide-react";
 import {
   DashboardShell,
@@ -40,6 +41,7 @@ const allNavItems: NavItem[] = [
   { href: "/admin/cogs", label: "COGS", icon: Calculator, roles: ["manager"] },
   { href: "/admin/transactions", label: "Transactions", icon: Receipt, roles: ["manager"] },
   { href: "/admin/cash-flow", label: "Cash Flow", icon: TrendingUp, roles: ["manager"] },
+  { href: "/admin/expenses", label: "Expenses", icon: Wallet, roles: ["manager", "operational"] },
   { href: "/admin/recurring-expenses", label: "Recurring Expenses", icon: Repeat, roles: ["manager", "operational"] },
   { href: "/admin/store-settings", label: "Receipt Settings", icon: Printer, roles: ["manager"] },
   { href: "/admin/suppliers", label: "Suppliers", icon: Truck, roles: ["operational"] },

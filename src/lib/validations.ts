@@ -203,6 +203,26 @@ export const recurringExpenseSchema = z.object({
 
 export type RecurringExpenseFormValues = z.infer<typeof recurringExpenseSchema>;
 
+export const expenseSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(2, "Title must be at least 2 characters")
+    .max(200, "Title is too long"),
+  description: z
+    .string()
+    .max(2000, "Description is too long")
+    .optional()
+    .or(z.literal("")),
+  amount: z
+    .number({ error: "Amount is required" })
+    .int("Amount must be a whole number")
+    .min(1, "Amount must be at least 1"),
+  receipt_url: z.string().optional().or(z.literal("")),
+});
+
+export type ExpenseFormValues = z.infer<typeof expenseSchema>;
+
 export const supplierSchema = z
   .object({
     name: z
