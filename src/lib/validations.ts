@@ -155,6 +155,45 @@ export const supplierSchema = z
 
 export type SupplierFormValues = z.infer<typeof supplierSchema>;
 
+export const staffSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters")
+    .max(120, "Name is too long"),
+  nik: z
+    .string()
+    .trim()
+    .regex(/^\d{16}$/, "NIK must be exactly 16 digits"),
+  ktp_photo_url: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine(
+      (value) => !value?.trim() || z.string().url().safeParse(value.trim()).success,
+      "Enter a valid URL",
+    ),
+  address: z
+    .string()
+    .min(2, "Address must be at least 2 characters")
+    .max(500, "Address is too long"),
+  job_title: z
+    .string()
+    .min(2, "Job title must be at least 2 characters")
+    .max(120, "Job title is too long"),
+  salary_amount: z
+    .number({ error: "Salary is required" })
+    .int("Salary must be a whole number")
+    .min(0, "Salary cannot be negative"),
+  benefits: z
+    .string()
+    .max(2000, "Benefits is too long")
+    .optional()
+    .or(z.literal("")),
+});
+
+export type StaffFormValues = z.infer<typeof staffSchema>;
+
 export const supplierPriceSchema = z.object({
   food_supply_id: z.string().min(1, "Food supply is required"),
   price_amount: z
