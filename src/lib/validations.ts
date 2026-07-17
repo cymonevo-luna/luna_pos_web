@@ -291,9 +291,18 @@ export const staffSchema = z.object({
     .min(2, "Job title must be at least 2 characters")
     .max(120, "Job title is too long"),
   salary_amount: z
-    .number({ error: "Salary is required" })
-    .int("Salary must be a whole number")
-    .min(0, "Salary cannot be negative"),
+    .union([z.nan(), z.undefined(), z.number()])
+    .transform((value) =>
+      value === undefined || Number.isNaN(value) ? undefined : value,
+    )
+    .refine(
+      (value) => value === undefined || Number.isInteger(value),
+      "Salary must be a whole number",
+    )
+    .refine(
+      (value) => value === undefined || value >= 0,
+      "Salary cannot be negative",
+    ),
   benefits: z
     .string()
     .max(2000, "Benefits is too long")

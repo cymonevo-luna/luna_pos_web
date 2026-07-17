@@ -78,6 +78,81 @@ describe("StaffForm", () => {
     });
   });
 
+  it("submits without salary when salary field is left blank", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <StaffForm
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+        submitLabel="Save staff"
+      />,
+    );
+
+    await user.type(screen.getByLabelText("Name"), validStaff.name);
+    await user.type(screen.getByLabelText("NIK"), validStaff.nik);
+    await user.type(screen.getByLabelText("Address"), validStaff.address);
+    await user.type(screen.getByLabelText("Job title"), validStaff.job_title);
+    await user.click(screen.getByRole("button", { name: "Save staff" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalled();
+    });
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
+      name: validStaff.name,
+      nik: validStaff.nik,
+      address: validStaff.address,
+      job_title: validStaff.job_title,
+      salary_amount: undefined,
+    });
+  });
+
+  it("shows validation error for negative salary and blocks submit", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<StaffForm onSubmit={onSubmit} onCancel={() => {}} />);
+
+    await user.type(screen.getByLabelText("Name"), validStaff.name);
+    await user.type(screen.getByLabelText("NIK"), validStaff.nik);
+    await user.type(screen.getByLabelText("Address"), validStaff.address);
+    await user.type(screen.getByLabelText("Job title"), validStaff.job_title);
+    await user.clear(screen.getByLabelText(/Salary/));
+    await user.type(screen.getByLabelText(/Salary/), "-1");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("Salary cannot be negative"),
+    ).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("shows empty salary input when editing staff with zero salary", () => {
+    const staff: Staff = {
+      id: "staff-1",
+      name: "Budi Santoso",
+      nik: "3201010101010001",
+      ktp_photo_url: null,
+      address: "Jl. Merdeka No. 10",
+      job_title: "Cashier",
+      salary_amount: 0,
+      benefits: null,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    };
+
+    render(
+      <StaffForm
+        defaultValues={staffToFormValues(staff)}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+
+    expect(screen.getByLabelText(/Salary/)).toHaveValue(null);
+  });
+
   it("shows validation error for invalid NIK and blocks submit", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
@@ -168,7 +243,7 @@ describe("staff form helpers", () => {
       ktp_photo_url: "",
       address: "",
       job_title: "",
-      salary_amount: Number.NaN,
+      salary_amount: undefined,
       benefits: "",
     });
   });
@@ -196,5 +271,22 @@ describe("staff form helpers", () => {
       salary_amount: 5000000,
       benefits: "Health insurance",
     });
+  });
+
+  it("staffToFormValues maps zero salary to undefined", () => {
+    const staff: Staff = {
+      id: "staff-1",
+      name: "Budi Santoso",
+      nik: "3201010101010001",
+      ktp_photo_url: null,
+      address: "Jl. Merdeka No. 10",
+      job_title: "Cashier",
+      salary_amount: 0,
+      benefits: null,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    };
+
+    expect(staffToFormValues(staff).salary_amount).toBeUndefined();
   });
 });

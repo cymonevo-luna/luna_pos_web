@@ -29,7 +29,10 @@ export function buildDefaultStaffValues(
     ktp_photo_url: defaultValues?.ktp_photo_url ?? "",
     address: defaultValues?.address ?? "",
     job_title: defaultValues?.job_title ?? "",
-    salary_amount: defaultValues?.salary_amount ?? Number.NaN,
+    salary_amount:
+      defaultValues?.salary_amount && defaultValues.salary_amount !== 0
+        ? defaultValues.salary_amount
+        : undefined,
     benefits: defaultValues?.benefits ?? "",
   };
 }
@@ -41,7 +44,8 @@ export function staffToFormValues(staff: Staff): StaffFormValues {
     ktp_photo_url: staff.ktp_photo_url ?? "",
     address: staff.address,
     job_title: staff.job_title,
-    salary_amount: staff.salary_amount,
+    salary_amount:
+      staff.salary_amount === 0 ? undefined : staff.salary_amount,
     benefits: staff.benefits ?? "",
   };
 }
@@ -284,12 +288,10 @@ export const StaffForm = React.forwardRef<StaffFormHandle, StaffFormProps>(
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="staff-salary">
-            Salary{" "}
-            <span className="font-normal text-muted-foreground">
-              (amount in IDR)
-            </span>
-          </Label>
+          <Label htmlFor="staff-salary">Salary (optional)</Label>
+          <p className="text-xs text-muted-foreground">
+            Leave blank if no fixed salary
+          </p>
           <Input
             id="staff-salary"
             type="number"

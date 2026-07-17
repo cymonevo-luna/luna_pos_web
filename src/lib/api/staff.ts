@@ -55,12 +55,14 @@ export type UpdateStaffPayload = CreateStaffPayload;
 export function staffFormToPayload(
   values: StaffFormValues,
 ): CreateStaffPayload {
+  const salary = values.salary_amount;
   const payload: CreateStaffPayload = {
     name: values.name.trim(),
     nik: values.nik.trim(),
     address: values.address,
     job_title: values.job_title,
-    salary_amount: values.salary_amount,
+    salary_amount:
+      salary === undefined || Number.isNaN(salary) ? 0 : salary,
   };
 
   const ktpPhotoUrl = values.ktp_photo_url?.trim();
