@@ -58,6 +58,8 @@ function blockDecimalInput(event: React.KeyboardEvent<HTMLInputElement>) {
 
 export interface StaffFormProps {
   defaultValues?: Partial<StaffFormValues>;
+  /** Linked recurring expense from staff API (read-only; backend-managed). */
+  recurringExpenseId?: string | null;
   onSubmit: (values: StaffFormValues) => void | Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
@@ -73,6 +75,7 @@ export const StaffForm = React.forwardRef<StaffFormHandle, StaffFormProps>(
   function StaffForm(
     {
       defaultValues,
+      recurringExpenseId,
       onSubmit,
       onCancel,
       isLoading = false,
@@ -306,6 +309,14 @@ export const StaffForm = React.forwardRef<StaffFormHandle, StaffFormProps>(
               {errors.salary_amount.message}
             </p>
           )}
+          {recurringExpenseId ? (
+            <p
+              className="text-xs text-muted-foreground"
+              data-testid="staff-recurring-expense-notice"
+            >
+              A recurring expense is automatically managed for this salary.
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-1.5">

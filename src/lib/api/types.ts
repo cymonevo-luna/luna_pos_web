@@ -173,6 +173,8 @@ export interface Staff {
   address: string;
   job_title: string;
   salary_amount: number;
+  /** Auto-managed recurring expense linked to salary payouts. */
+  recurring_expense_id?: string | null;
   benefits?: string | null;
   created_at: string;
   updated_at: string;

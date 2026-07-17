@@ -89,9 +89,106 @@ describe("AdminStaffPage", () => {
     expect(await screen.findByText("Budi Santoso")).toBeInTheDocument();
     expect(screen.getByText("Not set")).toBeInTheDocument();
     expect(screen.queryByText(formatRupiah(0))).not.toBeInTheDocument();
+    expect(screen.getByTestId("staff-recurring-payout-none")).toHaveTextContent(
+      "—",
+    );
   });
 
-  it("opens create dialog when Add staff is clicked", async () => {
+  it("shows Active recurring payout when staff is linked", async () => {
+    vi.mocked(staffAdminApi.list).mockResolvedValue({
+      data: [
+        {
+          ...staffMember,
+          salary_amount: 5_000_000,
+          recurring_expense_id: "recurring-expense-1",
+        },
+      ],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminStaffPage />);
+
+    expect(await screen.findByText("Budi Santoso")).toBeInTheDocument();
+    expect(screen.getByTestId("staff-recurring-payout-active")).toHaveTextContent(
+      "Active",
+    );
+  });
+
+  it("shows dash for recurring payout when staff has no salary link", async () => {
+    vi.mocked(staffAdminApi.list).mockResolvedValue({
+      data: [
+        {
+          ...staffMember,
+          salary_amount: 0,
+          recurring_expense_id: null,
+        },
+      ],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminStaffPage />);
+
+    expect(await screen.findByText("Budi Santoso")).toBeInTheDocument();
+    expect(screen.getByTestId("staff-recurring-payout-none")).toHaveTextContent(
+      "—",
+    );
+  });
+
+  it("shows recurring payout Active after creating staff with salary", async () => {
+    const user = userEvent.setup();
+    const createdStaff: Staff = {
+      ...staffMember,
+      id: "staff-new",
+      salary_amount: 5_000_000,
+      recurring_expense_id: "recurring-expense-new",
+    };
+
+    vi.mocked(staffAdminApi.create).mockResolvedValue({ data: createdStaff });
+    vi.mocked(staffAdminApi.list)
+      .mockResolvedValueOnce({
+        data: [],
+        meta: { page: 1, per_page: 10, total: 0 },
+      })
+      .mockResolvedValueOnce({
+        data: [createdStaff],
+        meta: { page: 1, per_page: 10, total: 1 },
+      });
+
+    render(<AdminStaffPage />);
+    await screen.findByText("No staff found.");
+
+    await user.click(screen.getByRole("button", { name: /Add staff/i }));
+    await user.type(within(screen.getByRole("dialog")).getByLabelText("Name"), "New Staff");
+    await user.type(
+      within(screen.getByRole("dialog")).getByLabelText("NIK"),
+      "3201010101010099",
+    );
+    await user.type(
+      within(screen.getByRole("dialog")).getByLabelText("Address"),
+      "Jl. Baru No. 1",
+    );
+    await user.type(
+      within(screen.getByRole("dialog")).getByLabelText("Job title"),
+      "Barista",
+    );
+    await user.clear(within(screen.getByRole("dialog")).getByLabelText(/Salary/));
+    await user.type(
+      within(screen.getByRole("dialog")).getByLabelText(/Salary/),
+      "5000000",
+    );
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Add staff" }),
+    );
+
+    await waitFor(() => {
+      expect(staffAdminApi.create).toHaveBeenCalled();
+    });
+    expect(await screen.findByTestId("staff-recurring-payout-active")).toHaveTextContent(
+      "Active",
+    );
+  });
+
+  it("opens edit dialog when Add staff is clicked", async () => {
     const user = userEvent.setup();
 
     render(<AdminStaffPage />);

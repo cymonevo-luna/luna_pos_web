@@ -128,6 +128,37 @@ describe("StaffForm", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it("shows auto-managed recurring expense notice when editing linked staff", () => {
+    const staff: Staff = {
+      id: "staff-1",
+      name: "Budi Santoso",
+      nik: "3201010101010001",
+      ktp_photo_url: null,
+      address: "Jl. Merdeka No. 10",
+      job_title: "Cashier",
+      salary_amount: 5000000,
+      recurring_expense_id: "recurring-expense-1",
+      benefits: null,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    };
+
+    render(
+      <StaffForm
+        defaultValues={staffToFormValues(staff)}
+        recurringExpenseId={staff.recurring_expense_id}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("staff-recurring-expense-notice"),
+    ).toHaveTextContent(
+      "A recurring expense is automatically managed for this salary.",
+    );
+  });
+
   it("shows empty salary input when editing staff with zero salary", () => {
     const staff: Staff = {
       id: "staff-1",

@@ -20,6 +20,7 @@ import {
   staffToFormValues,
   type StaffFormHandle,
 } from "@/components/admin/staff-form";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,25 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 
 const PER_PAGE = 10;
+
+function StaffRecurringPayoutCell({ staff }: { staff: Staff }) {
+  if (staff.recurring_expense_id) {
+    return (
+      <Badge
+        variant="success"
+        data-testid="staff-recurring-payout-active"
+      >
+        Active
+      </Badge>
+    );
+  }
+
+  return (
+    <span className="text-muted-foreground" data-testid="staff-recurring-payout-none">
+      —
+    </span>
+  );
+}
 
 type StaffDialogState =
   | { mode: "create" }
@@ -168,6 +188,7 @@ export default function AdminStaffPage() {
                 <th className="px-4 py-3 font-medium">NIK</th>
                 <th className="px-4 py-3 font-medium">Job title</th>
                 <th className="px-4 py-3 font-medium">Salary</th>
+                <th className="px-4 py-3 font-medium">Recurring payout</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
@@ -175,7 +196,7 @@ export default function AdminStaffPage() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-border">
-                    {Array.from({ length: 5 }).map((__, j) => (
+                    {Array.from({ length: 6 }).map((__, j) => (
                       <td key={j} className="px-4 py-3">
                         <Skeleton className="h-4 w-24" />
                       </td>
@@ -185,7 +206,7 @@ export default function AdminStaffPage() {
               ) : error ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-4 py-10 text-center text-destructive"
                   >
                     {error}
@@ -194,7 +215,7 @@ export default function AdminStaffPage() {
               ) : staffList.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-4 py-10 text-center text-muted-foreground"
                   >
                     No staff found.
@@ -213,6 +234,9 @@ export default function AdminStaffPage() {
                       {staff.salary_amount === 0
                         ? "Not set"
                         : formatRupiah(staff.salary_amount)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StaffRecurringPayoutCell staff={staff} />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
@@ -281,6 +305,11 @@ export default function AdminStaffPage() {
             }
             ref={formRef}
             defaultValues={formDefaultValues}
+            recurringExpenseId={
+              dialog.mode === "edit"
+                ? dialog.staff.recurring_expense_id
+                : undefined
+            }
             onSubmit={handleFormSubmit}
             onCancel={closeDialog}
             isLoading={saving}
