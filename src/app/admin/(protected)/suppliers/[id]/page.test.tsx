@@ -3,7 +3,8 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AdminSupplierDetailContent } from "./supplier-detail-content";
 import { suppliersAdminApi } from "@/lib/api/suppliers";
-import type { Supplier } from "@/lib/api/types";
+import { ApiError } from "@/lib/api/client";
+import type { Supplier, SupplierPrice } from "@/lib/api/types";
 import { toast } from "sonner";
 
 vi.mock("@/lib/api/suppliers", () => ({
@@ -62,6 +63,16 @@ vi.mock("sonner", () => ({
   },
 }));
 
+const priceQuote: SupplierPrice = {
+  id: "price-1",
+  food_supply_id: "fs-1",
+  food_supply_title: "Rice",
+  price_amount: 140000,
+  price_quantity: 1000,
+  unit: "gr",
+  unit_price: 140,
+};
+
 const supplier: Supplier = {
   id: "sup-1",
   name: "Beras Supplier",
@@ -72,6 +83,11 @@ const supplier: Supplier = {
   price_quotes: [],
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
+};
+
+const supplierWithPrices: Supplier = {
+  ...supplier,
+  price_quotes: [priceQuote],
 };
 
 describe("AdminSupplierDetailContent", () => {
@@ -147,5 +163,104 @@ describe("AdminSupplierDetailContent", () => {
       });
     });
     expect(toast.success).toHaveBeenCalledWith("Price quote added");
+  });
+
+  it("deletes a price quote after confirmation and refetches supplier detail", async () => {
+    const user = userEvent.setup();
+    vi.mocked(suppliersAdminApi.deletePrice).mockResolvedValue({
+      data: undefined,
+    });
+    vi.mocked(suppliersAdminApi.get)
+      .mockResolvedValueOnce({ data: supplierWithPrices })
+      .mockResolvedValueOnce({ data: supplier });
+
+    render(<AdminSupplierDetailContent id="sup-1" />);
+    await screen.findByText("Rice");
+
+    await user.click(screen.getByLabelText("Delete price quote"));
+    expect(screen.getByText("Delete price quote")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(suppliersAdminApi.deletePrice).toHaveBeenCalledWith("price-1");
+    });
+    expect(toast.success).toHaveBeenCalledWith("Price quote deleted");
+    await waitFor(() => {
+      expect(suppliersAdminApi.get).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.queryByText("Rice")).not.toBeInTheDocument();
+    expect(screen.getByText("No price quotes yet.")).toBeInTheDocument();
+  });
+
+  it("shows API error message when price delete fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(suppliersAdminApi.get).mockResolvedValue({
+      data: supplierWithPrices,
+    });
+    vi.mocked(suppliersAdminApi.deletePrice).mockRejectedValue(
+      new ApiError(500, "server_error", "Cannot delete supplier price"),
+    );
+
+    render(<AdminSupplierDetailContent id="sup-1" />);
+    await screen.findByText("Rice");
+
+    await user.click(screen.getByLabelText("Delete price quote"));
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("Cannot delete supplier price");
+    });
+    expect(screen.getByRole("cell", { name: "Rice" })).toBeInTheDocument();
+  });
+
+  it("edits a price quote from the modal", async () => {
+    const user = userEvent.setup();
+    vi.mocked(suppliersAdminApi.get)
+      .mockResolvedValueOnce({ data: supplierWithPrices })
+      .mockResolvedValueOnce({
+        data: {
+          ...supplierWithPrices,
+          price_quotes: [
+            {
+              ...priceQuote,
+              price_amount: 150000,
+              unit_price: 150,
+            },
+          ],
+        },
+      });
+    vi.mocked(suppliersAdminApi.updatePrice).mockResolvedValue({
+      data: {
+        ...priceQuote,
+        price_amount: 150000,
+        unit_price: 150,
+      },
+    });
+
+    render(<AdminSupplierDetailContent id="sup-1" />);
+    await screen.findByText("Rice");
+
+    await user.click(screen.getByLabelText("Edit price quote"));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByLabelText("Price amount (Rp)")).toHaveValue(
+      140000,
+    );
+
+    const amountInput = within(dialog).getByLabelText("Price amount (Rp)");
+    await user.clear(amountInput);
+    await user.type(amountInput, "150000");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save changes" }),
+    );
+
+    await waitFor(() => {
+      expect(suppliersAdminApi.updatePrice).toHaveBeenCalledWith("price-1", {
+        food_supply_id: "fs-1",
+        price_amount: 150000,
+        price_quantity: 1000,
+      });
+    });
+    expect(toast.success).toHaveBeenCalledWith("Price quote updated");
   });
 });

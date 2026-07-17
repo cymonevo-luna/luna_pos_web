@@ -61,6 +61,17 @@ describe("api client", () => {
     expect(res.meta?.total).toBe(42);
   });
 
+  it("treats 204 No Content as success without parsing JSON", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, { status: 204 }),
+    );
+
+    const res = await api.delete<void>("/api/admin/supplier-prices/price-1", {
+      auth: false,
+    });
+    expect(res.data).toBeUndefined();
+  });
+
   it("throws an ApiError with code and message on failure", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse(
