@@ -270,7 +270,7 @@ async function seedSession(context, page, role) {
 async function expectManagerNavAndList(page) {
   await page.goto(`${WEB_BASE}/admin/expenses`, { waitUntil: "networkidle" });
   await page.getByTestId("expenses-page").waitFor({ timeout: 15000 });
-  await page.getByRole("link", { name: "Expenses" }).waitFor();
+  await page.getByRole("link", { name: "Expenses", exact: true }).waitFor();
   await page.getByRole("columnheader", { name: "Title" }).waitFor();
   await page.getByRole("columnheader", { name: "Amount" }).waitFor();
   await page.getByTestId("expense-row-exp-verify-79-4-a").waitFor();
