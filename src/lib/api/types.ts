@@ -114,6 +114,32 @@ export interface BranchAsset {
   updated_at: string;
 }
 
+export type RecurringExpenseInterval = "DATE" | "DAY" | "DAILY";
+
+export interface RecurringExpenseScheduleTime {
+  hour: number;
+  minute: number;
+  second: number;
+}
+
+export interface RecurringExpenseSchedule {
+  interval: RecurringExpenseInterval;
+  value?: number | null;
+  time: RecurringExpenseScheduleTime;
+}
+
+export interface RecurringExpense {
+  id: string;
+  title: string;
+  description?: string | null;
+  amount: number;
+  is_active: boolean;
+  recurring: RecurringExpenseSchedule;
+  next_run_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface SupplierPrice {
   id: string;
   food_supply_id: string;

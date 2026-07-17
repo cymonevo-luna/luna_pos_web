@@ -146,6 +146,20 @@ describe("canAccessRoute", () => {
     expect(canAccessRoute("/admin", ["operational"])).toBe(true);
     expect(canAccessRoute("/admin", ["admin"])).toBe(true);
   });
+
+  it("allows manager and operational users on recurring expenses routes", () => {
+    expect(canAccessRoute("/admin/recurring-expenses", ["manager"])).toBe(true);
+    expect(canAccessRoute("/admin/recurring-expenses", ["operational"])).toBe(
+      true,
+    );
+  });
+
+  it("blocks cashier and admin-only users from recurring expenses routes", () => {
+    expect(canAccessRoute("/admin/recurring-expenses", ["cashier"] as never)).toBe(
+      false,
+    );
+    expect(canAccessRoute("/admin/recurring-expenses", ["admin"])).toBe(false);
+  });
 });
 
 describe("getAuthenticatedLandingPath", () => {
