@@ -146,6 +146,34 @@ describe("canAccessRoute", () => {
     expect(canAccessRoute("/admin", ["operational"])).toBe(true);
     expect(canAccessRoute("/admin", ["admin"])).toBe(true);
   });
+
+  it("allows manager and operational users on recurring expenses routes", () => {
+    expect(canAccessRoute("/admin/recurring-expenses", ["manager"])).toBe(true);
+    expect(canAccessRoute("/admin/recurring-expenses", ["operational"])).toBe(
+      true,
+    );
+  });
+
+  it("allows manager and operational users on expenses routes", () => {
+    expect(canAccessRoute("/admin/expenses", ["manager"])).toBe(true);
+    expect(canAccessRoute("/admin/expenses", ["operational"])).toBe(true);
+    expect(canAccessRoute("/admin/expenses/new", ["manager"])).toBe(true);
+    expect(canAccessRoute("/admin/expenses/exp-1/edit", ["operational"])).toBe(
+      true,
+    );
+  });
+
+  it("blocks cashier and admin-only users from expenses routes", () => {
+    expect(canAccessRoute("/admin/expenses", ["cashier"] as never)).toBe(false);
+    expect(canAccessRoute("/admin/expenses", ["admin"])).toBe(false);
+  });
+
+  it("blocks cashier and admin-only users from recurring expenses routes", () => {
+    expect(canAccessRoute("/admin/recurring-expenses", ["cashier"] as never)).toBe(
+      false,
+    );
+    expect(canAccessRoute("/admin/recurring-expenses", ["admin"])).toBe(false);
+  });
 });
 
 describe("getAuthenticatedLandingPath", () => {
