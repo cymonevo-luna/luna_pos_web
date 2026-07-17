@@ -303,7 +303,7 @@ async function loginManager(page) {
   await page.fill('input[type="email"]', MANAGER_EMAIL);
   await page.fill('input[type="password"]', MANAGER_PASSWORD);
   await page.click('button[type="submit"]');
-  await page.waitForURL(/\/admin\/(?!login)/, { timeout: 15000 });
+  await page.waitForURL(/\/admin(?!\/login)/, { timeout: 15000 });
 }
 
 async function loginOperational(page) {
@@ -311,7 +311,7 @@ async function loginOperational(page) {
   await page.fill('input[type="email"]', OPERATIONAL_EMAIL);
   await page.fill('input[type="password"]', OPERATIONAL_PASSWORD);
   await page.click('button[type="submit"]');
-  await page.waitForURL(/\/admin\/(?!login)/, { timeout: 15000 });
+  await page.waitForURL(/\/admin(?!\/login)/, { timeout: 15000 });
 }
 
 async function main() {
@@ -357,7 +357,10 @@ async function main() {
   // 4. Delete an unused order option
   const dineInDeleteRow = page.getByRole("row", { name: /Dine In/ });
   await dineInDeleteRow.getByLabel("Delete order option").click();
-  await page.getByRole("button", { name: "Delete" }).click();
+  await page
+    .locator(".fixed.inset-0")
+    .getByRole("button", { name: "Delete", exact: true })
+    .click();
   await page.waitForTimeout(500);
   if (state.options.some((option) => option.name === "Dine In")) {
     throw new Error("Expected Dine In to be deleted");
