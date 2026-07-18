@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api/client";
 import { uploadExpenseReceipt, validateMenuPhotoFile } from "@/lib/api/uploads";
 import { expenseSchema, type ExpenseFormValues } from "@/lib/validations";
 import { menuPhotoUrl } from "@/lib/utils";
+import { withTitleCaseOnBlur } from "@/lib/withTitleCaseOnBlur";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -157,7 +158,7 @@ export const ExpenseForm = React.forwardRef<ExpenseFormHandle, ExpenseFormProps>
             id="expense-title"
             autoComplete="off"
             data-testid="expense-title-input"
-            {...register("title")}
+            {...withTitleCaseOnBlur(register("title"), setValue, "title")}
           />
           {errors.title && (
             <p className="text-sm text-destructive">{errors.title.message}</p>

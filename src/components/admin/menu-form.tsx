@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api/client";
 import { uploadMenuPhoto, validateMenuPhotoFile } from "@/lib/api/uploads";
 import { menuBasicSchema, type MenuBasicFormValues } from "@/lib/validations";
 import { menuPhotoUrl } from "@/lib/utils";
+import { withTitleCaseOnBlur } from "@/lib/withTitleCaseOnBlur";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -157,7 +158,11 @@ export const MenuForm = React.forwardRef<MenuFormHandle, MenuFormProps>(
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <div className="space-y-1.5">
           <Label htmlFor="menu-title">Title</Label>
-          <Input id="menu-title" autoComplete="off" {...register("title")} />
+          <Input
+            id="menu-title"
+            autoComplete="off"
+            {...withTitleCaseOnBlur(register("title"), setValue, "title")}
+          />
           {errors.title && (
             <p className="text-sm text-destructive">{errors.title.message}</p>
           )}

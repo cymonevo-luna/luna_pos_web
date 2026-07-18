@@ -409,4 +409,18 @@ describe("MenuForm", () => {
     });
     expect(uploadMenuPhoto).not.toHaveBeenCalled();
   });
+
+  it("title-cases the title on blur", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MenuForm categories={categories} onSubmit={() => {}} onCancel={() => {}} />,
+    );
+
+    const titleInput = screen.getByLabelText("Title");
+    await user.type(titleInput, "es teh manis");
+    await user.tab();
+
+    expect(titleInput).toHaveValue("Es Teh Manis");
+  });
 });

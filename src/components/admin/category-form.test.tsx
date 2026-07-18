@@ -78,4 +78,16 @@ describe("CategoryForm", () => {
     expect(onCancel).toHaveBeenCalled();
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it("does not title-case the name on blur", async () => {
+    const user = userEvent.setup();
+
+    render(<CategoryForm onSubmit={() => {}} onCancel={() => {}} />);
+
+    const nameInput = screen.getByLabelText("Name");
+    await user.type(nameInput, "beverages");
+    await user.tab();
+
+    expect(nameInput).toHaveValue("beverages");
+  });
 });

@@ -142,4 +142,16 @@ describe("RecurringExpenseForm", () => {
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
   });
+
+  it("title-cases the title on blur", async () => {
+    const user = userEvent.setup();
+
+    render(<RecurringExpenseForm onSubmit={() => {}} onCancel={() => {}} />);
+
+    const titleInput = screen.getByLabelText("Title");
+    await user.type(titleInput, "monthly rent");
+    await user.tab();
+
+    expect(titleInput).toHaveValue("Monthly Rent");
+  });
 });

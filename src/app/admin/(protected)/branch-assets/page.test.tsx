@@ -158,7 +158,7 @@ describe("AdminBranchAssetsPage", () => {
 
     await waitFor(() => {
       expect(branchAssetsAdminApi.create).toHaveBeenCalledWith({
-        title: "Dining table",
+        title: "Dining Table",
         quantity: "4",
         price_amount: 2_500_000,
         photo_url: "",

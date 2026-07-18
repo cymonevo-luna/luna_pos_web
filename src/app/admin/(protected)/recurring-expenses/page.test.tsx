@@ -228,7 +228,7 @@ describe("AdminRecurringExpensesPage", () => {
 
     await waitFor(() => {
       expect(recurringExpensesAdminApi.create).toHaveBeenCalledWith({
-        title: "Daily fee",
+        title: "Daily Fee",
         amount: 10_000,
         is_active: true,
         recurring: {
@@ -261,7 +261,7 @@ describe("AdminRecurringExpensesPage", () => {
 
     await waitFor(() => {
       expect(recurringExpensesAdminApi.update).toHaveBeenCalledWith("re-1", {
-        title: "Updated rent",
+        title: "Updated Rent",
         description: "Monthly rent",
         amount: 6_000_000,
         is_active: true,
