@@ -64,6 +64,16 @@ const cashFlowSummaryBackend = {
     { method: "CASH", total_amount: 1_000_000, count: 7 },
     { method: "QRIS", total_amount: 500_000, count: 3 },
   ],
+  outflow_by_source: [
+    { source: "purchases", total_amount: 300_000, count: 1 },
+    { source: "expenses", total_amount: 150_000, count: 1 },
+    { source: "staff_payouts", total_amount: 50_000, count: 1 },
+  ],
+  production_cost: {
+    total_estimated_cost: 50_000,
+    completed_request_count: 2,
+    items_without_cogs_count: 0,
+  },
 };
 
 /** Backend-shaped payload from GET /api/admin/insights/transactions/by-menu. */
@@ -194,6 +204,8 @@ describe("AdminCashFlowPage", () => {
       expect(screen.getAllByText("Mie Goreng").length).toBeGreaterThan(0);
       expect(screen.getByTestId("cash-flow-chart")).toBeInTheDocument();
       expect(screen.getByTestId("menu-pie-chart")).toBeInTheDocument();
+      expect(screen.getByTestId("cash-flow-outflow-breakdown")).toBeInTheDocument();
+      expect(screen.getByTestId("cash-flow-production-cost-card")).toBeInTheDocument();
       expect(screen.queryByText("Rp NaN")).not.toBeInTheDocument();
       expect(consoleErrorSpy).not.toHaveBeenCalled();
     });

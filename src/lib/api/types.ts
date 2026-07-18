@@ -329,6 +329,8 @@ export interface CashFlowSummaryBucket {
   inflow_amount: number;
   outflow_amount: number;
   net_amount: number;
+  /** Estimated production COGS for the bucket when returned by the API. */
+  production_cost_amount?: number;
 }
 
 /** Wire format from cash-flow summary API (`inflow_by_method` rows). */
@@ -344,11 +346,37 @@ export interface CashFlowInflowByMethodNormalized
   amount: number;
 }
 
+export type CashFlowOutflowSource =
+  | "purchases"
+  | "expenses"
+  | "staff_payouts";
+
+/** Wire format from cash-flow summary API (`outflow_by_source` rows). */
+export interface CashFlowOutflowBySource {
+  source: CashFlowOutflowSource;
+  total_amount: number;
+  count: number;
+}
+
+/** Normalized outflow row for UI (`amount` mapped from `total_amount`). */
+export interface CashFlowOutflowBySourceNormalized
+  extends Omit<CashFlowOutflowBySource, "total_amount"> {
+  amount: number;
+}
+
+export interface CashFlowProductionCost {
+  total_estimated_cost: number;
+  completed_request_count: number;
+  items_without_cogs_count: number;
+}
+
 export interface CashFlowSummary {
   period: TransactionSummaryPeriod;
   totals: CashFlowSummaryTotals;
   buckets: CashFlowSummaryBucket[];
   inflow_by_method?: CashFlowInflowByMethodNormalized[];
+  outflow_by_source?: CashFlowOutflowBySourceNormalized[];
+  production_cost?: CashFlowProductionCost;
 }
 
 /** Wire format from GET /api/admin/insights/transactions/by-menu. */

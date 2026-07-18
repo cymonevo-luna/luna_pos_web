@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CashFlowSection } from "./cash-flow-section";
 import { ApiError } from "@/lib/api/client";
@@ -49,12 +49,23 @@ const sampleSummary = {
       inflow_amount: 800_000,
       outflow_amount: 200_000,
       net_amount: 600_000,
+      production_cost_amount: 50_000,
     },
   ],
   inflow_by_method: [
     { method: "CASH", total_amount: 1_000_000, count: 7 },
     { method: "QRIS", total_amount: 500_000, count: 3 },
   ],
+  outflow_by_source: [
+    { source: "purchases", total_amount: 300_000, count: 1 },
+    { source: "expenses", total_amount: 150_000, count: 1 },
+    { source: "staff_payouts", total_amount: 50_000, count: 1 },
+  ],
+  production_cost: {
+    total_estimated_cost: 50_000,
+    completed_request_count: 2,
+    items_without_cogs_count: 1,
+  },
 };
 
 describe("CashFlowSection", () => {
@@ -73,12 +84,61 @@ describe("CashFlowSection", () => {
   it("renders formatted currency stat cards", async () => {
     render(<CashFlowSection />);
 
-    expect(await screen.findByText("Total inflow")).toBeInTheDocument();
-    expect(screen.getByText("Total outflow")).toBeInTheDocument();
+    expect(await screen.findByText("Total outflow")).toBeInTheDocument();
     expect(screen.getByText("Net cash flow")).toBeInTheDocument();
+    expect(screen.getAllByText("Customer transactions").length).toBeGreaterThan(0);
     expect(screen.getByText("Rp 1.500.000")).toBeInTheDocument();
     expect(screen.getAllByText("Rp 500.000").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Rp 1.000.000").length).toBeGreaterThan(0);
+  });
+
+  it("shows outflow breakdown chart and production cost card when API returns extended fields", async () => {
+    render(<CashFlowSection />);
+
+    expect(
+      await screen.findByTestId("cash-flow-outflow-breakdown"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("cash-flow-production-cost-card"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Production cost").length).toBeGreaterThan(0);
+    expect(
+      within(screen.getByTestId("cash-flow-production-cost-card")).getByText(
+        "Rp 50.000",
+      ),
+    ).toBeInTheDocument();
+    const outflowBreakdown = screen.getByTestId("cash-flow-outflow-breakdown");
+    expect(within(outflowBreakdown).getAllByText("Purchases").length).toBeGreaterThan(0);
+    expect(within(outflowBreakdown).getAllByText("Expenses").length).toBeGreaterThan(0);
+    expect(within(outflowBreakdown).getAllByText("Staff payouts").length).toBeGreaterThan(0);
+    expect(
+      screen.getByTestId("cash-flow-production-cost-warning"),
+    ).toHaveTextContent("1 without COGS");
+  });
+
+  it("hides extended sections when API omits optional fields", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: {
+          ...sampleSummary,
+          outflow_by_source: undefined,
+          production_cost: undefined,
+          buckets: sampleSummary.buckets.map(({ production_cost_amount, ...bucket }) => bucket),
+        },
+      }),
+    );
+
+    render(<CashFlowSection />);
+
+    expect(await screen.findByText("Total outflow")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("cash-flow-outflow-breakdown"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("cash-flow-production-cost-card"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("cash-flow-chart")).toBeInTheDocument();
   });
 
   it("shows inflow-by-method breakdown with mapped amounts", async () => {
@@ -86,6 +146,9 @@ describe("CashFlowSection", () => {
 
     expect(
       await screen.findByTestId("cash-flow-inflow-by-method"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Customer transactions by payment method"),
     ).toBeInTheDocument();
     expect(screen.getByText("CASH")).toBeInTheDocument();
     expect(screen.getByText("QRIS")).toBeInTheDocument();
@@ -103,7 +166,7 @@ describe("CashFlowSection", () => {
 
     render(<CashFlowSection />);
 
-    expect(await screen.findByText("Total inflow")).toBeInTheDocument();
+    expect(await screen.findByText("Total outflow")).toBeInTheDocument();
     expect(
       screen.queryByTestId("cash-flow-inflow-by-method"),
     ).not.toBeInTheDocument();
@@ -198,7 +261,7 @@ describe("CashFlowSection", () => {
 
       render(<CashFlowSection />);
 
-      await screen.findByText("Total inflow");
+      await screen.findByText("Total outflow");
       expect(screen.getByText("Rp 2.000.000")).toBeInTheDocument();
       expect(screen.getByText("CASH")).toBeInTheDocument();
       expect(screen.getByText("QRIS")).toBeInTheDocument();
@@ -244,7 +307,10 @@ describe("CashFlowSection", () => {
 
       expect(await screen.findByTestId("cash-flow-chart")).toBeInTheDocument();
       expect(screen.queryByText(/purchase request/i)).not.toBeInTheDocument();
-      expect(screen.getByText("Inflows, outflows, and net cash movement")).toBeInTheDocument();
+      expect(screen.queryByText("Inflows, outflows, and net cash movement")).not.toBeInTheDocument();
+      expect(
+        screen.getByText("Customer transaction inflows, outflows, and net cash movement"),
+      ).toBeInTheDocument();
     });
   });
 });
