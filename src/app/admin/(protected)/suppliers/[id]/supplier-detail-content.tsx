@@ -192,7 +192,9 @@ export function AdminSupplierDetailContent({ id }: { id: string }) {
                 <div>
                   <CardTitle>{supplier.name}</CardTitle>
                   <CardDescription className="mt-1">
-                    {supplier.phone_number} · {supplier.address}
+                    {supplier.phone_number?.trim()
+                      ? `${supplier.phone_number} · ${supplier.address}`
+                      : supplier.address}
                   </CardDescription>
                 </div>
                 <Link

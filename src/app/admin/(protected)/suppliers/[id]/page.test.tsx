@@ -103,6 +103,18 @@ describe("AdminSupplierDetailContent", () => {
     expect(screen.getByText("No price quotes yet.")).toBeInTheDocument();
   });
 
+  it("renders supplier detail without phone in header when phone is blank", async () => {
+    vi.mocked(suppliersAdminApi.get).mockResolvedValue({
+      data: { ...supplier, phone_number: "" },
+    });
+
+    render(<AdminSupplierDetailContent id="sup-1" />);
+
+    expect(await screen.findByText("Beras Supplier")).toBeInTheDocument();
+    expect(screen.getByText("Jl. Pasar 12")).toBeInTheDocument();
+    expect(screen.queryByText(/·/)).not.toBeInTheDocument();
+  });
+
   it("adds a price quote from the modal", async () => {
     const user = userEvent.setup();
     vi.mocked(suppliersAdminApi.createPrice).mockResolvedValue({

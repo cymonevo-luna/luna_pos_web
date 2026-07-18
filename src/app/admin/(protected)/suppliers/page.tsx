@@ -166,7 +166,13 @@ export default function AdminSuppliersPage() {
                         {supplier.name}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
-                        <p>{supplier.phone_number}</p>
+                        <p>
+                          {supplier.phone_number?.trim() ? (
+                            supplier.phone_number
+                          ) : (
+                            <span className="text-muted-foreground/70">—</span>
+                          )}
+                        </p>
                         <p className="mt-0.5 max-w-xs truncate text-xs">
                           {supplier.address}
                         </p>

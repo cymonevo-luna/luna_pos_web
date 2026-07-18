@@ -284,8 +284,14 @@ export const supplierSchema = z
     phone_number: z
       .string()
       .trim()
-      .min(5, "Phone number must be at least 5 characters")
-      .max(30, "Phone number is too long"),
+      .refine(
+        (value) => value === "" || value.length >= 5,
+        "Phone number must be at least 5 characters",
+      )
+      .refine(
+        (value) => value.length <= 30,
+        "Phone number is too long",
+      ),
     address: z
       .string()
       .min(2, "Address must be at least 2 characters")

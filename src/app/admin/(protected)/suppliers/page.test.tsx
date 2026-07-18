@@ -126,6 +126,19 @@ describe("AdminSuppliersPage", () => {
     });
   });
 
+  it("renders em dash when supplier has no phone number", async () => {
+    vi.mocked(suppliersAdminApi.list).mockResolvedValue({
+      data: [{ ...supplier, phone_number: "" }],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminSuppliersPage />);
+
+    expect(await screen.findByText("Beras Supplier")).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.queryByText("08123456789")).not.toBeInTheDocument();
+  });
+
   it("links to new supplier, detail, and edit pages", async () => {
     render(<AdminSuppliersPage />);
     await screen.findByText("Beras Supplier");
