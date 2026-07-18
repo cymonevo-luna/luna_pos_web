@@ -51,6 +51,7 @@ describe("canAccessRoute", () => {
 
   it("blocks admin-only users from manager routes", () => {
     expect(canAccessRoute("/admin/cogs", ["admin"])).toBe(false);
+    expect(canAccessRoute("/admin/cogs/menu-breakdown", ["admin"])).toBe(false);
     expect(canAccessRoute("/admin/transactions", ["admin"])).toBe(false);
     expect(canAccessRoute("/admin/store-settings", ["admin"])).toBe(false);
   });
@@ -76,14 +77,21 @@ describe("canAccessRoute", () => {
 
   it("blocks operational users from manager-only routes", () => {
     expect(canAccessRoute("/admin/cogs", ["operational"])).toBe(false);
+    expect(canAccessRoute("/admin/cogs/menu-breakdown", ["operational"])).toBe(
+      false,
+    );
     expect(canAccessRoute("/admin/menus", ["operational"])).toBe(false);
     expect(canAccessRoute("/admin/cash-flow", ["operational"])).toBe(false);
+    expect(canAccessRoute("/admin/cash-flow/bep", ["operational"])).toBe(false);
     expect(canAccessRoute("/admin/order-options", ["operational"])).toBe(false);
   });
 
   it("allows manager users on manager routes", () => {
     expect(canAccessRoute("/admin/cogs", ["manager"])).toBe(true);
+    expect(canAccessRoute("/admin/cogs/menu-breakdown", ["manager"])).toBe(true);
+    expect(canAccessRoute("/admin/cogs/summary", ["manager"])).toBe(true);
     expect(canAccessRoute("/admin/cash-flow", ["manager"])).toBe(true);
+    expect(canAccessRoute("/admin/cash-flow/bep", ["manager"])).toBe(true);
     expect(canAccessRoute("/admin/order-options", ["manager"])).toBe(true);
     expect(canAccessRoute("/admin/menus/menu-1/ingredients", ["manager"])).toBe(
       true,
@@ -133,6 +141,9 @@ describe("canAccessRoute", () => {
     expect(canAccessRoute("/admin/cogs", ["manager", "operational"])).toBe(
       true,
     );
+    expect(
+      canAccessRoute("/admin/cogs/menu-breakdown", ["manager", "operational"]),
+    ).toBe(true);
     expect(
       canAccessRoute("/admin/purchases", ["manager", "operational"]),
     ).toBe(true);

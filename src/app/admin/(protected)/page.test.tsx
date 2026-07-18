@@ -112,7 +112,8 @@ describe("AdminOverviewPage", () => {
     expect(
       screen.getByRole("heading", { name: "Quick actions" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Transactions")).toBeInTheDocument();
+    expect(screen.getByText("User transactions")).toBeInTheDocument();
+    expect(screen.getByText("Menu breakdown")).toBeInTheDocument();
     expect(screen.getByText("Menus")).toBeInTheDocument();
     expect(screen.getByTestId("recent-transactions-panel")).toBeInTheDocument();
 

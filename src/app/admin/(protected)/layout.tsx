@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import {
   DashboardShell,
+  isNavGroup,
+  type NavEntry,
   type NavItem,
 } from "@/components/layout/dashboard-shell";
 import { AdminRouteGuard } from "@/components/layout/admin-route-guard";
@@ -33,32 +35,166 @@ import {
 } from "@/lib/auth/roles";
 import type { MerchantRole } from "@/lib/api/types";
 
-const allNavItems: NavItem[] = [
+export const allNavItems: NavEntry[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/users", label: "Users", icon: Users, roles: ["admin"] },
   { href: "/admin/staff", label: "Staff", icon: UserCog, roles: ["admin"] },
-  { href: "/admin/food-supplies", label: "Food Supplies", icon: Package, roles: ["manager", "operational"] },
-  { href: "/admin/branch-assets", label: "Branch Assets", icon: Box, roles: ["manager"] },
-  { href: "/admin/categories", label: "Categories", icon: Tags, roles: ["manager"] },
-  { href: "/admin/menus", label: "Menus", icon: UtensilsCrossed, roles: ["manager"] },
-  { href: "/admin/cogs", label: "COGS", icon: Calculator, roles: ["manager"] },
-  { href: "/admin/transactions", label: "Transactions", icon: Receipt, roles: ["manager"] },
-  { href: "/admin/cash-flow", label: "Cash Flow", icon: TrendingUp, roles: ["manager"] },
-  { href: "/admin/expenses", label: "Expenses", icon: Wallet, roles: ["manager", "operational"] },
-  { href: "/admin/recurring-expenses", label: "Recurring Expenses", icon: Repeat, roles: ["manager", "operational"] },
-  { href: "/admin/store-settings", label: "Receipt Settings", icon: Printer, roles: ["manager"] },
-  { href: "/admin/order-options", label: "Order Options", icon: ListOrdered, roles: ["manager"] },
-  { href: "/admin/suppliers", label: "Suppliers", icon: Truck, roles: ["operational"] },
-  { href: "/admin/purchases", label: "Purchases", icon: ShoppingCart, roles: ["operational"] },
-  { href: "/admin/production-requests", label: "Production", icon: ChefHat, roles: ["admin", "manager", "operational"] },
+  {
+    href: "/admin/branch-assets",
+    label: "Branch Assets",
+    icon: Box,
+    roles: ["manager"],
+  },
+  {
+    href: "/admin/categories",
+    label: "Categories",
+    icon: Tags,
+    roles: ["manager"],
+  },
+  {
+    href: "/admin/store-settings",
+    label: "Receipt Settings",
+    icon: Printer,
+    roles: ["manager"],
+  },
+  {
+    href: "/admin/order-options",
+    label: "Order Options",
+    icon: ListOrdered,
+    roles: ["manager"],
+  },
+  {
+    label: "Food",
+    icon: UtensilsCrossed,
+    children: [
+      {
+        href: "/admin/food-supplies",
+        label: "Ingredients",
+        icon: Package,
+        roles: ["manager", "operational"],
+      },
+      {
+        href: "/admin/menus",
+        label: "Menus",
+        icon: UtensilsCrossed,
+        roles: ["manager"],
+      },
+      {
+        href: "/admin/production-requests",
+        label: "Cook Request",
+        icon: ChefHat,
+        roles: ["admin", "manager", "operational"],
+      },
+      {
+        href: "/admin/transactions",
+        label: "User Transactions",
+        icon: Receipt,
+        roles: ["manager"],
+      },
+    ],
+  },
+  {
+    label: "Supplier",
+    icon: Truck,
+    children: [
+      {
+        href: "/admin/suppliers",
+        label: "List",
+        icon: Truck,
+        roles: ["operational"],
+      },
+      {
+        href: "/admin/purchases",
+        label: "Purchases",
+        icon: ShoppingCart,
+        roles: ["operational"],
+      },
+    ],
+  },
+  {
+    label: "COGS",
+    icon: Calculator,
+    children: [
+      {
+        href: "/admin/cogs/menu-breakdown",
+        label: "Menu Breakdown",
+        icon: Calculator,
+        roles: ["manager"],
+      },
+      {
+        href: "/admin/cogs/summary",
+        label: "Summary",
+        icon: Calculator,
+        roles: ["manager"],
+      },
+    ],
+  },
+  {
+    label: "Cash Flow",
+    icon: TrendingUp,
+    children: [
+      {
+        href: "/admin/expenses",
+        label: "Expenses",
+        icon: Wallet,
+        roles: ["manager", "operational"],
+      },
+      {
+        href: "/admin/recurring-expenses",
+        label: "Recurring Expenses",
+        icon: Repeat,
+        roles: ["manager", "operational"],
+      },
+      {
+        href: "/admin/cash-flow/bep",
+        label: "BEP",
+        icon: TrendingUp,
+        roles: ["manager"],
+      },
+      {
+        href: "/admin/cash-flow",
+        label: "Summary",
+        icon: TrendingUp,
+        roles: ["manager"],
+      },
+    ],
+  },
   { href: "/dashboard", label: "Back to app", icon: ArrowLeft },
 ];
 
 export function filterAdminNavItems(
-  items: NavItem[],
+  items: NavEntry[],
   userRoles: MerchantRole[],
-): NavItem[] {
-  return items.filter((item) => canAccessNavRoles(userRoles, item.roles));
+): NavEntry[] {
+  return items
+    .map((entry) => {
+      if (isNavGroup(entry)) {
+        const children = entry.children.filter((child) =>
+          canAccessNavRoles(userRoles, child.roles),
+        );
+        if (children.length === 0) {
+          return null;
+        }
+        return { ...entry, children };
+      }
+      return canAccessNavRoles(userRoles, entry.roles) ? entry : null;
+    })
+    .filter((entry): entry is NavEntry => entry !== null);
+}
+
+export function flattenAdminNavLabels(items: NavEntry[]): string[] {
+  const labels: string[] = [];
+  for (const entry of items) {
+    if (isNavGroup(entry)) {
+      labels.push(entry.label);
+      for (const child of entry.children) {
+        labels.push(child.label);
+      }
+      continue;
+    }
+    labels.push(entry.label);
+  }
+  return labels;
 }
 
 export default function AdminProtectedLayout({

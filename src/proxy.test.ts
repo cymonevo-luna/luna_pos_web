@@ -127,7 +127,7 @@ describe("proxy", () => {
     });
 
     const res = await proxy(
-      requestFor("/admin/cogs", {
+      requestFor("/admin/cogs/menu-breakdown", {
         [config.cookies.accessToken]: access,
       }),
     );
@@ -155,6 +155,23 @@ describe("proxy", () => {
   });
 
   it("allows manager users on manager routes", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["manager"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+
+    const res = await proxy(
+      requestFor("/admin/cogs/menu-breakdown", {
+        [config.cookies.accessToken]: access,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it("allows manager users on COGS redirect route", async () => {
     const access = makeJwt({
       uid: "1",
       roles: ["manager"],
