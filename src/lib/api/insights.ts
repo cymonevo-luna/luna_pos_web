@@ -3,6 +3,9 @@ import { dateInputToIso } from "./transactions";
 import type {
   CashFlowInflowByMethod,
   CashFlowInflowByMethodNormalized,
+  CashFlowOutflowBySource,
+  CashFlowOutflowBySourceNormalized,
+  CashFlowProductionCost,
   CashFlowSummary,
   ProductionNextDayInsight,
   ProductionNextDayInsightItem,
@@ -16,8 +19,18 @@ import type {
 } from "./types";
 
 interface CashFlowSummaryRaw
-  extends Omit<CashFlowSummary, "inflow_by_method"> {
+  extends Omit<
+    CashFlowSummary,
+    "inflow_by_method" | "outflow_by_source" | "production_cost"
+  > {
   inflow_by_method?: CashFlowInflowByMethod[];
+  outflow_by_source?: CashFlowOutflowBySource[];
+  production_cost?: CashFlowProductionCost;
+}
+
+function coerceFiniteNumber(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
 }
 
 export function normalizeCashFlowInflowByMethod(
@@ -26,7 +39,27 @@ export function normalizeCashFlowInflowByMethod(
   return {
     method: raw.method,
     count: raw.count,
-    amount: raw.total_amount,
+    amount: coerceFiniteNumber(raw.total_amount),
+  };
+}
+
+export function normalizeCashFlowOutflowBySource(
+  raw: CashFlowOutflowBySource,
+): CashFlowOutflowBySourceNormalized {
+  return {
+    source: raw.source,
+    count: coerceFiniteNumber(raw.count),
+    amount: coerceFiniteNumber(raw.total_amount),
+  };
+}
+
+export function normalizeCashFlowProductionCost(
+  raw: CashFlowProductionCost,
+): CashFlowProductionCost {
+  return {
+    total_estimated_cost: coerceFiniteNumber(raw.total_estimated_cost),
+    completed_request_count: coerceFiniteNumber(raw.completed_request_count),
+    items_without_cogs_count: coerceFiniteNumber(raw.items_without_cogs_count),
   };
 }
 
@@ -34,6 +67,10 @@ export function normalizeCashFlowSummary(raw: CashFlowSummaryRaw): CashFlowSumma
   return {
     ...raw,
     inflow_by_method: raw.inflow_by_method?.map(normalizeCashFlowInflowByMethod),
+    outflow_by_source: raw.outflow_by_source?.map(normalizeCashFlowOutflowBySource),
+    production_cost: raw.production_cost
+      ? normalizeCashFlowProductionCost(raw.production_cost)
+      : undefined,
   };
 }
 
@@ -118,11 +155,6 @@ export async function transactionMenuInsights({
     `/api/admin/insights/transactions/by-menu?${params.toString()}`,
   );
   return normalizeTransactionMenuInsightsResult(result);
-}
-
-function coerceFiniteNumber(value: unknown, fallback = 0): number {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : fallback;
 }
 
 function coerceMaxProducible(value: unknown): number | null {

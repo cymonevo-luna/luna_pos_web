@@ -1,21 +1,33 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bar,
-  BarChart,
   CartesianGrid,
+  Cell,
+  ComposedChart,
   Legend,
+  Line,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowDownLeft, ArrowUpRight, Scale } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Factory,
+  Scale,
+} from "lucide-react";
 import { cashFlowSummary } from "@/lib/api/insights";
 import { ApiError } from "@/lib/api/client";
 import type {
   CashFlowInflowByMethodNormalized,
+  CashFlowOutflowBySourceNormalized,
+  CashFlowOutflowSource,
   CashFlowSummary,
   CashFlowSummaryBucket,
   TransactionSummaryPeriod,
@@ -39,6 +51,20 @@ const PERIODS: { value: TransactionSummaryPeriod; label: string }[] = [
   { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
+];
+
+const OUTFLOW_SOURCE_LABELS: Record<CashFlowOutflowSource, string> = {
+  purchases: "Purchases",
+  expenses: "Expenses",
+  staff_payouts: "Staff payouts",
+};
+
+const CHART_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
 ];
 
 function formatDateInput(date: Date): string {
@@ -66,6 +92,10 @@ function formatPaymentCount(count: number): string {
   return `${count} ${count === 1 ? "payment" : "payments"}`;
 }
 
+function formatCompletedRequestCount(count: number): string {
+  return `${count} completed ${count === 1 ? "request" : "requests"}`;
+}
+
 interface ChartTooltipProps {
   active?: boolean;
   payload?: Array<{
@@ -83,12 +113,39 @@ function ChartTooltip({ active, payload }: ChartTooltipProps) {
     <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-md">
       <p className="font-medium">{bucket.period_label}</p>
       <p className="text-emerald-600 dark:text-emerald-400">
-        Inflow: {formatRupiah(bucket.inflow_amount)}
+        Customer transactions: {formatRupiah(bucket.inflow_amount)}
       </p>
       <p className="text-amber-600 dark:text-amber-400">
         Outflow: {formatRupiah(bucket.outflow_amount)}
       </p>
+      {bucket.production_cost_amount != null && (
+        <p className="text-violet-600 dark:text-violet-400">
+          Production cost: {formatRupiah(bucket.production_cost_amount)}
+        </p>
+      )}
       <p className="font-medium">Net: {formatRupiah(bucket.net_amount)}</p>
+    </div>
+  );
+}
+
+interface OutflowPieTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: CashFlowOutflowBySourceNormalized & {
+      label: string;
+      fill?: string;
+    };
+  }>;
+}
+
+function OutflowPieTooltip({ active, payload }: OutflowPieTooltipProps) {
+  if (!active || !payload?.length) return null;
+  const item = payload[0].payload;
+  return (
+    <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-md">
+      <p className="font-medium">{item.label}</p>
+      <p className="text-muted-foreground">{formatRupiah(item.amount)}</p>
+      <p className="text-muted-foreground">{formatPaymentCount(item.count)}</p>
     </div>
   );
 }
@@ -101,19 +158,101 @@ function InflowMethodLegend({
   if (!items.length) return null;
 
   return (
-    <div
-      className="flex flex-wrap gap-2"
-      data-testid="cash-flow-inflow-by-method"
-    >
-      {items.map((item) => (
-        <Badge key={item.method} variant="secondary" className="gap-2 px-3 py-1">
-          <span className="font-medium">{item.method}</span>
-          <span>{formatRupiah(item.amount)}</span>
-          <span className="text-muted-foreground">
-            ({formatTransactionCount(item.count)})
-          </span>
-        </Badge>
-      ))}
+    <div className="space-y-2" data-testid="cash-flow-inflow-by-method">
+      <p className="text-sm font-medium text-muted-foreground">
+        Customer transactions by payment method
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {items.map((item) => (
+          <Badge
+            key={item.method}
+            variant="secondary"
+            className="gap-2 px-3 py-1"
+          >
+            <span className="font-medium">{item.method}</span>
+            <span>{formatRupiah(item.amount)}</span>
+            <span className="text-muted-foreground">
+              ({formatTransactionCount(item.count)})
+            </span>
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function OutflowBreakdownChart({
+  items,
+}: {
+  items: CashFlowOutflowBySourceNormalized[];
+}) {
+  const chartData = useMemo(
+    () =>
+      items.map((item) => ({
+        ...item,
+        label: OUTFLOW_SOURCE_LABELS[item.source] ?? item.source,
+      })),
+    [items],
+  );
+
+  if (!chartData.length) return null;
+
+  return (
+    <div className="space-y-3" data-testid="cash-flow-outflow-breakdown">
+      <div>
+        <h3 className="text-sm font-medium">Outflow breakdown</h3>
+        <p className="text-sm text-muted-foreground">
+          Purchases, expenses, and staff payouts in this period
+        </p>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:items-center">
+        <div className="h-[220px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={chartData}
+                dataKey="amount"
+                nameKey="label"
+                cx="50%"
+                cy="50%"
+                innerRadius={48}
+                outerRadius={80}
+                paddingAngle={2}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell
+                    key={entry.source}
+                    fill={CHART_COLORS[index % CHART_COLORS.length]}
+                  />
+                ))}
+              </Pie>
+              <Tooltip content={<OutflowPieTooltip />} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {chartData.map((item, index) => (
+            <Badge
+              key={item.source}
+              variant="secondary"
+              className="gap-2 px-3 py-1"
+            >
+              <span
+                className="inline-block h-2.5 w-2.5 rounded-full"
+                style={{
+                  backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
+                }}
+              />
+              <span className="font-medium">{item.label}</span>
+              <span>{formatRupiah(item.amount)}</span>
+              <span className="text-muted-foreground">
+                ({formatPaymentCount(item.count)})
+              </span>
+            </Badge>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -162,9 +301,16 @@ export function CashFlowSection({ className }: CashFlowSectionProps) {
   const totals = summary?.totals;
   const buckets = summary?.buckets ?? [];
   const inflowByMethod = summary?.inflow_by_method ?? [];
+  const outflowBySource = summary?.outflow_by_source ?? [];
+  const productionCost = summary?.production_cost;
+  const showProductionCostCard = productionCost != null;
+  const showProductionCostSeries = buckets.some(
+    (bucket) => bucket.production_cost_amount != null,
+  );
   const netAmount = totals?.net_amount;
   const netColor =
     netAmount == null ? "blue" : netAmount >= 0 ? "green" : "red";
+  const statCardCount = showProductionCostCard ? 4 : 3;
 
   return (
     <Card className={cn(className)} data-testid="cash-flow-section">
@@ -173,7 +319,7 @@ export function CashFlowSection({ className }: CashFlowSectionProps) {
           <div>
             <CardTitle>Cash flow</CardTitle>
             <CardDescription>
-              Inflows, outflows, and net cash movement
+              Customer transaction inflows, outflows, and net cash movement
             </CardDescription>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -215,8 +361,13 @@ export function CashFlowSection({ className }: CashFlowSectionProps) {
       <CardContent className="space-y-6">
         {loading ? (
           <>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 3 }, (_, index) => (
+            <div
+              className={cn(
+                "grid grid-cols-1 gap-3 sm:grid-cols-2",
+                statCardCount === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3",
+              )}
+            >
+              {Array.from({ length: statCardCount }, (_, index) => (
                 <StatCardSkeleton key={index} />
               ))}
             </div>
@@ -227,9 +378,14 @@ export function CashFlowSection({ className }: CashFlowSectionProps) {
           </>
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div
+              className={cn(
+                "grid grid-cols-1 gap-3 sm:grid-cols-2",
+                showProductionCostCard ? "lg:grid-cols-4" : "lg:grid-cols-3",
+              )}
+            >
               <StatCard
-                label="Total inflow"
+                label="Customer transactions"
                 value={formatRupiah(totals?.inflow_amount ?? 0)}
                 subtitle={
                   totals == null
@@ -256,6 +412,32 @@ export function CashFlowSection({ className }: CashFlowSectionProps) {
                 icon={Scale}
                 color={netColor}
               />
+              {showProductionCostCard && (
+                <div
+                  className="relative"
+                  data-testid="cash-flow-production-cost-card"
+                >
+                  <StatCard
+                    label="Production cost"
+                    value={formatRupiah(productionCost.total_estimated_cost)}
+                    subtitle={formatCompletedRequestCount(
+                      productionCost.completed_request_count,
+                    )}
+                    icon={Factory}
+                    color="purple"
+                  />
+                  {productionCost.items_without_cogs_count > 0 && (
+                    <Badge
+                      variant="warning"
+                      className="absolute right-3 top-3 gap-1"
+                      data-testid="cash-flow-production-cost-warning"
+                    >
+                      <AlertTriangle className="h-3 w-3" />
+                      {productionCost.items_without_cogs_count} without COGS
+                    </Badge>
+                  )}
+                </div>
+              )}
             </div>
 
             <InflowMethodLegend items={inflowByMethod} />
@@ -267,7 +449,7 @@ export function CashFlowSection({ className }: CashFlowSectionProps) {
             ) : (
               <div className="h-[280px] w-full" data-testid="cash-flow-chart">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
+                  <ComposedChart
                     data={buckets}
                     margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
                   >
@@ -300,7 +482,7 @@ export function CashFlowSection({ className }: CashFlowSectionProps) {
                     <Legend />
                     <Bar
                       dataKey="inflow_amount"
-                      name="Inflow"
+                      name="Customer transactions"
                       fill="var(--chart-2)"
                       radius={[4, 4, 0, 0]}
                       maxBarSize={32}
@@ -312,10 +494,23 @@ export function CashFlowSection({ className }: CashFlowSectionProps) {
                       radius={[4, 4, 0, 0]}
                       maxBarSize={32}
                     />
-                  </BarChart>
+                    {showProductionCostSeries && (
+                      <Line
+                        type="monotone"
+                        dataKey="production_cost_amount"
+                        name="Production cost"
+                        stroke="var(--chart-4)"
+                        strokeWidth={2}
+                        strokeDasharray="6 4"
+                        dot={false}
+                      />
+                    )}
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             )}
+
+            <OutflowBreakdownChart items={outflowBySource} />
           </>
         )}
       </CardContent>

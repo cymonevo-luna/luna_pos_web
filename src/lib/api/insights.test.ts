@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   cashFlowSummary,
+  normalizeCashFlowOutflowBySource,
+  normalizeCashFlowProductionCost,
+  normalizeCashFlowSummary,
   normalizeProductionNextDayInsight,
   productionNextDayInsight,
   transactionMenuInsights,
@@ -59,6 +62,105 @@ describe("insights API", () => {
       { method: "CASH", amount: 1_000_000, count: 7 },
       { method: "QRIS", amount: 200_000, count: 5 },
     ]);
+  });
+
+  it("maps outflow_by_source and production_cost fields from the cash flow summary API", async () => {
+    const summary = {
+      period: "daily",
+      totals: {
+        inflow_amount: 1_200_000,
+        inflow_count: 12,
+        outflow_amount: 450_000,
+        outflow_count: 4,
+        net_amount: 750_000,
+      },
+      buckets: [
+        {
+          period_start: "2026-07-13T00:00:00Z",
+          period_label: "Jul 13",
+          inflow_amount: 1_200_000,
+          outflow_amount: 450_000,
+          net_amount: 750_000,
+          production_cost_amount: 120_000,
+        },
+      ],
+      inflow_by_method: [],
+      outflow_by_source: [
+        { source: "purchases", total_amount: 250_000, count: 2 },
+        { source: "expenses", total_amount: 100_000, count: 1 },
+        { source: "staff_payouts", total_amount: 100_000, count: 1 },
+      ],
+      production_cost: {
+        total_estimated_cost: 120_000,
+        completed_request_count: 3,
+        items_without_cogs_count: 1,
+      },
+    };
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, data: summary }),
+    );
+
+    const got = await cashFlowSummary({
+      period: "daily",
+      dateFrom: "2026-07-13",
+      dateTo: "2026-07-13",
+    });
+
+    expect(got.data.outflow_by_source).toEqual([
+      { source: "purchases", amount: 250_000, count: 2 },
+      { source: "expenses", amount: 100_000, count: 1 },
+      { source: "staff_payouts", amount: 100_000, count: 1 },
+    ]);
+    expect(got.data.production_cost).toEqual({
+      total_estimated_cost: 120_000,
+      completed_request_count: 3,
+      items_without_cogs_count: 1,
+    });
+    expect(got.data.buckets[0]?.production_cost_amount).toBe(120_000);
+  });
+
+  it("normalizes cash flow summary without optional extended fields", () => {
+    const normalized = normalizeCashFlowSummary({
+      period: "daily",
+      totals: {
+        inflow_amount: 0,
+        inflow_count: 0,
+        outflow_amount: 0,
+        outflow_count: 0,
+        net_amount: 0,
+      },
+      buckets: [],
+    });
+
+    expect(normalized.outflow_by_source).toBeUndefined();
+    expect(normalized.production_cost).toBeUndefined();
+  });
+
+  it("coerces invalid numeric values in outflow and production cost normalizers", () => {
+    expect(
+      normalizeCashFlowOutflowBySource({
+        source: "expenses",
+        total_amount: "invalid" as unknown as number,
+        count: "2" as unknown as number,
+      }),
+    ).toEqual({
+      source: "expenses",
+      amount: 0,
+      count: 2,
+    });
+
+    expect(
+      normalizeCashFlowProductionCost({
+        total_estimated_cost: null as unknown as number,
+        completed_request_count: undefined as unknown as number,
+        items_without_cogs_count: "1" as unknown as number,
+      }),
+    ).toEqual({
+      total_estimated_cost: 0,
+      completed_request_count: 0,
+      items_without_cogs_count: 1,
+    });
   });
 
   it("builds the transaction menu insights URL", async () => {
