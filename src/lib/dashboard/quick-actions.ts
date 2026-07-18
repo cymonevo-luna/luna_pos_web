@@ -12,6 +12,7 @@ import {
   ChefHat,
   TrendingUp,
   Repeat,
+  Wallet,
 } from "lucide-react";
 
 export type OverviewCard = {
@@ -57,6 +58,13 @@ export const overviewCards: OverviewCard[] = [
     href: "/admin/recurring-expenses",
     icon: Repeat,
     feature: "recurring_expenses.manage",
+  },
+  {
+    title: "Cashier balance",
+    description: "View balance and record manual adjustments.",
+    href: "/admin/cashier-balance",
+    icon: Wallet,
+    feature: "cashier_balance.manage",
   },
   {
     title: "Menus",

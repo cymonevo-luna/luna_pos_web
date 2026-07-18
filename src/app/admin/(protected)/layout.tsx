@@ -125,6 +125,12 @@ export const allNavItems: NavEntry[] = [
         feature: "recurring_expenses.manage",
       },
       {
+        href: "/admin/cashier-balance",
+        label: "Cashier Balance",
+        icon: Wallet,
+        feature: "cashier_balance.manage",
+      },
+      {
         href: "/admin/cash-flow/bep",
         label: "BEP",
         icon: TrendingUp,

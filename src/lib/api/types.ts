@@ -834,3 +834,23 @@ export interface BEPProjectionResponse {
   projection: BEPProjectionSection;
   generated_at: string;
 }
+
+export type CashierBalanceAdjustmentType = "ADD" | "DEDUCT";
+
+/** Wire `data` payload from GET /api/admin/cashier-balance. */
+export interface CashierBalance {
+  balance: number;
+  updated_at?: string;
+}
+
+/** One ledger entry from GET /api/admin/cashier-balance/entries. */
+export interface CashierBalanceEntry {
+  id: string;
+  type: CashierBalanceAdjustmentType;
+  amount: number;
+  purpose: string;
+  transaction_id?: string | null;
+  requested_by_user_id?: string | null;
+  requested_by_username?: string | null;
+  created_at: string;
+}
