@@ -13,7 +13,6 @@ import { transactionsAdminApi } from "@/lib/api/transactions";
 import { adminApi } from "@/lib/api/users";
 import { suppliersAdminApi } from "@/lib/api/suppliers";
 import { purchaseRequestsAdminApi } from "@/lib/api/purchase-requests";
-import type { MerchantRole } from "@/lib/api/types";
 import { formatRupiah } from "@/lib/utils";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -54,7 +53,7 @@ interface OperationalStats {
 }
 
 interface DashboardSummaryStatsProps {
-  roles: MerchantRole[];
+  features: string[];
 }
 
 function StatCardSkeleton() {
@@ -67,10 +66,12 @@ function StatCardSkeleton() {
   );
 }
 
-export function DashboardSummaryStats({ roles }: DashboardSummaryStatsProps) {
-  const isManager = roles.includes("manager");
-  const isAdmin = roles.includes("admin");
-  const isOperational = roles.includes("operational");
+export function DashboardSummaryStats({ features }: DashboardSummaryStatsProps) {
+  const isManager = features.includes("transactions.view");
+  const isAdmin = features.includes("users.manage");
+  const isOperational =
+    features.includes("suppliers.manage") ||
+    features.includes("purchases.manage");
 
   const cardCount = useMemo(() => {
     let count = 0;

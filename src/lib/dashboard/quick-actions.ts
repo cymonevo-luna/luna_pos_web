@@ -13,14 +13,13 @@ import {
   TrendingUp,
   Repeat,
 } from "lucide-react";
-import type { MerchantRole } from "@/lib/api/types";
 
 export type OverviewCard = {
   title: string;
   description: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  roles: MerchantRole[];
+  feature: string;
 };
 
 export const overviewCards: OverviewCard[] = [
@@ -29,90 +28,90 @@ export const overviewCards: OverviewCard[] = [
     description: "View, search, and manage merchant users.",
     href: "/admin/users",
     icon: Users,
-    roles: ["admin"],
+    feature: "users.manage",
   },
   {
     title: "Menu breakdown",
     description: "Review cost of goods sold and menu margins.",
     href: "/admin/cogs/menu-breakdown",
     icon: Calculator,
-    roles: ["manager"],
+    feature: "cogs.view",
   },
   {
     title: "User transactions",
     description: "Browse transaction history and details.",
     href: "/admin/transactions",
     icon: Receipt,
-    roles: ["manager"],
+    feature: "transactions.view",
   },
   {
     title: "Cash flow",
     description: "Review inflows, menu sales, and production insights.",
     href: "/admin/cash-flow",
     icon: TrendingUp,
-    roles: ["manager"],
+    feature: "insights.cash_flow",
   },
   {
     title: "Recurring expenses",
     description: "Manage scheduled recurring expense templates.",
     href: "/admin/recurring-expenses",
     icon: Repeat,
-    roles: ["manager", "operational"],
+    feature: "recurring_expenses.manage",
   },
   {
     title: "Menus",
     description: "Manage menu items and formulas.",
     href: "/admin/menus",
     icon: UtensilsCrossed,
-    roles: ["manager"],
+    feature: "menus.manage",
   },
   {
     title: "Categories",
     description: "Organize menu categories.",
     href: "/admin/categories",
     icon: Tags,
-    roles: ["manager"],
+    feature: "categories.manage",
   },
   {
     title: "Ingredients",
     description: "Maintain ingredient inventory.",
     href: "/admin/food-supplies",
     icon: Package,
-    roles: ["manager", "operational"],
+    feature: "food_supplies.manage",
   },
   {
     title: "Branch assets",
     description: "Manage branch equipment and inventory.",
     href: "/admin/branch-assets",
     icon: Box,
-    roles: ["manager"],
+    feature: "branch_assets.manage",
   },
   {
     title: "Receipt settings",
     description: "Configure store receipt layout.",
     href: "/admin/store-settings",
     icon: Printer,
-    roles: ["manager"],
+    feature: "store_settings.manage",
   },
   {
     title: "Suppliers",
     description: "Manage supplier contacts and pricing.",
     href: "/admin/suppliers",
     icon: Truck,
-    roles: ["operational"],
+    feature: "suppliers.manage",
   },
   {
     title: "Purchase requests",
     description: "Create and track purchase requests.",
     href: "/admin/purchases",
     icon: ShoppingCart,
-    roles: ["operational"],
+    feature: "purchases.manage",
   },
   {
     title: "Cook request",
     description: "Review and approve production requests.",
     href: "/admin/production-requests",
     icon: ChefHat,
-    roles: ["admin", "manager", "operational"],
+    feature: "production_requests.view",
   },
 ];

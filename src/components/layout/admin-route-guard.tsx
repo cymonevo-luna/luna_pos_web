@@ -7,7 +7,6 @@ import { useAuth } from "@/lib/auth/context";
 import {
   canAccessRoute,
   getUnauthorizedFallbackPath,
-  resolveUserRoles,
 } from "@/lib/auth/roles";
 
 interface AdminRouteGuardProps {
@@ -18,8 +17,7 @@ export function AdminRouteGuard({ children }: AdminRouteGuardProps) {
   const { user, isLoading } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
-  const userRoles = resolveUserRoles(user);
-  const allowed = canAccessRoute(pathname, userRoles);
+  const allowed = canAccessRoute(pathname, user);
 
   useEffect(() => {
     if (isLoading || !user || allowed) return;

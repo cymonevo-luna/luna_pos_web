@@ -17,6 +17,8 @@ export interface NavItem {
   href: string;
   label: string;
   icon: ComponentType<{ className?: string }>;
+  feature?: string;
+  /** @deprecated Use feature — kept for transitional test fixtures. */
   roles?: MerchantRole[];
 }
 

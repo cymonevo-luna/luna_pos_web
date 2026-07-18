@@ -188,6 +188,7 @@ export interface JwtPayload {
   uid: string;
   email: string;
   roles: MerchantRole[];
+  features?: string[];
   merchant_id: string;
   typ: string;
   exp: number;

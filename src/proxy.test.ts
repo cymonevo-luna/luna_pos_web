@@ -133,7 +133,7 @@ describe("proxy", () => {
     );
 
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toContain("/admin/users");
+    expect(res.headers.get("location")).toContain("/admin/unauthorized");
   });
 
   it("redirects operational users away from admin routes", async () => {
@@ -151,7 +151,7 @@ describe("proxy", () => {
     );
 
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toContain("/admin/suppliers");
+    expect(res.headers.get("location")).toContain("/admin/unauthorized");
   });
 
   it("allows manager users on manager routes", async () => {
@@ -203,7 +203,7 @@ describe("proxy", () => {
     );
 
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toContain("/admin");
+    expect(res.headers.get("location")).toContain("/admin/unauthorized");
   });
 
   it("redirects operational users away from production requests", async () => {
@@ -221,7 +221,7 @@ describe("proxy", () => {
     );
 
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toContain("/admin/suppliers");
+    expect(res.headers.get("location")).toContain("/admin/unauthorized");
   });
 
   it("allows admin-only users on production request list route", async () => {
@@ -273,7 +273,7 @@ describe("proxy", () => {
     );
 
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toContain("/admin/users");
+    expect(res.headers.get("location")).toContain("/admin/unauthorized");
   });
 
   it("allows manager users on production request list route", async () => {
@@ -325,7 +325,7 @@ describe("proxy", () => {
     );
 
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toContain("/admin/users");
+    expect(res.headers.get("location")).toContain("/admin/unauthorized");
   });
 
   it("allows operational users on supplier routes", async () => {
@@ -360,7 +360,7 @@ describe("proxy", () => {
     );
 
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toContain("/admin/suppliers");
+    expect(res.headers.get("location")).toContain("/admin/unauthorized");
   });
 
   it("allows manager users on transaction history routes", async () => {
@@ -412,7 +412,7 @@ describe("proxy", () => {
     );
 
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toContain("/admin/suppliers");
+    expect(res.headers.get("location")).toContain("/admin/unauthorized");
   });
 
   it("allows manager users on branch assets summary routes", async () => {

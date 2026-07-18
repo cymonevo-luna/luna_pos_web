@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import type { MerchantRole } from "@/lib/api/types";
+import { sourceWithFeatures } from "@/lib/auth/feature-fixtures";
 import {
-  canAccessNavRoles,
+  canAccessNavFeature,
   canAccessRoute,
   countAdmins,
   formatUserRoles,
@@ -45,172 +46,208 @@ describe("hasAnyRole", () => {
 
 describe("canAccessRoute", () => {
   it("allows admin users on user management routes", () => {
-    expect(canAccessRoute("/admin/users", ["admin"])).toBe(true);
-    expect(canAccessRoute("/admin/users/abc", ["admin"])).toBe(true);
+    const admin = sourceWithFeatures(["admin"]);
+    expect(canAccessRoute("/admin/users", admin)).toBe(true);
+    expect(canAccessRoute("/admin/users/abc", admin)).toBe(true);
   });
 
   it("blocks admin-only users from manager routes", () => {
-    expect(canAccessRoute("/admin/cogs", ["admin"])).toBe(false);
-    expect(canAccessRoute("/admin/cogs/menu-breakdown", ["admin"])).toBe(false);
-    expect(canAccessRoute("/admin/transactions", ["admin"])).toBe(false);
-    expect(canAccessRoute("/admin/store-settings", ["admin"])).toBe(false);
+    const admin = sourceWithFeatures(["admin"]);
+    expect(canAccessRoute("/admin/cogs", admin)).toBe(false);
+    expect(canAccessRoute("/admin/cogs/menu-breakdown", admin)).toBe(false);
+    expect(canAccessRoute("/admin/transactions", admin)).toBe(false);
+    expect(canAccessRoute("/admin/store-settings", admin)).toBe(false);
   });
 
   it("blocks admin-only users from operational routes", () => {
-    expect(canAccessRoute("/admin/suppliers", ["admin"])).toBe(false);
-    expect(canAccessRoute("/admin/purchases", ["admin"])).toBe(false);
+    const admin = sourceWithFeatures(["admin"]);
+    expect(canAccessRoute("/admin/suppliers", admin)).toBe(false);
+    expect(canAccessRoute("/admin/purchases", admin)).toBe(false);
   });
 
   it("allows admin-only users on production request list and detail routes", () => {
-    expect(canAccessRoute("/admin/production-requests", ["admin"])).toBe(true);
-    expect(
-      canAccessRoute("/admin/production-requests/prod-1", ["admin"]),
-    ).toBe(true);
-    expect(canAccessRoute("/admin/production-requests/new", ["admin"])).toBe(
-      false,
+    const admin = sourceWithFeatures(["admin"]);
+    expect(canAccessRoute("/admin/production-requests", admin)).toBe(true);
+    expect(canAccessRoute("/admin/production-requests/prod-1", admin)).toBe(
+      true,
     );
+    expect(canAccessRoute("/admin/production-requests/new", admin)).toBe(false);
   });
 
   it("allows operational users on food-supplies routes", () => {
-    expect(canAccessRoute("/admin/food-supplies", ["operational"])).toBe(true);
+    const operational = sourceWithFeatures(["operational"]);
+    expect(canAccessRoute("/admin/food-supplies", operational)).toBe(true);
   });
 
   it("blocks operational users from manager-only routes", () => {
-    expect(canAccessRoute("/admin/cogs", ["operational"])).toBe(false);
-    expect(canAccessRoute("/admin/cogs/menu-breakdown", ["operational"])).toBe(
+    const operational = sourceWithFeatures(["operational"]);
+    expect(canAccessRoute("/admin/cogs", operational)).toBe(false);
+    expect(canAccessRoute("/admin/cogs/menu-breakdown", operational)).toBe(
       false,
     );
-    expect(canAccessRoute("/admin/menus", ["operational"])).toBe(false);
-    expect(canAccessRoute("/admin/cash-flow", ["operational"])).toBe(false);
-    expect(canAccessRoute("/admin/cash-flow/bep", ["operational"])).toBe(false);
-    expect(canAccessRoute("/admin/order-options", ["operational"])).toBe(false);
+    expect(canAccessRoute("/admin/menus", operational)).toBe(false);
+    expect(canAccessRoute("/admin/cash-flow", operational)).toBe(false);
+    expect(canAccessRoute("/admin/cash-flow/bep", operational)).toBe(false);
+    expect(canAccessRoute("/admin/order-options", operational)).toBe(false);
   });
 
   it("allows manager users on manager routes", () => {
-    expect(canAccessRoute("/admin/cogs", ["manager"])).toBe(true);
-    expect(canAccessRoute("/admin/cogs/menu-breakdown", ["manager"])).toBe(true);
-    expect(canAccessRoute("/admin/cogs/summary", ["manager"])).toBe(true);
-    expect(canAccessRoute("/admin/cash-flow", ["manager"])).toBe(true);
-    expect(canAccessRoute("/admin/cash-flow/bep", ["manager"])).toBe(true);
-    expect(canAccessRoute("/admin/order-options", ["manager"])).toBe(true);
-    expect(canAccessRoute("/admin/menus/menu-1/ingredients", ["manager"])).toBe(
+    const manager = sourceWithFeatures(["manager"]);
+    expect(canAccessRoute("/admin/cogs", manager)).toBe(true);
+    expect(canAccessRoute("/admin/cogs/menu-breakdown", manager)).toBe(true);
+    expect(canAccessRoute("/admin/cogs/summary", manager)).toBe(true);
+    expect(canAccessRoute("/admin/cash-flow", manager)).toBe(true);
+    expect(canAccessRoute("/admin/cash-flow/bep", manager)).toBe(true);
+    expect(canAccessRoute("/admin/order-options", manager)).toBe(true);
+    expect(canAccessRoute("/admin/menus/menu-1/ingredients", manager)).toBe(
       true,
     );
   });
 
   it("blocks manager users from operational routes", () => {
-    expect(canAccessRoute("/admin/suppliers", ["manager"])).toBe(false);
-    expect(canAccessRoute("/admin/purchases", ["manager"])).toBe(false);
+    const manager = sourceWithFeatures(["manager"]);
+    expect(canAccessRoute("/admin/suppliers", manager)).toBe(false);
+    expect(canAccessRoute("/admin/purchases", manager)).toBe(false);
   });
 
   it("allows manager users on production request list, detail, and create routes", () => {
-    expect(canAccessRoute("/admin/production-requests", ["manager"])).toBe(true);
-    expect(
-      canAccessRoute("/admin/production-requests/prod-1", ["manager"]),
-    ).toBe(true);
-    expect(canAccessRoute("/admin/production-requests/new", ["manager"])).toBe(
+    const manager = sourceWithFeatures(["manager"]);
+    expect(canAccessRoute("/admin/production-requests", manager)).toBe(true);
+    expect(canAccessRoute("/admin/production-requests/prod-1", manager)).toBe(
       true,
     );
+    expect(canAccessRoute("/admin/production-requests/new", manager)).toBe(true);
   });
 
-  it("blocks operational and cashier users from production request routes", () => {
-    expect(canAccessRoute("/admin/production-requests/new", ["operational"])).toBe(
-      false,
-    );
-    expect(canAccessRoute("/admin/production-requests/new", ["cashier"] as never)).toBe(
-      false,
-    );
+  it("blocks operational and cashier users from production request create route", () => {
+    expect(
+      canAccessRoute(
+        "/admin/production-requests/new",
+        sourceWithFeatures(["operational"]),
+      ),
+    ).toBe(false);
+    expect(
+      canAccessRoute(
+        "/admin/production-requests/new",
+        sourceWithFeatures(["cashier"]),
+      ),
+    ).toBe(false);
   });
 
   it("allows operational users on operational routes", () => {
-    expect(canAccessRoute("/admin/purchases", ["operational"])).toBe(true);
-    expect(canAccessRoute("/admin/suppliers/new", ["operational"])).toBe(true);
-    expect(canAccessRoute("/admin/production-requests", ["operational"])).toBe(
+    const operational = sourceWithFeatures(["operational"]);
+    expect(canAccessRoute("/admin/purchases", operational)).toBe(true);
+    expect(canAccessRoute("/admin/suppliers/new", operational)).toBe(true);
+    expect(canAccessRoute("/admin/production-requests", operational)).toBe(
       true,
     );
     expect(
-      canAccessRoute("/admin/production-requests/prod-1", ["operational"]),
+      canAccessRoute("/admin/production-requests/prod-1", operational),
     ).toBe(true);
   });
 
   it("blocks operational users from admin routes", () => {
-    expect(canAccessRoute("/admin/users", ["operational"])).toBe(false);
+    const operational = sourceWithFeatures(["operational"]);
+    expect(canAccessRoute("/admin/users", operational)).toBe(false);
   });
 
-  it("allows multi-role users on union of routes", () => {
-    expect(canAccessRoute("/admin/cogs", ["manager", "operational"])).toBe(
+  it("allows multi-feature users on union of routes", () => {
+    const combined = sourceWithFeatures(["manager", "operational"]);
+    expect(canAccessRoute("/admin/cogs", combined)).toBe(true);
+    expect(canAccessRoute("/admin/cogs/menu-breakdown", combined)).toBe(true);
+    expect(canAccessRoute("/admin/purchases", combined)).toBe(true);
+    expect(canAccessRoute("/admin/production-requests", combined)).toBe(true);
+    expect(canAccessRoute("/admin/production-requests/new", combined)).toBe(
       true,
     );
-    expect(
-      canAccessRoute("/admin/cogs/menu-breakdown", ["manager", "operational"]),
-    ).toBe(true);
-    expect(
-      canAccessRoute("/admin/purchases", ["manager", "operational"]),
-    ).toBe(true);
-    expect(
-      canAccessRoute("/admin/production-requests", ["manager", "operational"]),
-    ).toBe(true);
-    expect(
-      canAccessRoute("/admin/production-requests/new", ["manager", "operational"]),
-    ).toBe(true);
   });
 
   it("allows merchant-area users on the admin overview", () => {
-    expect(canAccessRoute("/admin", ["operational"])).toBe(true);
-    expect(canAccessRoute("/admin", ["admin"])).toBe(true);
+    expect(canAccessRoute("/admin", sourceWithFeatures(["operational"]))).toBe(
+      true,
+    );
+    expect(canAccessRoute("/admin", sourceWithFeatures(["admin"]))).toBe(true);
   });
 
   it("allows manager and operational users on recurring expenses routes", () => {
-    expect(canAccessRoute("/admin/recurring-expenses", ["manager"])).toBe(true);
-    expect(canAccessRoute("/admin/recurring-expenses", ["operational"])).toBe(
-      true,
-    );
+    expect(
+      canAccessRoute("/admin/recurring-expenses", sourceWithFeatures(["manager"])),
+    ).toBe(true);
+    expect(
+      canAccessRoute(
+        "/admin/recurring-expenses",
+        sourceWithFeatures(["operational"]),
+      ),
+    ).toBe(true);
   });
 
   it("allows manager and operational users on expenses routes", () => {
-    expect(canAccessRoute("/admin/expenses", ["manager"])).toBe(true);
-    expect(canAccessRoute("/admin/expenses", ["operational"])).toBe(true);
-    expect(canAccessRoute("/admin/expenses/new", ["manager"])).toBe(true);
-    expect(canAccessRoute("/admin/expenses/exp-1/edit", ["operational"])).toBe(
+    const manager = sourceWithFeatures(["manager"]);
+    const operational = sourceWithFeatures(["operational"]);
+    expect(canAccessRoute("/admin/expenses", manager)).toBe(true);
+    expect(canAccessRoute("/admin/expenses", operational)).toBe(true);
+    expect(canAccessRoute("/admin/expenses/new", manager)).toBe(true);
+    expect(canAccessRoute("/admin/expenses/exp-1/edit", operational)).toBe(
       true,
     );
   });
 
   it("blocks cashier and admin-only users from expenses routes", () => {
-    expect(canAccessRoute("/admin/expenses", ["cashier"] as never)).toBe(false);
-    expect(canAccessRoute("/admin/expenses", ["admin"])).toBe(false);
+    expect(
+      canAccessRoute("/admin/expenses", sourceWithFeatures(["cashier"])),
+    ).toBe(false);
+    expect(canAccessRoute("/admin/expenses", sourceWithFeatures(["admin"]))).toBe(
+      false,
+    );
   });
 
   it("blocks cashier and admin-only users from recurring expenses routes", () => {
-    expect(canAccessRoute("/admin/recurring-expenses", ["cashier"] as never)).toBe(
+    expect(
+      canAccessRoute(
+        "/admin/recurring-expenses",
+        sourceWithFeatures(["cashier"]),
+      ),
+    ).toBe(false);
+    expect(
+      canAccessRoute(
+        "/admin/recurring-expenses",
+        sourceWithFeatures(["admin"]),
+      ),
+    ).toBe(false);
+  });
+
+  it("falls back to legacy role grants when features are missing", () => {
+    expect(canAccessRoute("/admin/cogs", { roles: ["manager"] })).toBe(true);
+    expect(canAccessRoute("/admin/users", { roles: ["operational"] })).toBe(
       false,
     );
-    expect(canAccessRoute("/admin/recurring-expenses", ["admin"])).toBe(false);
   });
 });
 
 describe("getAuthenticatedLandingPath", () => {
   it("sends admin-only users to user management", () => {
-    expect(getAuthenticatedLandingPath({ roles: ["admin"] })).toBe(
+    expect(getAuthenticatedLandingPath(sourceWithFeatures(["admin"]))).toBe(
       "/admin/users",
     );
   });
 
-  it("sends manager users to the admin overview", () => {
-    expect(getAuthenticatedLandingPath({ roles: ["manager"] })).toBe("/admin");
-    expect(getAuthenticatedLandingPath({ roles: ["admin", "manager"] })).toBe(
-      "/admin",
+  it("sends manager users to the first accessible route", () => {
+    expect(getAuthenticatedLandingPath(sourceWithFeatures(["manager"]))).toBe(
+      "/admin/food-supplies",
     );
+    expect(
+      getAuthenticatedLandingPath(sourceWithFeatures(["admin", "manager"])),
+    ).toBe("/admin/users");
   });
 
-  it("sends operational-only users to suppliers", () => {
-    expect(getAuthenticatedLandingPath({ roles: ["operational"] })).toBe(
-      "/admin/suppliers",
-    );
+  it("sends operational-only users to food supplies", () => {
+    expect(
+      getAuthenticatedLandingPath(sourceWithFeatures(["operational"])),
+    ).toBe("/admin/food-supplies");
   });
 
   it("sends cashier-only users to the dashboard", () => {
-    expect(getAuthenticatedLandingPath({ roles: ["cashier"] as never })).toBe(
+    expect(getAuthenticatedLandingPath(sourceWithFeatures(["cashier"]))).toBe(
       "/dashboard",
     );
     expect(getAuthenticatedLandingPath({ roles: [] })).toBe("/dashboard");
@@ -218,9 +255,15 @@ describe("getAuthenticatedLandingPath", () => {
 });
 
 describe("getUnauthorizedFallbackPath", () => {
-  it("matches the authenticated landing path", () => {
-    expect(getUnauthorizedFallbackPath({ roles: ["operational"] })).toBe(
-      "/admin/suppliers",
+  it("redirects merchant-area users to unauthorized", () => {
+    expect(getUnauthorizedFallbackPath(sourceWithFeatures(["operational"]))).toBe(
+      "/admin/unauthorized",
+    );
+  });
+
+  it("redirects cashier users to dashboard", () => {
+    expect(getUnauthorizedFallbackPath(sourceWithFeatures(["cashier"]))).toBe(
+      "/dashboard",
     );
   });
 });
@@ -234,8 +277,8 @@ describe("isAdminOnlyUser", () => {
 
 describe("isCashierOnlyUser", () => {
   it("detects cashier-only accounts", () => {
-    expect(isCashierOnlyUser({ roles: ["cashier"] as never })).toBe(true);
-    expect(isCashierOnlyUser({ roles: ["manager"] })).toBe(false);
+    expect(isCashierOnlyUser(sourceWithFeatures(["cashier"]))).toBe(true);
+    expect(isCashierOnlyUser(sourceWithFeatures(["manager"]))).toBe(false);
   });
 });
 
@@ -268,13 +311,19 @@ describe("countAdmins and wouldRemoveLastAdmin", () => {
   });
 });
 
-describe("canAccessNavRoles", () => {
+describe("canAccessNavFeature", () => {
   it("allows unrestricted nav items", () => {
-    expect(canAccessNavRoles(["admin"], undefined)).toBe(true);
+    expect(canAccessNavFeature(sourceWithFeatures(["admin"]), undefined)).toBe(
+      true,
+    );
   });
 
-  it("requires at least one matching role", () => {
-    expect(canAccessNavRoles(["admin"], ["admin"])).toBe(true);
-    expect(canAccessNavRoles(["admin"], ["manager"])).toBe(false);
+  it("requires the matching feature", () => {
+    expect(
+      canAccessNavFeature(sourceWithFeatures(["admin"]), "users.manage"),
+    ).toBe(true);
+    expect(
+      canAccessNavFeature(sourceWithFeatures(["admin"]), "cogs.view"),
+    ).toBe(false);
   });
 });
