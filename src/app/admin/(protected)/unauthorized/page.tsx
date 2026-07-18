@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, ShieldX } from "lucide-react";
 import { usersApi } from "@/lib/api/users";
 import { useAuth } from "@/lib/auth/context";
 import { resolveUserFeatures } from "@/lib/auth/features";
-import { getAuthenticatedLandingPath } from "@/lib/auth/roles";
+import { canAccessRoute, getAuthenticatedLandingPath } from "@/lib/auth/roles";
 import {
   parseUnauthorizedAccessContext,
   shouldShowStaleSessionHint,
@@ -54,12 +54,14 @@ function FeatureList({
 
 export default function AdminUnauthorizedPage() {
   const { user, refreshUser } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const context = useMemo(
     () => parseUnauthorizedAccessContext(searchParams),
     [searchParams],
   );
-  const sessionSnapshotRef = useRef<string[] | null>(null);
+  const recoveryAttemptedRef = useRef(false);
+  const [sessionSnapshot, setSessionSnapshot] = useState<string[] | null>(null);
   const [freshFeatures, setFreshFeatures] = useState<string[] | null>(null);
 
   const sessionFeatures = useMemo(
@@ -67,11 +69,12 @@ export default function AdminUnauthorizedPage() {
     [user],
   );
 
-  if (user && sessionSnapshotRef.current === null) {
-    sessionSnapshotRef.current = sessionFeatures;
-  }
+  useEffect(() => {
+    if (!user || sessionSnapshot !== null) return;
+    setSessionSnapshot(sessionFeatures);
+  }, [sessionFeatures, sessionSnapshot, user]);
 
-  const sessionSnapshot = sessionSnapshotRef.current ?? sessionFeatures;
+  const effectiveSessionSnapshot = sessionSnapshot ?? sessionFeatures;
 
   useEffect(() => {
     if (!user) return;
@@ -93,7 +96,7 @@ export default function AdminUnauthorizedPage() {
     };
   }, [refreshUser, user]);
 
-  const effectiveFreshFeatures = freshFeatures ?? sessionSnapshot;
+  const effectiveFreshFeatures = freshFeatures ?? effectiveSessionSnapshot;
   const hasContext = Boolean(
     context.attemptedPath || context.requiredFeature || context.routeLabel,
   );
@@ -103,10 +106,39 @@ export default function AdminUnauthorizedPage() {
   );
   const staleSessionHint = shouldShowStaleSessionHint(
     context.requiredFeature,
-    sessionSnapshot,
+    effectiveSessionSnapshot,
     effectiveFreshFeatures,
   );
+  const isRecoverableStaleDeny = Boolean(
+    context.attemptedPath &&
+      context.requiredFeature &&
+      sessionFeatures.includes(context.requiredFeature),
+  );
+  const canRecoverToAttemptedPath = Boolean(
+    user &&
+      context.attemptedPath &&
+      canAccessRoute(context.attemptedPath, user),
+  );
   const fallback = user ? getAuthenticatedLandingPath(user) : "/dashboard";
+  const cardDescription = isRecoverableStaleDeny
+    ? "Your session was out of sync — retrying access."
+    : hasContext
+      ? "This page requires a privilege that is not in your current session."
+      : "You do not have permission to view this page.";
+
+  useEffect(() => {
+    if (!isRecoverableStaleDeny || !canRecoverToAttemptedPath) return;
+    if (!context.attemptedPath) return;
+    if (recoveryAttemptedRef.current) return;
+
+    recoveryAttemptedRef.current = true;
+    router.replace(context.attemptedPath);
+  }, [
+    canRecoverToAttemptedPath,
+    context.attemptedPath,
+    isRecoverableStaleDeny,
+    router,
+  ]);
 
   return (
     <div className="flex min-h-[50vh] items-center justify-center p-4">
@@ -116,11 +148,7 @@ export default function AdminUnauthorizedPage() {
             <ShieldX className="h-6 w-6 text-destructive" />
           </div>
           <CardTitle>Access denied</CardTitle>
-          <CardDescription>
-            {hasContext
-              ? "This page requires a privilege that is not in your current session."
-              : "You do not have permission to view this page."}
-          </CardDescription>
+          <CardDescription>{cardDescription}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           {hasContext ? (
@@ -171,10 +199,24 @@ export default function AdminUnauthorizedPage() {
             </>
           ) : null}
 
-          <div className="flex justify-center pt-1">
-            <Link href={fallback} className={buttonVariants()}>
-              Go to your dashboard
-            </Link>
+          <div className="flex justify-center gap-3 pt-1">
+            {isRecoverableStaleDeny && canRecoverToAttemptedPath && context.attemptedPath ? (
+              <Link href={context.attemptedPath} className={buttonVariants()}>
+                Continue to page
+              </Link>
+            ) : isRecoverableStaleDeny && !canRecoverToAttemptedPath ? (
+              <button
+                type="button"
+                className={buttonVariants()}
+                onClick={() => void refreshUser()}
+              >
+                Refresh page
+              </button>
+            ) : (
+              <Link href={fallback} className={buttonVariants()}>
+                Go to your dashboard
+              </Link>
+            )}
           </div>
         </CardContent>
       </Card>
