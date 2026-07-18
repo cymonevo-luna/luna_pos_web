@@ -4,15 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { menusAdminApi, menuFullFormToPayload } from "@/lib/api/menus";
-import { cogsAdminApi } from "@/lib/api/cogs";
 import { ApiError } from "@/lib/api/client";
-import type { CogsMenuDetail, Menu } from "@/lib/api/types";
+import type { Menu } from "@/lib/api/types";
 import type { MenuBasicFormValues, MenuCogsFormValues } from "@/lib/validations";
 import { MENU_COGS_DEFAULTS } from "@/lib/menu-cogs";
-import {
-  COGS_STATUS_LABELS,
-  cogsStatusBadgeClass,
-} from "@/lib/cogs-status";
 import { toast } from "sonner";
 import {
   MenuCogsForm,
@@ -20,8 +15,6 @@ import {
 } from "@/components/admin/menu-cogs-form";
 import { MenuIngredientsForm } from "@/components/admin/menu-ingredients-form";
 import { MenuStockEstimationPanel } from "@/components/admin/menu-stock-estimation-panel";
-import { CogsDetailContent } from "@/components/admin/cogs-detail-content";
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -51,75 +44,6 @@ function menuToCogsValues(menu: Menu): MenuCogsFormValues {
   };
 }
 
-function MenuCogsBreakdownSection({
-  menuId,
-  refreshKey,
-}: {
-  menuId: string;
-  refreshKey: number;
-}) {
-  const [detail, setDetail] = useState<CogsMenuDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await cogsAdminApi.get(menuId);
-      setDetail(res.data ?? null);
-    } catch (err) {
-      setDetail(null);
-      setError(
-        err instanceof ApiError ? err.message : "Failed to load COGS breakdown",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [menuId]);
-
-  useEffect(() => {
-    void load();
-  }, [load, refreshKey]);
-
-  return (
-    <section aria-label="COGS breakdown" className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="text-xl font-semibold">COGS breakdown</h3>
-          <p className="text-muted-foreground text-sm">
-            Read-only cost analysis based on the saved ingredient formula.
-          </p>
-        </div>
-        {detail && (
-          <Badge className={cogsStatusBadgeClass(detail.status)}>
-            {COGS_STATUS_LABELS[detail.status]}
-          </Badge>
-        )}
-      </div>
-
-      {loading ? (
-        <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full" />
-            ))}
-          </div>
-          <Skeleton className="h-48 w-full" />
-        </div>
-      ) : error ? (
-        <Card className="p-6 text-center text-destructive">{error}</Card>
-      ) : detail ? (
-        <CogsDetailContent detail={detail} />
-      ) : (
-        <Card className="p-6 text-center text-muted-foreground">
-          No COGS data available for this menu.
-        </Card>
-      )}
-    </section>
-  );
-}
-
 export function AdminMenuIngredientsContent({ id }: { id: string }) {
   const [menu, setMenu] = useState<Menu | null>(null);
   const [loading, setLoading] = useState(true);
@@ -128,7 +52,6 @@ export function AdminMenuIngredientsContent({ id }: { id: string }) {
     MENU_COGS_DEFAULTS.recipe_yield,
   );
   const [savingCogs, setSavingCogs] = useState(false);
-  const [cogsBreakdownKey, setCogsBreakdownKey] = useState(0);
   const cogsFormRef = useRef<MenuCogsFormHandle>(null);
 
   const load = useCallback(async () => {
@@ -169,7 +92,6 @@ export function AdminMenuIngredientsContent({ id }: { id: string }) {
       const res = await menusAdminApi.update(menu.id, payload);
       setMenu(res.data);
       setRecipeYield(values.recipe_yield);
-      setCogsBreakdownKey((current) => current + 1);
       toast.success("COGS settings saved");
     } catch (err) {
       if (err instanceof ApiError && err.fields) {
@@ -246,11 +168,6 @@ export function AdminMenuIngredientsContent({ id }: { id: string }) {
             <MenuIngredientsForm menuId={menu.id} recipeYield={recipeYield} />
             <MenuStockEstimationPanel menuId={menu.id} />
           </Card>
-
-          <MenuCogsBreakdownSection
-            menuId={menu.id}
-            refreshKey={cogsBreakdownKey}
-          />
         </>
       ) : null}
     </div>

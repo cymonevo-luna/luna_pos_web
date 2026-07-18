@@ -3,10 +3,9 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AdminMenuIngredientsContent } from "./menu-ingredients-content";
 import { menusAdminApi } from "@/lib/api/menus";
-import { cogsAdminApi } from "@/lib/api/cogs";
 import { getMenuIngredients } from "@/lib/api/menu-ingredients";
 import { ApiError } from "@/lib/api/client";
-import type { CogsMenuDetail, Menu } from "@/lib/api/types";
+import type { Menu } from "@/lib/api/types";
 import { toast } from "sonner";
 
 vi.mock("next/link", () => ({
@@ -34,12 +33,6 @@ vi.mock("@/lib/api/menus", async (importOriginal) => {
     },
   };
 });
-
-vi.mock("@/lib/api/cogs", () => ({
-  cogsAdminApi: {
-    get: vi.fn(),
-  },
-}));
 
 vi.mock("@/lib/api/menu-ingredients", () => ({
   getMenuIngredients: vi.fn(),
@@ -73,45 +66,6 @@ const menu: Menu = {
   updated_at: "2026-01-15T00:00:00Z",
 };
 
-const cogsDetail: CogsMenuDetail = {
-  menu_id: "menu-1",
-  title: "Nasi Goreng",
-  category_id: "cat-1",
-  category_name: "Main",
-  recipe_yield: 1,
-  cogs_per_piece: 12000,
-  margin_percent: 0,
-  vat_percent: 0,
-  price_after_margin: 12000,
-  price_after_vat: 12000,
-  recommended_offline: 15000,
-  recommended_online: 18000,
-  sell_price: 25000,
-  status: "complete",
-  total_cogs: 12000,
-  ingredients: [
-    {
-      food_supply_id: "fs-1",
-      food_supply_title: "Rice",
-      quantity_batch: 200,
-      quantity_per_piece: 200,
-      unit: "gr",
-      selected_supplier_id: "sup-1",
-      selected_supplier_name: "Rice Supplier",
-      selected_unit_price: 60,
-      supplier_quotes: [
-        {
-          supplier_id: "sup-1",
-          supplier_name: "Rice Supplier",
-          unit_price: 60,
-          selected: true,
-        },
-      ],
-      line_cost: 12000,
-    },
-  ],
-};
-
 function renderPage(id = "menu-1") {
   return render(<AdminMenuIngredientsContent id={id} />);
 }
@@ -124,7 +78,6 @@ describe("AdminMenuIngredientsContent", () => {
     vi.mocked(getMenuIngredients).mockResolvedValue({
       data: { menu_id: "menu-1", ingredients: [] },
     });
-    vi.mocked(cogsAdminApi.get).mockResolvedValue({ data: cogsDetail });
   });
 
   it("renders all sections after menu load", async () => {
@@ -140,9 +93,7 @@ describe("AdminMenuIngredientsContent", () => {
     expect(screen.getByText("COGS configuration")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Menu ingredients" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Stock estimation" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "COGS breakdown" })).toBeInTheDocument();
-    expect(await screen.findByText("Ingredient breakdown")).toBeInTheDocument();
-    expect(screen.getByText("Rice")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "COGS breakdown" })).not.toBeInTheDocument();
   });
 
   it("saves COGS settings with merged menu payload", async () => {
