@@ -1,6 +1,9 @@
 import { api, type ApiResult } from "./client";
 import { dateInputToIso } from "./transactions";
+import { formatDate, formatRupiah } from "@/lib/utils";
 import type {
+  BEPHistoricalSection,
+  BEPProjectionResponse,
   CashFlowInflowByMethod,
   CashFlowInflowByMethodNormalized,
   CashFlowOutflowBySource,
@@ -96,6 +99,25 @@ export interface TransactionMenuInsightsParams {
 
 export interface ProductionNextDayInsightParams {
   lookbackDays?: number;
+}
+
+export interface BEPProjectionParams {
+  profitLookbackDays?: number;
+  projectionDays?: number;
+}
+
+export function formatBEPHistoricalSubtitle(
+  historical: BEPHistoricalSection,
+): string {
+  const dateFrom = formatDate(historical.date_from);
+  const dateTo = formatDate(historical.date_to);
+  const dateRange = `${dateFrom} – ${dateTo}`;
+
+  if (historical.net_amount_total > 0) {
+    return `Based on ${formatRupiah(historical.net_amount_total)} net profit over the last ${historical.lookback_days} days (${dateRange})`;
+  }
+
+  return `No sales in the last ${historical.lookback_days} days (${dateRange})`;
 }
 
 export function cashFlowSummary({
@@ -207,8 +229,27 @@ export async function productionNextDayInsight({
   };
 }
 
+export function bepProjection({
+  profitLookbackDays,
+  projectionDays,
+}: BEPProjectionParams = {}) {
+  const params = new URLSearchParams();
+  if (profitLookbackDays != null) {
+    params.set("profit_lookback_days", String(profitLookbackDays));
+  }
+  if (projectionDays != null) {
+    params.set("projection_days", String(projectionDays));
+  }
+  const query = params.toString();
+  const path = query
+    ? `/api/admin/insights/bep/projection?${query}`
+    : "/api/admin/insights/bep/projection";
+  return api.get<BEPProjectionResponse>(path);
+}
+
 export const insightsAdminApi = {
   cashFlowSummary,
   transactionMenuInsights,
   productionNextDayInsight,
+  bepProjection,
 };

@@ -745,3 +745,62 @@ export interface BranchAssetsSummary {
   bep_reachable: boolean;
   profit_source: BranchAssetsProfitSource;
 }
+
+/** Historical profit averages from GET /api/admin/insights/bep/projection. */
+export interface BEPHistoricalSection {
+  profit_daily_avg: number;
+  profit_monthly_avg: number;
+  net_amount_total: number;
+  lookback_days: number;
+  date_from: string;
+  date_to: string;
+}
+
+/** Break-even estimates from GET /api/admin/insights/bep/projection. */
+export interface BEPBreakEvenSection {
+  bep_days: number | null;
+  bep_months: number | null;
+  bep_reachable: boolean;
+  bep_message: string | null;
+}
+
+/** One forward day in the BEP cash-flow projection. */
+export interface BEPProjectionBucket {
+  day_offset: number;
+  date: string;
+  projected_inflow: number;
+  projected_outflow: number;
+  projected_production_cost: number;
+  projected_net: number;
+  cumulative_net: number;
+}
+
+/** Recurring expense due within the projection window. */
+export interface UpcomingRecurringExpense {
+  recurring_expense_id: string;
+  title: string;
+  amount: number;
+  next_run_at: string;
+}
+
+/** Forward-looking projection section from GET /api/admin/insights/bep/projection. */
+export interface BEPProjectionSection {
+  projection_days: number;
+  daily_inflow_avg: number;
+  daily_expense_avg: number;
+  daily_staff_payout_avg: number;
+  daily_production_cost_avg: number;
+  daily_net_projected: number;
+  buckets: BEPProjectionBucket[];
+  upcoming_recurring_expenses: UpcomingRecurringExpense[];
+}
+
+/** Wire `data` payload from GET /api/admin/insights/bep/projection. */
+export interface BEPProjectionResponse {
+  total_asset_value: number;
+  asset_count: number;
+  historical: BEPHistoricalSection;
+  bep: BEPBreakEvenSection;
+  projection: BEPProjectionSection;
+  generated_at: string;
+}
