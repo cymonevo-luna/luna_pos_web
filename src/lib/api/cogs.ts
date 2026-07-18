@@ -2,10 +2,16 @@ import { api, type ApiResult } from "./client";
 import {
   normalizeCogsMenuDetail,
   normalizeCogsMenuSummary,
+  normalizeCogsPortfolioSummary,
   type CogsMenuDetailRaw,
   type CogsMenuSummaryRaw,
+  type CogsPortfolioSummaryRaw,
 } from "./cogs-mapper";
-import type { CogsMenuDetail, CogsMenuSummary } from "./types";
+import type {
+  CogsMenuDetail,
+  CogsMenuSummary,
+  CogsPortfolioSummary,
+} from "./types";
 
 export interface ListCogsParams {
   page?: number;
@@ -29,6 +35,15 @@ function normalizeDetailResult(
   return {
     ...result,
     data: normalizeCogsMenuDetail(result.data),
+  };
+}
+
+function normalizePortfolioSummaryResult(
+  result: ApiResult<CogsPortfolioSummaryRaw>,
+): ApiResult<CogsPortfolioSummary> {
+  return {
+    ...result,
+    data: normalizeCogsPortfolioSummary(result.data),
   };
 }
 
@@ -59,6 +74,13 @@ export const cogsAdminApi = {
   },
 
   exportCsv: () => api.downloadBlob("/api/admin/cogs/export"),
+
+  portfolioSummary: async () => {
+    const result = await api.get<CogsPortfolioSummaryRaw>(
+      "/api/admin/cogs/portfolio-summary",
+    );
+    return normalizePortfolioSummaryResult(result);
+  },
 };
 
 /** Trigger a browser download for a CSV blob with a dated filename. */

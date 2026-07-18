@@ -1,4 +1,8 @@
-import type { CogsMenuDetailRaw, CogsMenuSummaryRaw } from "./cogs-mapper";
+import type {
+  CogsMenuDetailRaw,
+  CogsMenuSummaryRaw,
+  CogsPortfolioSummaryRaw,
+} from "./cogs-mapper";
 
 /** Backend-shaped summary from luna_pos_service `cogs.SummaryResponse`. */
 export const backendSummaryFixture: CogsMenuSummaryRaw = {
@@ -60,6 +64,41 @@ export const backendDetailFixture: CogsMenuDetailRaw = {
           unit_price: "18.5",
         },
       ],
+    },
+  ],
+};
+
+/** Backend-shaped portfolio summary from luna_pos_service `cogs.PortfolioSummaryResponse`. */
+export const backendPortfolioSummaryFixture: CogsPortfolioSummaryRaw = {
+  generated_at: "2026-07-18T03:00:00.000Z",
+  total_menus: 5,
+  complete_count: 3,
+  missing_prices_count: 1,
+  no_formula_count: 1,
+  avg_margin_percent: "28.5",
+  avg_cogs_per_piece: 12500,
+  variance: {
+    total_recommended_sell_price: 110000,
+    total_current_sell_price: 125000,
+    variance_amount: -15000,
+    variance_percent: "-12",
+  },
+  categories: [
+    {
+      category_id: "cat-main",
+      category_name: "Main",
+      menu_count: 3,
+      complete_count: 2,
+      avg_margin_percent: "30",
+      avg_cogs_per_piece: 15000,
+    },
+    {
+      category_id: "cat-drinks",
+      category_name: "Drinks",
+      menu_count: 2,
+      complete_count: 1,
+      avg_margin_percent: "25",
+      avg_cogs_per_piece: 8000,
     },
   ],
 };
