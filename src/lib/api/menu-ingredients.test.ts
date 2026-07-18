@@ -122,6 +122,7 @@ describe("menu ingredients API", () => {
         quantity_per_unit: 0.5,
         cooking_measurement_id: "cm-1",
       },
+      { ingredient_menu_id: "menu-sambal", quantity_per_unit: 20 },
     ]);
 
     const [, init] = fetchMock.mock.calls[0];
@@ -135,8 +136,51 @@ describe("menu ingredients API", () => {
             quantity_per_unit: 0.5,
             cooking_measurement_id: "cm-1",
           },
+          { ingredient_menu_id: "menu-sambal", quantity_per_unit: 20 },
         ],
       }),
     );
+  });
+
+  it("normalizes menu reference ingredient responses", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: {
+          menu_id: "menu-dendeng",
+          ingredients: [
+            {
+              food_supply_id: "supply-daging",
+              food_supply_title: "Daging",
+              unit: "gr",
+              quantity_per_unit: "2000",
+              current_stock_quantity: "10000",
+            },
+            {
+              ingredient_menu_id: "menu-sambal",
+              ingredient_menu_title: "Sambal Merah",
+              quantity_per_unit: "20",
+            },
+          ],
+        },
+      }),
+    );
+
+    const result = await getMenuIngredients("menu-dendeng");
+
+    expect(result.data.ingredients).toEqual([
+      {
+        food_supply_id: "supply-daging",
+        food_supply_title: "Daging",
+        food_supply_unit: "gr",
+        quantity_per_unit: 2000,
+        food_supply_stock_quantity: 10000,
+      },
+      {
+        ingredient_menu_id: "menu-sambal",
+        ingredient_menu_title: "Sambal Merah",
+        quantity_per_unit: 20,
+      },
+    ]);
   });
 });
