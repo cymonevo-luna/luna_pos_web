@@ -67,6 +67,9 @@ describe("AdminProtectedLayout", () => {
 
     expect(screen.getByRole("link", { name: "Users" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Staff" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Privilege Mapping" }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "List" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Purchases" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Menu" })).not.toBeInTheDocument();
@@ -198,6 +201,7 @@ describe("AdminProtectedLayout", () => {
     expect(branchGroup.children.map((child) => child.label)).toEqual([
       "Users",
       "Staff",
+      "Privilege Mapping",
     ]);
   });
 
@@ -208,7 +212,7 @@ describe("AdminProtectedLayout", () => {
       .map((entry) => entry.label);
     const labels = flattenAdminNavLabels(filtered);
 
-    expect(groupLabels).toEqual(["Food", "COGS", "Cash Flow"]);
+    expect(groupLabels).toEqual(["Food", "COGS", "Cash Flow", "Branch"]);
     expect(labels).not.toContain("Supplier");
     expect(labels).not.toContain("List");
     expect(labels).not.toContain("Purchases");

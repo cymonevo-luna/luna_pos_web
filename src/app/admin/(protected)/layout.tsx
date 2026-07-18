@@ -20,6 +20,7 @@ import {
   ListOrdered,
   Wallet,
   Building2,
+  KeyRound,
 } from "lucide-react";
 import {
   DashboardShell,
@@ -154,6 +155,12 @@ export const allNavItems: NavEntry[] = [
         href: "/admin/staff",
         label: "Staff",
         icon: UserCog,
+        roles: ["admin"],
+      },
+      {
+        href: "/admin/role-features",
+        label: "Privilege Mapping",
+        icon: KeyRound,
         roles: ["admin"],
       },
       {
