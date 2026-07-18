@@ -34,6 +34,7 @@ vi.mock("@/components/admin/food-supply-picker", () => ({
             title: id === "fs-rice" ? "Rice" : "Salt",
             unit: "gr",
             stock_quantity: 1000,
+            has_supplier_price: true,
             description: null,
             manual_edit_history: [],
             cooking_measurements: [],

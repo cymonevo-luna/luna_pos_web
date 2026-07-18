@@ -166,6 +166,28 @@ describe("foodSuppliesAdminApi", () => {
     expect(headers.get("Authorization")).toBe("Bearer token-abc");
   });
 
+  it("includes sort query params when provided", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: [],
+        meta: { page: 1, per_page: 10, total: 0 },
+      }),
+    );
+
+    await foodSuppliesAdminApi.list({
+      page: 1,
+      perPage: 10,
+      sortBy: "updated",
+      sortOrder: "desc",
+    });
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/food-supplies?page=1&per_page=10&sort_by=updated&sort_order=desc",
+    );
+  });
+
   it("unwraps envelope responses for get, create, update, and delete", async () => {
     const supply = {
       id: "fs-1",
@@ -177,6 +199,7 @@ describe("foodSuppliesAdminApi", () => {
       updated_at: "2026-01-01T00:00:00Z",
       manual_edit_history: [],
       cooking_measurements: [],
+      has_supplier_price: true,
     };
 
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
@@ -343,6 +366,31 @@ describe("normalizeFoodSupply", () => {
       delta_quantity: "5",
       changed_by_username: "ops-user",
     });
+  });
+
+  it("defaults has_supplier_price to false when omitted", () => {
+    const normalized = normalizeFoodSupply({
+      id: "fs-1",
+      title: "Flour",
+      stock_quantity: 10,
+      unit: "gr",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+    expect(normalized.has_supplier_price).toBe(false);
+  });
+
+  it("preserves has_supplier_price from the API", () => {
+    const normalized = normalizeFoodSupply({
+      id: "fs-1",
+      title: "Flour",
+      stock_quantity: 10,
+      unit: "gr",
+      has_supplier_price: true,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+    expect(normalized.has_supplier_price).toBe(true);
   });
 
   it("defaults cooking_measurements to an empty array when omitted", () => {

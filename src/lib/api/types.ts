@@ -120,6 +120,7 @@ export interface FoodSupply {
   description?: string | null;
   stock_quantity: number;
   unit: FoodSupplyUnit;
+  has_supplier_price: boolean;
   created_at: string;
   updated_at: string;
   manual_edit_history: FoodSupplyManualEditHistoryEntry[];
