@@ -72,6 +72,38 @@ describe("menu ingredients API", () => {
     });
   });
 
+  it("maps live API unit and current_stock_quantity fields", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: {
+          menu_id: "menu-1",
+          ingredients: [
+            {
+              id: "ingredient-1",
+              food_supply_id: "supply-1",
+              food_supply_title: "Rice",
+              unit: "gr",
+              quantity_per_unit: "200",
+              current_stock_quantity: "4400",
+            },
+          ],
+        },
+      }),
+    );
+
+    const result = await getMenuIngredients("menu-1");
+
+    expect(result.data.ingredients[0]).toEqual({
+      id: "ingredient-1",
+      food_supply_id: "supply-1",
+      food_supply_title: "Rice",
+      food_supply_unit: "gr",
+      quantity_per_unit: 200,
+      food_supply_stock_quantity: 4400,
+    });
+  });
+
   it("replaces menu ingredients with a replace-all payload", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({
