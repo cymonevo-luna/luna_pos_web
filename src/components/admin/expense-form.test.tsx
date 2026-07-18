@@ -67,7 +67,7 @@ describe("ExpenseForm", () => {
     });
 
     expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
-      title: "Office supplies",
+      title: "Office Supplies",
       description: "Printer paper",
       amount: 150_000,
       receipt_url: "",
@@ -150,5 +150,17 @@ describe("ExpenseForm", () => {
     expect(screen.getByLabelText(/^Description/)).toHaveValue("Electric bill");
     expect(screen.getByLabelText(/^Amount/)).toHaveValue(250_000);
     expect(screen.getByTestId("expense-receipt-remove-button")).toBeInTheDocument();
+  });
+
+  it("title-cases the title on blur", async () => {
+    const user = userEvent.setup();
+
+    render(<ExpenseForm onSubmit={() => {}} onCancel={() => {}} />);
+
+    const titleInput = screen.getByLabelText(/^Title/);
+    await user.type(titleInput, "office supplies");
+    await user.tab();
+
+    expect(titleInput).toHaveValue("Office Supplies");
   });
 });

@@ -383,4 +383,16 @@ describe("FoodSupplyForm", () => {
     ).toHaveLength(2);
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it("title-cases the title on blur", async () => {
+    const user = userEvent.setup();
+
+    render(<FoodSupplyForm onSubmit={() => {}} onCancel={() => {}} />);
+
+    const titleInput = screen.getByLabelText("Title");
+    await user.type(titleInput, "premium rice");
+    await user.tab();
+
+    expect(titleInput).toHaveValue("Premium Rice");
+  });
 });

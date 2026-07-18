@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { UNIT_OPTIONS, getUnitLabel } from "@/lib/units";
+import { withTitleCaseOnBlur } from "@/lib/withTitleCaseOnBlur";
 
 function buildDefaultValues(
   defaultValues?: Partial<FoodSupplyFormValues>,
@@ -72,6 +73,7 @@ export const FoodSupplyForm = React.forwardRef<
     handleSubmit,
     reset,
     setError,
+    setValue,
     control,
     formState: { errors },
   } = useForm<FoodSupplyFormValues>({
@@ -142,7 +144,7 @@ export const FoodSupplyForm = React.forwardRef<
         <Input
           id="food-supply-title"
           autoComplete="off"
-          {...register("title")}
+          {...withTitleCaseOnBlur(register("title"), setValue, "title")}
         />
         {errors.title && (
           <p className="text-sm text-destructive">{errors.title.message}</p>

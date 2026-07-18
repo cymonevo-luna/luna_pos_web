@@ -14,6 +14,7 @@ import {
   type BranchAssetFormValues,
 } from "@/lib/validations";
 import { menuPhotoUrl } from "@/lib/utils";
+import { withTitleCaseOnBlur } from "@/lib/withTitleCaseOnBlur";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -147,7 +148,7 @@ export const BranchAssetForm = React.forwardRef<
         <Input
           id="branch-asset-title"
           autoComplete="off"
-          {...register("title")}
+          {...withTitleCaseOnBlur(register("title"), setValue, "title")}
         />
         {errors.title && (
           <p className="text-sm text-destructive">{errors.title.message}</p>
