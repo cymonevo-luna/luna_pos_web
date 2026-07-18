@@ -32,12 +32,18 @@ describe("POS-86-4 admin sidebar nav groups", () => {
     const filtered = filterAdminNavItems(allNavItems, ["manager"]);
     const labels = flattenAdminNavLabels(filtered);
 
-    expect(groupLabels(filtered)).toEqual(["Food", "COGS", "Cash Flow"]);
+    expect(groupLabels(filtered)).toEqual([
+      "Food",
+      "COGS",
+      "Cash Flow",
+      "Branch",
+    ]);
     expect(labels).not.toContain("Supplier");
 
     expect(childLabels(filtered, "Food")).toEqual([
       "Ingredients",
-      "Menus",
+      "Categories",
+      "Menu",
       "Cook Request",
       "User Transactions",
     ]);
