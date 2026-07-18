@@ -293,8 +293,9 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
   };
 
   const whatsAppPhone = purchase
-    ? extractWhatsAppPhone(purchase.supplier_contact_info)
+    ? extractWhatsAppPhone(purchase.supplier_contact_info ?? "")
     : null;
+  const contactSupplierDisabledTitle = "No supplier phone number";
 
   const handleContactSupplier = () => {
     if (!purchase || !whatsAppPhone) return;
@@ -372,20 +373,20 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                   Delete purchase
                 </Button>
               ) : null}
-              {purchase.supplier_contact_info ? (
-                <span title={whatsAppPhone ? undefined : "No WhatsApp number in contact info"}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!whatsAppPhone}
-                    onClick={handleContactSupplier}
-                    aria-label="Contact supplier"
-                  >
-                    <MessageCircle className="h-4 w-4" />
-                    Contact supplier
-                  </Button>
-                </span>
-              ) : null}
+              <span title={whatsAppPhone ? undefined : contactSupplierDisabledTitle}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!whatsAppPhone}
+                  onClick={handleContactSupplier}
+                  aria-label={
+                    whatsAppPhone ? "Contact supplier" : contactSupplierDisabledTitle
+                  }
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Contact supplier
+                </Button>
+              </span>
             </div>
           </div>
 
