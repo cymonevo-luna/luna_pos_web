@@ -5,7 +5,9 @@ import {
   isLoginRoute,
   performSessionRefresh,
 } from "./session-refresh";
+import { config } from "@/lib/config";
 import { tokenStore } from "./tokens";
+import { sessionStore } from "./session-store";
 import { refreshTokenPair, resetRefreshInFlightForTests } from "./refresh";
 
 vi.mock("@/lib/auth/refresh", async (importOriginal) => {
@@ -43,15 +45,51 @@ describe("session-refresh", () => {
       refresh_expires_in: 604800,
     });
     vi.mocked(refreshTokenPair).mockResolvedValue({
-      access_token: "new-access",
-      refresh_token: "new-refresh",
-      expires_in: 900,
-      refresh_expires_in: 604800,
+      tokens: {
+        access_token: "new-access",
+        refresh_token: "new-refresh",
+        expires_in: 900,
+        refresh_expires_in: 604800,
+      },
+      features: ["menus.manage"],
     });
 
     expect(await performSessionRefresh()).toBe(true);
     expect(tokenStore.access).toBe("new-access");
     expect(tokenStore.refresh).toBe("new-refresh");
+  });
+
+  it("performSessionRefresh merges features into persisted session", async () => {
+    tokenStore.set("old-access", "refresh-1", {
+      expires_in: -60,
+      refresh_expires_in: 604800,
+    });
+    sessionStore.set({
+      user: {
+        id: "cashier-1",
+        email: "cashier-test@cymonevo.com",
+        name: "Cashier",
+        roles: ["cashier"],
+        features: [],
+        merchant_id: "merchant-1",
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      },
+      merchant: { id: "merchant-1", name: "Test Merchant" },
+    });
+    vi.mocked(refreshTokenPair).mockResolvedValue({
+      tokens: {
+        access_token: "new-access",
+        refresh_token: "new-refresh",
+        expires_in: 900,
+        refresh_expires_in: 604800,
+      },
+      features: ["menus.manage"],
+    });
+
+    expect(await performSessionRefresh()).toBe(true);
+    const stored = JSON.parse(localStorage.getItem(config.session.user) ?? "{}");
+    expect(stored.features).toEqual(["menus.manage"]);
   });
 
   it("ensureFreshAccessToken skips refresh when access is still fresh", async () => {
@@ -70,10 +108,13 @@ describe("session-refresh", () => {
       refresh_expires_in: 604800,
     });
     vi.mocked(refreshTokenPair).mockResolvedValue({
-      access_token: "new-access",
-      refresh_token: "new-refresh",
-      expires_in: 900,
-      refresh_expires_in: 604800,
+      tokens: {
+        access_token: "new-access",
+        refresh_token: "new-refresh",
+        expires_in: 900,
+        refresh_expires_in: 604800,
+      },
+      features: ["menus.manage"],
     });
 
     expect(await ensureFreshAccessToken()).toBe(true);

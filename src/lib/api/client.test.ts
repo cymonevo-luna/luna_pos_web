@@ -109,10 +109,12 @@ describe("api client", () => {
       refresh_expires_in: 604800,
     });
     vi.mocked(refreshTokenPair).mockResolvedValue({
-      access_token: "new",
-      refresh_token: "newR",
-      expires_in: 900,
-      refresh_expires_in: 604800,
+      tokens: {
+        access_token: "new",
+        refresh_token: "newR",
+        expires_in: 900,
+        refresh_expires_in: 604800,
+      },
     });
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
@@ -132,10 +134,12 @@ describe("api client", () => {
       refresh_expires_in: 604800,
     });
     vi.mocked(refreshTokenPair).mockResolvedValue({
-      access_token: "fresh-access",
-      refresh_token: "fresh-refresh",
-      expires_in: 900,
-      refresh_expires_in: 604800,
+      tokens: {
+        access_token: "fresh-access",
+        refresh_token: "fresh-refresh",
+        expires_in: 900,
+        refresh_expires_in: 604800,
+      },
     });
     const fetchMock = vi
       .spyOn(globalThis, "fetch")

@@ -30,9 +30,10 @@ export async function proxy(request: NextRequest) {
   let refreshedTokens = null;
 
   if (needsTokenRefresh(accessToken, refreshToken) && refreshToken) {
-    refreshedTokens = await refreshTokenPair(refreshToken);
-    if (refreshedTokens) {
-      claims = decodeJwt(refreshedTokens.access_token);
+    const refreshed = await refreshTokenPair(refreshToken);
+    if (refreshed) {
+      refreshedTokens = refreshed.tokens;
+      claims = decodeJwt(refreshed.tokens.access_token);
     } else {
       claims = null;
     }

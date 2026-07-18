@@ -8,6 +8,13 @@ import { tokenStore } from "@/lib/auth/tokens";
 import { config } from "@/lib/config";
 import { SessionActivityMonitor } from "@/components/auth/session-activity-monitor";
 import type { LoginPayload } from "@/lib/api/auth";
+import { usersApi } from "@/lib/api/users";
+
+vi.mock("@/lib/api/users", () => ({
+  usersApi: {
+    get: vi.fn(),
+  },
+}));
 
 vi.mock("@/lib/auth/refresh", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./refresh")>();
@@ -59,6 +66,19 @@ describe("POS-48-3 automatic session refresh", () => {
     localStorage.clear();
     resetRefreshInFlightForTests();
     vi.mocked(refreshTokenPair).mockReset();
+    vi.mocked(usersApi.get).mockReset();
+    vi.mocked(usersApi.get).mockResolvedValue({
+      data: {
+        id: "user-1",
+        email: "admin-test@cymonevo.com",
+        name: "Admin Test",
+        roles: ["admin"],
+        features: ["users.manage"],
+        merchant_id: "merchant-1",
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      },
+    });
     setPathname("/admin");
     vi.spyOn(window, "location", "get").mockReturnValue({
       ...window.location,
@@ -77,10 +97,12 @@ describe("POS-48-3 automatic session refresh", () => {
       refresh_expires_in: 604800,
     });
     vi.mocked(refreshTokenPair).mockResolvedValue({
-      access_token: "fresh-access",
-      refresh_token: "fresh-refresh",
-      expires_in: 900,
-      refresh_expires_in: 604800,
+      tokens: {
+        access_token: "fresh-access",
+        refresh_token: "fresh-refresh",
+        expires_in: 900,
+        refresh_expires_in: 604800,
+      },
     });
 
     const fetchMock = vi
@@ -101,10 +123,12 @@ describe("POS-48-3 automatic session refresh", () => {
       refresh_expires_in: 604800,
     });
     vi.mocked(refreshTokenPair).mockResolvedValue({
-      access_token: "fresh-access",
-      refresh_token: "fresh-refresh",
-      expires_in: 900,
-      refresh_expires_in: 604800,
+      tokens: {
+        access_token: "fresh-access",
+        refresh_token: "fresh-refresh",
+        expires_in: 900,
+        refresh_expires_in: 604800,
+      },
     });
 
     const fetchMock = vi
@@ -153,10 +177,12 @@ describe("POS-48-3 automatic session refresh", () => {
     );
 
     vi.mocked(refreshTokenPair).mockResolvedValue({
-      access_token: "new-access",
-      refresh_token: "new-refresh",
-      expires_in: 900,
-      refresh_expires_in: 604800,
+      tokens: {
+        access_token: "new-access",
+        refresh_token: "new-refresh",
+        expires_in: 900,
+        refresh_expires_in: 604800,
+      },
     });
 
     function SessionProbe() {
