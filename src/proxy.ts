@@ -11,9 +11,9 @@ import { decodeJwt } from "@/lib/auth/tokens";
 import {
   canAccessRoute,
   getAuthenticatedLandingPath,
-  getUnauthorizedFallbackPath,
   hasMerchantAreaAccess,
 } from "@/lib/auth/roles";
+import { getUnauthorizedRedirectTarget } from "@/lib/auth/unauthorized-access";
 
 // Public auth pages (never require a session).
 const AUTH_ROUTES = ["/login", "/register", "/admin/login", "/admin/register"];
@@ -82,7 +82,7 @@ export async function proxy(request: NextRequest) {
     claims &&
     !canAccessRoute(pathname, claims)
   ) {
-    const fallback = getUnauthorizedFallbackPath(claims);
+    const fallback = getUnauthorizedRedirectTarget(pathname, claims);
     return withCookies(NextResponse.redirect(new URL(fallback, request.url)));
   }
 

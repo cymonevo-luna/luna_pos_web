@@ -35,7 +35,12 @@ describe("AdminRouteGuard", () => {
     );
 
     await waitFor(() => {
-      expect(replace).toHaveBeenCalledWith("/admin/unauthorized");
+      expect(replace).toHaveBeenCalledWith(
+        expect.stringContaining("/admin/unauthorized"),
+      );
+      expect(replace).toHaveBeenCalledWith(
+        expect.stringContaining("feature=users.manage"),
+      );
     });
   });
 
@@ -66,7 +71,12 @@ describe("AdminRouteGuard", () => {
     );
 
     await waitFor(() => {
-      expect(replace).toHaveBeenCalledWith("/admin/unauthorized");
+      expect(replace).toHaveBeenCalledWith(
+        expect.stringContaining("/admin/unauthorized"),
+      );
+      expect(replace).toHaveBeenCalledWith(
+        expect.stringContaining("feature=cogs.view"),
+      );
     });
   });
 
@@ -80,7 +90,12 @@ describe("AdminRouteGuard", () => {
     );
 
     await waitFor(() => {
-      expect(replace).toHaveBeenCalledWith("/admin/unauthorized");
+      expect(replace).toHaveBeenCalledWith(
+        expect.stringContaining("/admin/unauthorized"),
+      );
+      expect(replace).toHaveBeenCalledWith(
+        expect.stringContaining("feature=store_settings.manage"),
+      );
     });
   });
 
@@ -94,7 +109,12 @@ describe("AdminRouteGuard", () => {
     );
 
     await waitFor(() => {
-      expect(replace).toHaveBeenCalledWith("/admin/unauthorized");
+      expect(replace).toHaveBeenCalledWith(
+        expect.stringContaining("/admin/unauthorized"),
+      );
+      expect(replace).toHaveBeenCalledWith(
+        expect.stringContaining("feature=cogs.view"),
+      );
     });
   });
 
