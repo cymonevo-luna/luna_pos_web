@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { useAuth } from "@/lib/auth/context";
-import { useRoles } from "@/lib/auth/use-roles";
+import { useFeatures } from "@/lib/auth/use-features";
 import { overviewCards } from "@/lib/dashboard/quick-actions";
 import { buttonVariants } from "@/components/ui/button";
 import { GreetingCard } from "@/components/dashboard/greeting-card";
@@ -21,14 +21,19 @@ import {
 
 export default function AdminOverviewPage() {
   const { user } = useAuth();
-  const { roles, hasAnyRole, hasRole } = useRoles();
+  const { features, hasFeature, hasAnyFeature } = useFeatures();
 
   if (!user) return null;
 
   const firstName = user.name.split(" ")[0];
-  const visibleCards = overviewCards.filter((card) => hasAnyRole(card.roles));
-  const isManager = hasRole("manager");
-  const showSummary = hasAnyRole(["manager", "admin", "operational"]);
+  const visibleCards = overviewCards.filter((card) => hasFeature(card.feature));
+  const showCashFlowInsights = hasFeature("insights.cash_flow");
+  const showSummary = hasAnyFeature([
+    "transactions.view",
+    "users.manage",
+    "suppliers.manage",
+    "purchases.manage",
+  ]);
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
@@ -42,12 +47,12 @@ export default function AdminOverviewPage() {
           <h2 id="summary-heading" className="mb-3 text-base font-semibold">
             Summary
           </h2>
-          <DashboardSummaryStats roles={roles} />
-          {isManager && <CashFlowOverviewStats />}
+          <DashboardSummaryStats features={features} />
+          {showCashFlowInsights && <CashFlowOverviewStats />}
         </section>
       )}
 
-      {isManager && (
+      {showCashFlowInsights && (
         <section aria-labelledby="analytics-heading">
           <h2 id="analytics-heading" className="mb-3 text-base font-semibold">
             Analytics
@@ -106,7 +111,7 @@ export default function AdminOverviewPage() {
         )}
       </section>
 
-      {isManager && <RecentTransactionsPanel />}
+      {showCashFlowInsights && <RecentTransactionsPanel />}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import AdminOverviewPage from "./page";
 import { useAuth } from "@/lib/auth/context";
 import type { User } from "@/lib/api/types";
+import { featuresForRoles } from "@/lib/auth/feature-fixtures";
 
 vi.mock("@/lib/auth/context", () => ({
   useAuth: vi.fn(),
@@ -18,8 +19,8 @@ vi.mock("@/components/dashboard/greeting-card", () => ({
 }));
 
 vi.mock("@/components/dashboard/dashboard-summary-stats", () => ({
-  DashboardSummaryStats: ({ roles }: { roles: string[] }) => (
-    <div data-testid="dashboard-summary-stats">{roles.join(",")}</div>
+  DashboardSummaryStats: ({ features }: { features: string[] }) => (
+    <div data-testid="dashboard-summary-stats">{features.join(",")}</div>
   ),
 }));
 
@@ -68,6 +69,7 @@ const managerUser: User = {
   email: "manager-test@cymonevo.com",
   name: "Manager Test",
   roles: ["manager"],
+  features: featuresForRoles(["manager"]),
   merchant_id: "merchant-1",
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-15T00:00:00Z",
@@ -78,6 +80,7 @@ const adminUser: User = {
   email: "admin-test@cymonevo.com",
   name: "Admin Test",
   roles: ["admin"],
+  features: featuresForRoles(["admin"]),
   merchant_id: "merchant-1",
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-15T00:00:00Z",
@@ -88,6 +91,7 @@ const operationalUser: User = {
   email: "operation-test@cymonevo.com",
   name: "Operational Test",
   roles: ["operational"],
+  features: featuresForRoles(["operational"]),
   merchant_id: "merchant-1",
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-15T00:00:00Z",

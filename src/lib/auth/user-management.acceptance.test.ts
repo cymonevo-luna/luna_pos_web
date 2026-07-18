@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { canAccessRoute } from "@/lib/auth/roles";
+import { sourceWithFeatures } from "@/lib/auth/feature-fixtures";
 import {
   adminUserCreateSchema,
   adminUserRolesSchema,
@@ -12,7 +13,7 @@ import type { MerchantRole } from "@/lib/api/types";
  */
 describe("POS-18-11 admin user management", () => {
   it("1. User list loads for admin — route is admin-only", () => {
-    expect(canAccessRoute("/admin/users", ["admin"])).toBe(true);
+    expect(canAccessRoute("/admin/users", sourceWithFeatures(["admin"]))).toBe(true);
   });
 
   it("2. Create user with multiple roles — schema accepts cashier + operational", () => {
@@ -31,8 +32,8 @@ describe("POS-18-11 admin user management", () => {
   });
 
   it("4. Non-admin blocked from user management", () => {
-    expect(canAccessRoute("/admin/users", ["manager"])).toBe(false);
-    expect(canAccessRoute("/admin/users", ["operational"])).toBe(false);
+    expect(canAccessRoute("/admin/users", sourceWithFeatures(["manager"]))).toBe(false);
+    expect(canAccessRoute("/admin/users", sourceWithFeatures(["operational"]))).toBe(false);
   });
 
   it("5. Last admin removal shows error — detects last-admin scenario", () => {

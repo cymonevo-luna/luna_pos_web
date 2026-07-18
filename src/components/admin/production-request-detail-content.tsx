@@ -33,8 +33,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth/context";
 import { isAdminOnlyUser } from "@/lib/auth/roles";
-import { useRoles } from "@/lib/auth/use-roles";
+import { useFeatures } from "@/lib/auth/use-features";
 import {
   Dialog,
   DialogDescription,
@@ -259,9 +260,12 @@ function LineStockEstimationTable({
 
 export function ProductionRequestDetailContent({ id }: { id: string }) {
   const router = useRouter();
-  const { roles, hasRole } = useRoles();
-  const isAdmin = hasRole("admin");
-  const showMutationControls = !isAdminOnlyUser({ roles });
+  const { user } = useAuth();
+  const { hasFeature } = useFeatures();
+  const canDeleteProductionRequest = hasFeature("users.manage");
+  const showMutationControls =
+    hasFeature("production_requests.manage") ||
+    (hasFeature("production_requests.view") && !isAdminOnlyUser(user));
   const [request, setRequest] = useState<ProductionRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -700,7 +704,7 @@ export function ProductionRequestDetailContent({ id }: { id: string }) {
             </CardContent>
           </Card>
 
-          {isAdmin ? (
+          {canDeleteProductionRequest ? (
             <Card className="border-destructive/30">
               <CardHeader>
                 <CardTitle className="text-base text-destructive">

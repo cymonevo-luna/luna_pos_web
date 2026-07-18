@@ -31,11 +31,8 @@ import {
 import { AdminRouteGuard } from "@/components/layout/admin-route-guard";
 import { RequireAuth } from "@/components/layout/require-auth";
 import { useAuth } from "@/lib/auth/context";
-import {
-  canAccessNavRoles,
-  resolveUserRoles,
-} from "@/lib/auth/roles";
-import type { MerchantRole } from "@/lib/api/types";
+import { canAccessNavFeature } from "@/lib/auth/roles";
+import type { FeatureSource } from "@/lib/auth/features";
 
 export const allNavItems: NavEntry[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
@@ -47,31 +44,31 @@ export const allNavItems: NavEntry[] = [
         href: "/admin/food-supplies",
         label: "Ingredients",
         icon: Package,
-        roles: ["manager", "operational"],
+        feature: "food_supplies.manage",
       },
       {
         href: "/admin/categories",
         label: "Categories",
         icon: Tags,
-        roles: ["manager"],
+        feature: "categories.manage",
       },
       {
         href: "/admin/menus",
         label: "Menu",
         icon: UtensilsCrossed,
-        roles: ["manager"],
+        feature: "menus.manage",
       },
       {
         href: "/admin/production-requests",
         label: "Cook Request",
         icon: ChefHat,
-        roles: ["admin", "manager", "operational"],
+        feature: "production_requests.view",
       },
       {
         href: "/admin/transactions",
         label: "User Transactions",
         icon: Receipt,
-        roles: ["manager"],
+        feature: "transactions.view",
       },
     ],
   },
@@ -83,13 +80,13 @@ export const allNavItems: NavEntry[] = [
         href: "/admin/suppliers",
         label: "List",
         icon: Truck,
-        roles: ["operational"],
+        feature: "suppliers.manage",
       },
       {
         href: "/admin/purchases",
         label: "Purchases",
         icon: ShoppingCart,
-        roles: ["operational"],
+        feature: "purchases.manage",
       },
     ],
   },
@@ -101,13 +98,13 @@ export const allNavItems: NavEntry[] = [
         href: "/admin/cogs/menu-breakdown",
         label: "Menu Breakdown",
         icon: Calculator,
-        roles: ["manager"],
+        feature: "cogs.view",
       },
       {
         href: "/admin/cogs/summary",
         label: "Summary",
         icon: Calculator,
-        roles: ["manager"],
+        feature: "cogs.view",
       },
     ],
   },
@@ -119,25 +116,25 @@ export const allNavItems: NavEntry[] = [
         href: "/admin/expenses",
         label: "Expenses",
         icon: Wallet,
-        roles: ["manager", "operational"],
+        feature: "expenses.manage",
       },
       {
         href: "/admin/recurring-expenses",
         label: "Recurring Expenses",
         icon: Repeat,
-        roles: ["manager", "operational"],
+        feature: "recurring_expenses.manage",
       },
       {
         href: "/admin/cash-flow/bep",
         label: "BEP",
         icon: TrendingUp,
-        roles: ["manager"],
+        feature: "insights.cash_flow",
       },
       {
         href: "/admin/cash-flow",
         label: "Summary",
         icon: TrendingUp,
-        roles: ["manager"],
+        feature: "insights.cash_flow",
       },
     ],
   },
@@ -149,37 +146,37 @@ export const allNavItems: NavEntry[] = [
         href: "/admin/users",
         label: "Users",
         icon: Users,
-        roles: ["admin"],
+        feature: "users.manage",
       },
       {
         href: "/admin/staff",
         label: "Staff",
         icon: UserCog,
-        roles: ["admin"],
+        feature: "staff.manage",
       },
       {
         href: "/admin/role-features",
         label: "Privilege Mapping",
         icon: KeyRound,
-        roles: ["admin"],
+        feature: "role_features.manage",
       },
       {
         href: "/admin/branch-assets",
         label: "Assets",
         icon: Box,
-        roles: ["manager"],
+        feature: "branch_assets.manage",
       },
       {
         href: "/admin/order-options",
         label: "Order Option",
         icon: ListOrdered,
-        roles: ["manager"],
+        feature: "order_options.manage",
       },
       {
         href: "/admin/store-settings",
         label: "Receipt Setting",
         icon: Printer,
-        roles: ["manager"],
+        feature: "store_settings.manage",
       },
     ],
   },
@@ -188,20 +185,20 @@ export const allNavItems: NavEntry[] = [
 
 export function filterAdminNavItems(
   items: NavEntry[],
-  userRoles: MerchantRole[],
+  source: FeatureSource,
 ): NavEntry[] {
   return items
     .map((entry) => {
       if (isNavGroup(entry)) {
         const children = entry.children.filter((child) =>
-          canAccessNavRoles(userRoles, child.roles),
+          canAccessNavFeature(source, child.feature),
         );
         if (children.length === 0) {
           return null;
         }
         return { ...entry, children };
       }
-      return canAccessNavRoles(userRoles, entry.roles) ? entry : null;
+      return canAccessNavFeature(source, entry.feature) ? entry : null;
     })
     .filter((entry): entry is NavEntry => entry !== null);
 }
@@ -227,7 +224,7 @@ export default function AdminProtectedLayout({
   children: React.ReactNode;
 }) {
   const { user } = useAuth();
-  const navItems = filterAdminNavItems(allNavItems, resolveUserRoles(user));
+  const navItems = filterAdminNavItems(allNavItems, user);
 
   return (
     <RequireAuth admin>

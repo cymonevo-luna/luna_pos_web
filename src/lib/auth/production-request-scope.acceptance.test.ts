@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { filterAdminNavItems } from "@/app/admin/(protected)/layout";
 import { canAccessRoute } from "@/lib/auth/roles";
+import { sourceWithFeatures } from "@/lib/auth/feature-fixtures";
 import type { NavItem } from "@/components/layout/dashboard-shell";
 
 const navItems: NavItem[] = [
@@ -9,7 +10,7 @@ const navItems: NavItem[] = [
     href: "/admin/production-requests",
     label: "Production",
     icon: () => null,
-    roles: ["admin", "manager", "operational"],
+    feature: "production_requests.view",
   },
 ];
 
@@ -18,14 +19,13 @@ const navItems: NavItem[] = [
  */
 describe("POS-39-7 production request route guards and navigation", () => {
   it("1. Operational nav includes production", () => {
-    expect(canAccessRoute("/admin/production-requests", ["operational"])).toBe(
-      true,
-    );
+    const operational = sourceWithFeatures(["operational"]);
+    expect(canAccessRoute("/admin/production-requests", operational)).toBe(true);
     expect(
-      canAccessRoute("/admin/production-requests/prod-1", ["operational"]),
+      canAccessRoute("/admin/production-requests/prod-1", operational),
     ).toBe(true);
 
-    const labels = filterAdminNavItems(navItems, ["operational"]).map(
+    const labels = filterAdminNavItems(navItems, operational).map(
       (item) => item.label,
     );
     expect(labels).toContain("Production");
@@ -33,17 +33,14 @@ describe("POS-39-7 production request route guards and navigation", () => {
   });
 
   it("2. Manager can access production list and detail routes", () => {
-    expect(canAccessRoute("/admin/production-requests", ["manager"])).toBe(
-      true,
-    );
+    const manager = sourceWithFeatures(["manager"]);
+    expect(canAccessRoute("/admin/production-requests", manager)).toBe(true);
     expect(
-      canAccessRoute("/admin/production-requests/prod-1", ["manager"]),
+      canAccessRoute("/admin/production-requests/prod-1", manager),
     ).toBe(true);
-    expect(canAccessRoute("/admin/production-requests/new", ["manager"])).toBe(
-      true,
-    );
+    expect(canAccessRoute("/admin/production-requests/new", manager)).toBe(true);
 
-    const labels = filterAdminNavItems(navItems, ["manager"]).map(
+    const labels = filterAdminNavItems(navItems, manager).map(
       (item) => item.label,
     );
     expect(labels).toContain("Production");
@@ -51,17 +48,14 @@ describe("POS-39-7 production request route guards and navigation", () => {
   });
 
   it("3. Cashier blocked from admin production routes", () => {
-    expect(canAccessRoute("/admin/production-requests", ["cashier"])).toBe(
-      false,
-    );
-    expect(canAccessRoute("/admin/production-requests/new", ["cashier"])).toBe(
-      false,
-    );
+    const cashier = sourceWithFeatures(["cashier"]);
+    expect(canAccessRoute("/admin/production-requests", cashier)).toBe(false);
+    expect(canAccessRoute("/admin/production-requests/new", cashier)).toBe(false);
     expect(
-      canAccessRoute("/admin/production-requests/prod-1", ["cashier"]),
+      canAccessRoute("/admin/production-requests/prod-1", cashier),
     ).toBe(false);
 
-    const labels = filterAdminNavItems(navItems, ["cashier"]).map(
+    const labels = filterAdminNavItems(navItems, cashier).map(
       (item) => item.label,
     );
     expect(labels).not.toContain("Production");
@@ -69,21 +63,21 @@ describe("POS-39-7 production request route guards and navigation", () => {
   });
 
   it("4. Operational blocked from manager create route", () => {
+    const operational = sourceWithFeatures(["operational"]);
     expect(
-      canAccessRoute("/admin/production-requests/new", ["operational"]),
+      canAccessRoute("/admin/production-requests/new", operational),
     ).toBe(false);
   });
 
   it("5. Admin can access production list and detail, blocked from create", () => {
-    expect(canAccessRoute("/admin/production-requests", ["admin"])).toBe(true);
+    const admin = sourceWithFeatures(["admin"]);
+    expect(canAccessRoute("/admin/production-requests", admin)).toBe(true);
     expect(
-      canAccessRoute("/admin/production-requests/prod-1", ["admin"]),
+      canAccessRoute("/admin/production-requests/prod-1", admin),
     ).toBe(true);
-    expect(canAccessRoute("/admin/production-requests/new", ["admin"])).toBe(
-      false,
-    );
+    expect(canAccessRoute("/admin/production-requests/new", admin)).toBe(false);
 
-    const labels = filterAdminNavItems(navItems, ["admin"]).map(
+    const labels = filterAdminNavItems(navItems, admin).map(
       (item) => item.label,
     );
     expect(labels).toContain("Production");

@@ -1,28 +1,29 @@
 import { describe, it, expect } from "vitest";
 import { filterAdminNavItems } from "@/app/admin/(protected)/layout";
 import { canAccessRoute } from "@/lib/auth/roles";
+import { sourceWithFeatures } from "@/lib/auth/feature-fixtures";
 import type { NavItem } from "@/components/layout/dashboard-shell";
 
 const navItems: NavItem[] = [
   { href: "/admin", label: "Overview", icon: () => null },
-  { href: "/admin/users", label: "Users", icon: () => null, roles: ["admin"] },
+  { href: "/admin/users", label: "Users", icon: () => null, feature: "users.manage" },
   {
     href: "/admin/food-supplies",
     label: "Food Supplies",
     icon: () => null,
-    roles: ["manager", "operational"],
+    feature: "food_supplies.manage",
   },
   {
     href: "/admin/suppliers",
     label: "Suppliers",
     icon: () => null,
-    roles: ["operational"],
+    feature: "suppliers.manage",
   },
   {
     href: "/admin/purchases",
     label: "Purchases",
     icon: () => null,
-    roles: ["operational"],
+    feature: "purchases.manage",
   },
 ];
 
@@ -31,34 +32,37 @@ const navItems: NavItem[] = [
  */
 describe("POS-18-13 operational-scoped route guards", () => {
   it("1. Operational accesses suppliers", () => {
-    expect(canAccessRoute("/admin/suppliers", ["operational"])).toBe(true);
-    expect(canAccessRoute("/admin/suppliers/new", ["operational"])).toBe(true);
-    expect(canAccessRoute("/admin/suppliers/sup-1/edit", ["operational"])).toBe(
+    const operational = sourceWithFeatures(["operational"]);
+    expect(canAccessRoute("/admin/suppliers", operational)).toBe(true);
+    expect(canAccessRoute("/admin/suppliers/new", operational)).toBe(true);
+    expect(canAccessRoute("/admin/suppliers/sup-1/edit", operational)).toBe(
       true,
     );
 
-    const labels = filterAdminNavItems(navItems, ["operational"]).map(
+    const labels = filterAdminNavItems(navItems, operational).map(
       (item) => item.label,
     );
     expect(labels).toContain("Suppliers");
   });
 
   it("2. Operational manages purchase requests", () => {
-    expect(canAccessRoute("/admin/purchases", ["operational"])).toBe(true);
-    expect(canAccessRoute("/admin/purchases/new", ["operational"])).toBe(true);
-    expect(canAccessRoute("/admin/purchases/pr-1", ["operational"])).toBe(true);
+    const operational = sourceWithFeatures(["operational"]);
+    expect(canAccessRoute("/admin/purchases", operational)).toBe(true);
+    expect(canAccessRoute("/admin/purchases/new", operational)).toBe(true);
+    expect(canAccessRoute("/admin/purchases/pr-1", operational)).toBe(true);
 
-    const labels = filterAdminNavItems(navItems, ["operational"]).map(
+    const labels = filterAdminNavItems(navItems, operational).map(
       (item) => item.label,
     );
     expect(labels).toContain("Purchases");
   });
 
   it("3. Manager-only blocked from purchase requests", () => {
-    expect(canAccessRoute("/admin/purchases", ["manager"])).toBe(false);
-    expect(canAccessRoute("/admin/purchases/new", ["manager"])).toBe(false);
+    const manager = sourceWithFeatures(["manager"]);
+    expect(canAccessRoute("/admin/purchases", manager)).toBe(false);
+    expect(canAccessRoute("/admin/purchases/new", manager)).toBe(false);
 
-    const labels = filterAdminNavItems(navItems, ["manager"]).map(
+    const labels = filterAdminNavItems(navItems, manager).map(
       (item) => item.label,
     );
     expect(labels).not.toContain("Purchases");
@@ -66,10 +70,11 @@ describe("POS-18-13 operational-scoped route guards", () => {
   });
 
   it("4. Admin-only blocked from suppliers", () => {
-    expect(canAccessRoute("/admin/suppliers", ["admin"])).toBe(false);
-    expect(canAccessRoute("/admin/purchases", ["admin"])).toBe(false);
+    const admin = sourceWithFeatures(["admin"]);
+    expect(canAccessRoute("/admin/suppliers", admin)).toBe(false);
+    expect(canAccessRoute("/admin/purchases", admin)).toBe(false);
 
-    const labels = filterAdminNavItems(navItems, ["admin"]).map(
+    const labels = filterAdminNavItems(navItems, admin).map(
       (item) => item.label,
     );
     expect(labels).not.toContain("Suppliers");
@@ -77,12 +82,11 @@ describe("POS-18-13 operational-scoped route guards", () => {
   });
 
   it("5. Supplier prices workflow — operational can access supplier detail", () => {
-    expect(canAccessRoute("/admin/suppliers/sup-1", ["operational"])).toBe(
-      true,
-    );
-    expect(canAccessRoute("/admin/food-supplies", ["operational"])).toBe(true);
+    const operational = sourceWithFeatures(["operational"]);
+    expect(canAccessRoute("/admin/suppliers/sup-1", operational)).toBe(true);
+    expect(canAccessRoute("/admin/food-supplies", operational)).toBe(true);
 
-    const labels = filterAdminNavItems(navItems, ["operational"]).map(
+    const labels = filterAdminNavItems(navItems, operational).map(
       (item) => item.label,
     );
     expect(labels).toContain("Food Supplies");

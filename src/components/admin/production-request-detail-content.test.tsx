@@ -5,7 +5,10 @@ import { ProductionRequestDetailContent } from "./production-request-detail-cont
 import { productionRequestsAdminApi } from "@/lib/api/production-requests";
 import { ApiError } from "@/lib/api/client";
 import type { ProductionRequest } from "@/lib/api/types";
-import { useRoles } from "@/lib/auth/use-roles";
+import { useAuth } from "@/lib/auth/context";
+import { useFeatures } from "@/lib/auth/use-features";
+import { featuresForRoles } from "@/lib/auth/feature-fixtures";
+import type { MerchantRole } from "@/lib/api/types";
 import { toast } from "sonner";
 
 const mockPush = vi.fn();
@@ -14,8 +17,12 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
-vi.mock("@/lib/auth/use-roles", () => ({
-  useRoles: vi.fn(),
+vi.mock("@/lib/auth/context", () => ({
+  useAuth: vi.fn(),
+}));
+
+vi.mock("@/lib/auth/use-features", () => ({
+  useFeatures: vi.fn(),
 }));
 
 vi.mock("@/lib/api/production-requests", () => ({
@@ -110,46 +117,54 @@ function createRequest(
   };
 }
 
-function mockAdminRoles() {
-  vi.mocked(useRoles).mockReturnValue({
-    roles: ["admin"],
-    hasRole: (role) => role === "admin",
-    hasAnyRole: (roles) => roles.includes("admin"),
+function mockFeatures(roles: MerchantRole[]) {
+  const features = featuresForRoles(roles);
+  vi.mocked(useAuth).mockReturnValue({
+    user: {
+      id: "user-1",
+      email: "test@example.com",
+      name: "Test User",
+      roles,
+      features,
+      merchant_id: "merchant-1",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    },
+    merchant: { id: "merchant-1", name: "Test Merchant" },
+    isLoading: false,
+    isAuthenticated: true,
+    isAdmin: roles.some((role) => role !== "cashier"),
+    login: vi.fn(),
+    register: vi.fn(),
+    registerMerchant: vi.fn(),
+    logout: vi.fn(),
+    refreshUser: vi.fn(),
   });
+  vi.mocked(useFeatures).mockReturnValue({
+    features,
+    hasFeature: (key) => features.includes(key),
+    hasAnyFeature: (keys) => keys.some((key) => features.includes(key)),
+  });
+}
+
+function mockAdminRoles() {
+  mockFeatures(["admin"]);
 }
 
 function mockAdminManagerRoles() {
-  vi.mocked(useRoles).mockReturnValue({
-    roles: ["admin", "manager"],
-    hasRole: (role) => role === "admin" || role === "manager",
-    hasAnyRole: (roles) =>
-      roles.some((role) => role === "admin" || role === "manager"),
-  });
+  mockFeatures(["admin", "manager"]);
 }
 
 function mockAdminOperationalRoles() {
-  vi.mocked(useRoles).mockReturnValue({
-    roles: ["admin", "operational"],
-    hasRole: (role) => role === "admin" || role === "operational",
-    hasAnyRole: (roles) =>
-      roles.some((role) => role === "admin" || role === "operational"),
-  });
+  mockFeatures(["admin", "operational"]);
 }
 
 function mockManagerRoles() {
-  vi.mocked(useRoles).mockReturnValue({
-    roles: ["manager"],
-    hasRole: (role) => role === "manager",
-    hasAnyRole: (roles) => roles.includes("manager"),
-  });
+  mockFeatures(["manager"]);
 }
 
 function mockOperationalRoles() {
-  vi.mocked(useRoles).mockReturnValue({
-    roles: ["operational"],
-    hasRole: () => false,
-    hasAnyRole: (roles) => roles.includes("operational"),
-  });
+  mockFeatures(["operational"]);
 }
 
 describe("ProductionRequestDetailContent", () => {

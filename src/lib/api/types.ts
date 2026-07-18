@@ -43,6 +43,7 @@ export interface User {
   email: string;
   name: string;
   roles: MerchantRole[];
+  features?: string[];
   merchant_id: string;
   created_at: string;
   updated_at: string;

@@ -11,6 +11,7 @@ import { foodSuppliesAdminApi } from "@/lib/api/food-supplies";
 import { purchaseRequestsAdminApi } from "@/lib/api/purchase-requests";
 import type { Supplier } from "@/lib/api/types";
 import type { NavItem } from "@/components/layout/dashboard-shell";
+import { sourceWithFeatures } from "@/lib/auth/feature-fixtures";
 
 vi.mock("@/lib/api/suppliers", () => ({
   suppliersAdminApi: {
@@ -50,18 +51,21 @@ const navItems: NavItem[] = [
     label: "Food Supplies",
     icon: () => null,
     roles: ["manager", "operational"],
+    feature: "food_supplies.manage",
   },
   {
     href: "/admin/suppliers",
     label: "Suppliers",
     icon: () => null,
     roles: ["operational"],
+    feature: "suppliers.manage",
   },
   {
     href: "/admin/purchases",
     label: "Purchases",
     icon: () => null,
     roles: ["operational"],
+    feature: "purchases.manage",
   },
 ];
 
@@ -187,8 +191,9 @@ describe("POS-29-2 supplier admin list verification", () => {
   });
 
   it("operational role sees Suppliers nav link", () => {
-    expect(canAccessRoute("/admin/suppliers", ["operational"])).toBe(true);
-    const labels = filterAdminNavItems(navItems, ["operational"]).map(
+    const operational = sourceWithFeatures(["operational"]);
+    expect(canAccessRoute("/admin/suppliers", operational)).toBe(true);
+    const labels = filterAdminNavItems(navItems, operational).map(
       (item) => item.label,
     );
     expect(labels).toContain("Suppliers");

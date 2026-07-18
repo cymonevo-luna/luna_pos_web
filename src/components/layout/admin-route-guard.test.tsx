@@ -35,7 +35,7 @@ describe("AdminRouteGuard", () => {
     );
 
     await waitFor(() => {
-      expect(replace).toHaveBeenCalledWith("/admin/suppliers");
+      expect(replace).toHaveBeenCalledWith("/admin/unauthorized");
     });
   });
 
@@ -66,7 +66,7 @@ describe("AdminRouteGuard", () => {
     );
 
     await waitFor(() => {
-      expect(replace).toHaveBeenCalledWith("/admin/users");
+      expect(replace).toHaveBeenCalledWith("/admin/unauthorized");
     });
   });
 
@@ -80,7 +80,7 @@ describe("AdminRouteGuard", () => {
     );
 
     await waitFor(() => {
-      expect(replace).toHaveBeenCalledWith("/admin/suppliers");
+      expect(replace).toHaveBeenCalledWith("/admin/unauthorized");
     });
   });
 
@@ -94,7 +94,7 @@ describe("AdminRouteGuard", () => {
     );
 
     await waitFor(() => {
-      expect(replace).toHaveBeenCalledWith("/admin/suppliers");
+      expect(replace).toHaveBeenCalledWith("/admin/unauthorized");
     });
   });
 

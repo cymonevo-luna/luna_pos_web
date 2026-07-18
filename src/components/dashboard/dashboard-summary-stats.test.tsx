@@ -6,6 +6,7 @@ import { adminApi } from "@/lib/api/users";
 import { suppliersAdminApi } from "@/lib/api/suppliers";
 import { purchaseRequestsAdminApi } from "@/lib/api/purchase-requests";
 import { formatRupiah } from "@/lib/utils";
+import { featuresForRoles } from "@/lib/auth/feature-fixtures";
 import type { TransactionSummary } from "@/lib/api/types";
 
 vi.mock("@/lib/api/transactions", () => ({
@@ -81,7 +82,7 @@ describe("DashboardSummaryStats", () => {
   it("renders manager sales KPIs from transaction summaries", async () => {
     mockManagerSummaries();
 
-    render(<DashboardSummaryStats roles={["manager"]} />);
+    render(<DashboardSummaryStats features={featuresForRoles(["manager"])} />);
 
     expect(await screen.findByText("Today's revenue")).toBeInTheDocument();
     expect(screen.getByText(formatRupiah(350_000))).toBeInTheDocument();
@@ -97,7 +98,7 @@ describe("DashboardSummaryStats", () => {
       meta: { page: 1, per_page: 1, total: 42 },
     });
 
-    render(<DashboardSummaryStats roles={["admin"]} />);
+    render(<DashboardSummaryStats features={featuresForRoles(["admin"])} />);
 
     expect(await screen.findByText("Total users")).toBeInTheDocument();
     expect(screen.getByText("42")).toBeInTheDocument();
@@ -113,7 +114,7 @@ describe("DashboardSummaryStats", () => {
       meta: { page: 1, per_page: 1, total: 5 },
     });
 
-    render(<DashboardSummaryStats roles={["operational"]} />);
+    render(<DashboardSummaryStats features={featuresForRoles(["operational"])} />);
 
     expect(await screen.findByText("Suppliers")).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
@@ -141,7 +142,7 @@ describe("DashboardSummaryStats", () => {
       return thirtyDayPromise;
     });
 
-    render(<DashboardSummaryStats roles={["manager"]} />);
+    render(<DashboardSummaryStats features={featuresForRoles(["manager"])} />);
 
     expect(screen.getAllByTestId("summary-stat-skeleton")).toHaveLength(3);
     expect(screen.queryByText(formatRupiah(350_000))).not.toBeInTheDocument();

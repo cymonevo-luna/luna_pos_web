@@ -7,6 +7,7 @@ import AdminProtectedLayout, {
   flattenAdminNavLabels,
 } from "./layout";
 import { isNavGroup, type NavEntry, type NavItem } from "@/components/layout/dashboard-shell";
+import { sourceWithFeatures } from "@/lib/auth/feature-fixtures";
 
 vi.mock("@/components/layout/require-auth", () => ({
   RequireAuth: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -53,7 +54,12 @@ vi.mock("@/components/layout/dashboard-shell", () => ({
 
 vi.mock("@/lib/auth/context", () => ({
   useAuth: () => ({
-    user: { id: "1", roles: ["admin"], merchant_id: "merchant-1" },
+    user: {
+      id: "1",
+      roles: ["admin"],
+      features: sourceWithFeatures(["admin"]).features,
+      merchant_id: "merchant-1",
+    },
   }),
 }));
 
@@ -81,10 +87,10 @@ describe("AdminProtectedLayout", () => {
 
   it("includes Cash Flow group for manager users", () => {
     const managerLabels = flattenAdminNavLabels(
-      filterAdminNavItems(allNavItems, ["manager"]),
+      filterAdminNavItems(allNavItems, sourceWithFeatures(["manager"])),
     );
     const operationalLabels = flattenAdminNavLabels(
-      filterAdminNavItems(allNavItems, ["operational"]),
+      filterAdminNavItems(allNavItems, sourceWithFeatures(["operational"])),
     );
 
     expect(managerLabels).toContain("Cash Flow");
@@ -98,7 +104,7 @@ describe("AdminProtectedLayout", () => {
 
   it("includes COGS group for manager users", () => {
     const labels = flattenAdminNavLabels(
-      filterAdminNavItems(allNavItems, ["manager"]),
+      filterAdminNavItems(allNavItems, sourceWithFeatures(["manager"])),
     );
 
     expect(labels).toContain("COGS");
@@ -107,7 +113,7 @@ describe("AdminProtectedLayout", () => {
 
   it("includes Ingredients for operational users", () => {
     const labels = flattenAdminNavLabels(
-      filterAdminNavItems(allNavItems, ["operational"]),
+      filterAdminNavItems(allNavItems, sourceWithFeatures(["operational"])),
     );
 
     expect(labels).toContain("Food");
@@ -120,7 +126,7 @@ describe("AdminProtectedLayout", () => {
 
   it("includes operational items for operational users", () => {
     const labels = flattenAdminNavLabels(
-      filterAdminNavItems(allNavItems, ["operational"]),
+      filterAdminNavItems(allNavItems, sourceWithFeatures(["operational"])),
     );
 
     expect(labels).toContain("Supplier");
@@ -134,7 +140,7 @@ describe("AdminProtectedLayout", () => {
 
   it("shows combined nav for manager and operational users", () => {
     const labels = flattenAdminNavLabels(
-      filterAdminNavItems(allNavItems, ["manager", "operational"]),
+      filterAdminNavItems(allNavItems, sourceWithFeatures(["manager", "operational"])),
     );
 
     expect(labels).toContain("COGS");
@@ -144,7 +150,7 @@ describe("AdminProtectedLayout", () => {
   });
 
   it("shows manager nav groups", () => {
-    const filtered = filterAdminNavItems(allNavItems, ["manager"]);
+    const filtered = filterAdminNavItems(allNavItems, sourceWithFeatures(["manager"]));
     const groupLabels = filtered
       .filter((entry) => isNavGroup(entry))
       .map((entry) => entry.label);
@@ -153,7 +159,7 @@ describe("AdminProtectedLayout", () => {
   });
 
   it("shows manager Food group children in order", () => {
-    const filtered = filterAdminNavItems(allNavItems, ["manager"]);
+    const filtered = filterAdminNavItems(allNavItems, sourceWithFeatures(["manager"]));
     const foodGroup = filtered.find(
       (entry) => isNavGroup(entry) && entry.label === "Food",
     );
@@ -172,7 +178,7 @@ describe("AdminProtectedLayout", () => {
   });
 
   it("shows manager Branch group children in order", () => {
-    const filtered = filterAdminNavItems(allNavItems, ["manager"]);
+    const filtered = filterAdminNavItems(allNavItems, sourceWithFeatures(["manager"]));
     const branchGroup = filtered.find(
       (entry) => isNavGroup(entry) && entry.label === "Branch",
     );
@@ -188,8 +194,8 @@ describe("AdminProtectedLayout", () => {
     ]);
   });
 
-  it("shows admin Branch group with Users and Staff only", () => {
-    const filtered = filterAdminNavItems(allNavItems, ["admin"]);
+  it("shows admin Branch group with Users, Staff, and Privilege Mapping", () => {
+    const filtered = filterAdminNavItems(allNavItems, sourceWithFeatures(["admin"]));
     const branchGroup = filtered.find(
       (entry) => isNavGroup(entry) && entry.label === "Branch",
     );
@@ -206,7 +212,7 @@ describe("AdminProtectedLayout", () => {
   });
 
   it("hides Supplier group for manager-only users", () => {
-    const filtered = filterAdminNavItems(allNavItems, ["manager"]);
+    const filtered = filterAdminNavItems(allNavItems, sourceWithFeatures(["manager"]));
     const groupLabels = filtered
       .filter((entry) => isNavGroup(entry))
       .map((entry) => entry.label);
@@ -228,13 +234,15 @@ describe("AdminProtectedLayout", () => {
             href: "/admin/cogs/menu-breakdown",
             label: "Menu Breakdown",
             icon: () => null,
-            roles: ["manager"],
+            feature: "cogs.view",
           },
         ],
       },
     ];
 
-    expect(filterAdminNavItems(items, ["operational"])).toEqual([]);
+    expect(filterAdminNavItems(items, sourceWithFeatures(["operational"]))).toEqual(
+      [],
+    );
   });
 
   it("uses ChefHat icon for Cook Request navigation", () => {

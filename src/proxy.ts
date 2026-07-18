@@ -13,7 +13,6 @@ import {
   getAuthenticatedLandingPath,
   getUnauthorizedFallbackPath,
   hasMerchantAreaAccess,
-  resolveUserRoles,
 } from "@/lib/auth/roles";
 
 // Public auth pages (never require a session).
@@ -80,7 +79,7 @@ export async function proxy(request: NextRequest) {
   if (
     isAdminArea &&
     claims &&
-    !canAccessRoute(pathname, resolveUserRoles(claims))
+    !canAccessRoute(pathname, claims)
   ) {
     const fallback = getUnauthorizedFallbackPath(claims);
     return withCookies(NextResponse.redirect(new URL(fallback, request.url)));
