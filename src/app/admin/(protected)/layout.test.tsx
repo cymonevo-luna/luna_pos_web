@@ -144,6 +144,19 @@ describe("AdminProtectedLayout", () => {
     expect(groupLabels).toEqual(["Food", "COGS", "Cash Flow"]);
   });
 
+  it("hides Supplier group for manager-only users", () => {
+    const filtered = filterAdminNavItems(allNavItems, ["manager"]);
+    const groupLabels = filtered
+      .filter((entry) => isNavGroup(entry))
+      .map((entry) => entry.label);
+    const labels = flattenAdminNavLabels(filtered);
+
+    expect(groupLabels).toEqual(["Food", "COGS", "Cash Flow"]);
+    expect(labels).not.toContain("Supplier");
+    expect(labels).not.toContain("List");
+    expect(labels).not.toContain("Purchases");
+  });
+
   it("filters empty groups when no children are visible", () => {
     const items: NavEntry[] = [
       {
