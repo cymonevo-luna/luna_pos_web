@@ -1,13 +1,21 @@
 import { api, type ApiResult } from "./client";
 import { parseNumeric } from "./suppliers";
 import type {
+  BatchPurchaseRequestsResponse,
   PurchaseRequest,
   PurchaseRequestItem,
   PurchaseRequestStatus,
   PurchaseRequestStatusHistoryEntry,
+  PurchaseRequestSuggestItem,
+  PurchaseRequestSuggestResponse,
   PurchaseRequestSummary,
+  PurchaseRequestSupplierQuote,
 } from "./types";
-import type { PurchaseRequestFormValues } from "@/lib/validations";
+import type {
+  PurchaseRequestFormValues,
+  SmartPurchaseIngredientsFormValues,
+} from "@/lib/validations";
+import type { BatchPurchaseRequestsPayload } from "./smart-purchase-utils";
 
 /** Wire format from the Go backend (`decimal.Decimal` marshals as JSON string). */
 interface PurchaseRequestItemRaw
@@ -35,6 +43,49 @@ interface PurchaseRequestRaw
 interface PurchaseRequestSummaryRaw
   extends Omit<PurchaseRequestSummary, "total_estimated_amount"> {
   total_estimated_amount: number | string;
+}
+
+interface PurchaseRequestSupplierQuoteRaw
+  extends Omit<PurchaseRequestSupplierQuote, "price_amount" | "price_quantity" | "unit_price"> {
+  price_amount: number | string;
+  price_quantity: number | string;
+  unit_price: number | string;
+}
+
+interface PurchaseRequestSuggestItemRaw
+  extends Omit<
+    PurchaseRequestSuggestItem,
+    | "quantity"
+    | "price_amount"
+    | "price_quantity"
+    | "unit_price"
+    | "line_estimated_amount"
+    | "all_supplier_quotes"
+  > {
+  quantity: number | string;
+  price_amount: number | string;
+  price_quantity: number | string;
+  unit_price: number | string;
+  line_estimated_amount: number | string;
+  all_supplier_quotes?: PurchaseRequestSupplierQuoteRaw[];
+}
+
+interface PurchaseRequestSuggestResponseRaw
+  extends Omit<PurchaseRequestSuggestResponse, "items" | "grouped_by_supplier"> {
+  items: PurchaseRequestSuggestItemRaw[];
+  grouped_by_supplier: Array<
+    Omit<
+      PurchaseRequestSuggestResponse["grouped_by_supplier"][number],
+      "items" | "group_total_estimated_amount"
+    > & {
+      items: PurchaseRequestSuggestItemRaw[];
+      group_total_estimated_amount?: number | string;
+    }
+  >;
+}
+
+interface BatchPurchaseRequestsResponseRaw {
+  purchase_requests: PurchaseRequestRaw[];
 }
 
 export function normalizePurchaseRequestItem(
@@ -67,6 +118,62 @@ function normalizePurchaseRequestSummary(
   return {
     ...raw,
     total_estimated_amount: parseNumeric(raw.total_estimated_amount),
+  };
+}
+
+export function normalizePurchaseRequestSupplierQuote(
+  raw: PurchaseRequestSupplierQuoteRaw,
+): PurchaseRequestSupplierQuote {
+  return {
+    ...raw,
+    price_amount: parseNumeric(raw.price_amount),
+    price_quantity: parseNumeric(raw.price_quantity),
+    unit_price: parseNumeric(raw.unit_price),
+  };
+}
+
+export function normalizePurchaseRequestSuggestItem(
+  raw: PurchaseRequestSuggestItemRaw,
+): PurchaseRequestSuggestItem {
+  return {
+    ...raw,
+    quantity: parseNumeric(raw.quantity),
+    price_amount: parseNumeric(raw.price_amount),
+    price_quantity: parseNumeric(raw.price_quantity),
+    unit_price: parseNumeric(raw.unit_price),
+    line_estimated_amount: parseNumeric(raw.line_estimated_amount),
+    all_supplier_quotes: (raw.all_supplier_quotes ?? []).map(
+      normalizePurchaseRequestSupplierQuote,
+    ),
+  };
+}
+
+export function normalizePurchaseRequestSuggestResponse(
+  raw: PurchaseRequestSuggestResponseRaw,
+): PurchaseRequestSuggestResponse {
+  return {
+    items: (raw.items ?? []).map(normalizePurchaseRequestSuggestItem),
+    grouped_by_supplier: (raw.grouped_by_supplier ?? []).map((group) => ({
+      ...group,
+      items: (group.items ?? []).map(normalizePurchaseRequestSuggestItem),
+      group_total_estimated_amount:
+        group.group_total_estimated_amount == null
+          ? undefined
+          : parseNumeric(group.group_total_estimated_amount),
+    })),
+  };
+}
+
+function normalizeBatchResult(
+  result: ApiResult<BatchPurchaseRequestsResponseRaw>,
+): ApiResult<BatchPurchaseRequestsResponse> {
+  return {
+    ...result,
+    data: {
+      purchase_requests: (result.data.purchase_requests ?? []).map(
+        normalizePurchaseRequest,
+      ),
+    },
   };
 }
 
@@ -103,6 +210,22 @@ export interface CreatePurchaseRequestPayload {
   supplier_id: string;
   items: CreatePurchaseRequestItemPayload[];
   notes?: string;
+}
+
+export interface SuggestPurchaseRequestsPayload {
+  items: CreatePurchaseRequestItemPayload[];
+}
+
+/** Map ingredient form values to a suggest API payload. */
+export function smartPurchaseIngredientsToPayload(
+  values: SmartPurchaseIngredientsFormValues,
+): SuggestPurchaseRequestsPayload {
+  return {
+    items: values.items.map((item) => ({
+      food_supply_id: item.food_supply_id,
+      quantity: String(item.quantity),
+    })),
+  };
 }
 
 /** Map form values to an API payload with decimal string quantities. */
@@ -155,6 +278,25 @@ export const purchaseRequestsAdminApi = {
       payload,
     );
     return normalizeItemResult(result);
+  },
+
+  suggest: async (payload: SuggestPurchaseRequestsPayload) => {
+    const result = await api.post<PurchaseRequestSuggestResponseRaw>(
+      "/api/admin/purchase-requests/suggest",
+      payload,
+    );
+    return {
+      ...result,
+      data: normalizePurchaseRequestSuggestResponse(result.data),
+    };
+  },
+
+  batch: async (payload: BatchPurchaseRequestsPayload) => {
+    const result = await api.post<BatchPurchaseRequestsResponseRaw>(
+      "/api/admin/purchase-requests/batch",
+      payload,
+    );
+    return normalizeBatchResult(result);
   },
 
   updateStatus: async (

@@ -518,6 +518,23 @@ export const purchaseRequestSchema = z.object({
 
 export type PurchaseRequestFormValues = z.infer<typeof purchaseRequestSchema>;
 
+export const smartPurchaseIngredientLineSchema = z.object({
+  food_supply_id: z.string().min(1, "Food supply is required"),
+  quantity: z
+    .number({ error: "Quantity is required" })
+    .positive("Quantity must be greater than 0"),
+});
+
+export const smartPurchaseIngredientsSchema = z.object({
+  items: z
+    .array(smartPurchaseIngredientLineSchema)
+    .min(1, "Add at least one ingredient"),
+});
+
+export type SmartPurchaseIngredientsFormValues = z.infer<
+  typeof smartPurchaseIngredientsSchema
+>;
+
 export const productionRequestLineItemSchema = z.object({
   menu_id: z.string().min(1, "Menu is required"),
   quantity: z

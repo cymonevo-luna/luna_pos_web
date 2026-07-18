@@ -178,6 +178,12 @@ export interface SupplierPrice {
   updated_at?: string;
 }
 
+/** Supplier price quote for a food supply (from food-supply supplier-prices endpoint). */
+export interface FoodSupplySupplierPrice extends SupplierPrice {
+  supplier_id: string;
+  supplier_name: string;
+}
+
 export interface Supplier {
   id: string;
   name: string;
@@ -654,6 +660,49 @@ export interface PurchaseRequestSummary {
   notes?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** Supplier price quote returned by smart purchase suggest / food-supply supplier-prices. */
+export interface PurchaseRequestSupplierQuote {
+  supplier_id: string;
+  supplier_name: string;
+  supplier_price_id?: string;
+  price_amount: number;
+  price_quantity: number;
+  unit_price: number;
+}
+
+/** Single ingredient line in a smart purchase suggest response. */
+export interface PurchaseRequestSuggestItem {
+  food_supply_id: string;
+  food_supply_title: string;
+  quantity: number;
+  unit: FoodSupplyUnit;
+  has_supplier_price: boolean;
+  selected_supplier_id?: string | null;
+  selected_supplier_name?: string | null;
+  price_amount: number;
+  price_quantity: number;
+  unit_price: number;
+  line_estimated_amount: number;
+  all_supplier_quotes: PurchaseRequestSupplierQuote[];
+}
+
+/** Items grouped by supplier from smart purchase suggest. */
+export interface PurchaseRequestSupplierGroup {
+  supplier_id: string;
+  supplier_name: string;
+  items: PurchaseRequestSuggestItem[];
+  group_total_estimated_amount?: number;
+}
+
+export interface PurchaseRequestSuggestResponse {
+  items: PurchaseRequestSuggestItem[];
+  grouped_by_supplier: PurchaseRequestSupplierGroup[];
+}
+
+export interface BatchPurchaseRequestsResponse {
+  purchase_requests: PurchaseRequest[];
 }
 
 export type ProductionRequestStatus =

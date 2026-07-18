@@ -1,8 +1,10 @@
 import { api, type ApiResult } from "./client";
+import { parseNumeric } from "./suppliers";
 import type {
   CookingMeasurement,
   FoodSupply,
   FoodSupplyManualEditHistoryEntry,
+  FoodSupplySupplierPrice,
   FoodSupplyUnit,
 } from "./types";
 import type { FoodSupplyFormValues } from "@/lib/validations";
@@ -21,6 +23,28 @@ interface FoodSupplyRaw
   stock_quantity: number | string;
   manual_edit_history?: FoodSupplyManualEditHistoryEntry[];
   cooking_measurements?: CookingMeasurementRaw[];
+}
+
+interface FoodSupplySupplierPriceRaw
+  extends Omit<
+    FoodSupplySupplierPrice,
+    "price_amount" | "price_quantity" | "unit_price"
+  > {
+  price_amount: number | string;
+  price_quantity: number | string;
+  unit_price?: number | string;
+}
+
+export function normalizeFoodSupplySupplierPrice(
+  raw: FoodSupplySupplierPriceRaw,
+): FoodSupplySupplierPrice {
+  return {
+    ...raw,
+    price_amount: parseNumeric(raw.price_amount),
+    price_quantity: parseNumeric(raw.price_quantity),
+    unit_price:
+      raw.unit_price == null ? undefined : parseNumeric(raw.unit_price),
+  };
 }
 
 /**
@@ -189,4 +213,14 @@ export const foodSuppliesAdminApi = {
   },
 
   delete: (id: string) => api.delete<void>(`/api/admin/food-supplies/${id}`),
+
+  listSupplierPrices: async (foodSupplyId: string) => {
+    const result = await api.get<FoodSupplySupplierPriceRaw[]>(
+      `/api/admin/food-supplies/${foodSupplyId}/supplier-prices`,
+    );
+    return {
+      ...result,
+      data: (result.data ?? []).map(normalizeFoodSupplySupplierPrice),
+    };
+  },
 };
