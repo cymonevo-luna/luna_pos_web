@@ -414,6 +414,27 @@ describe("AdminPurchaseDetailContent", () => {
     );
   });
 
+  it("disables contact supplier when supplier_contact_info is missing", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        supplier_contact_info: undefined as unknown as string,
+      },
+    });
+
+    render(<AdminPurchaseDetailContent id="pr-1" />);
+    await screen.findByText("Beras Supplier");
+
+    const button = screen.getByRole("button", {
+      name: "No supplier phone number",
+    });
+    expect(button).toBeDisabled();
+    expect(button.closest("span")).toHaveAttribute(
+      "title",
+      "No supplier phone number",
+    );
+  });
+
   it("disables contact supplier when contact info has no phone", async () => {
     vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
       data: {
@@ -425,12 +446,34 @@ describe("AdminPurchaseDetailContent", () => {
     render(<AdminPurchaseDetailContent id="pr-1" />);
     await screen.findByText("Beras Supplier");
 
-    const button = screen.getByRole("button", { name: "Contact supplier" });
+    const button = screen.getByRole("button", {
+      name: "No supplier phone number",
+    });
     expect(button).toBeDisabled();
     expect(button.closest("span")).toHaveAttribute(
       "title",
-      "No WhatsApp number in contact info",
+      "No supplier phone number",
     );
+  });
+
+  it("opens WhatsApp when contact supplier is clicked with a valid phone", async () => {
+    const user = userEvent.setup();
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+
+    render(<AdminPurchaseDetailContent id="pr-1" />);
+    await screen.findByText("Beras Supplier");
+
+    const button = screen.getByRole("button", { name: "Contact supplier" });
+    expect(button).toBeEnabled();
+
+    await user.click(button);
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    const [url, target] = openSpy.mock.calls[0];
+    expect(url).toMatch(/^https:\/\/wa\.me\/628123456789\?text=/);
+    expect(target).toBe("_blank");
+
+    openSpy.mockRestore();
   });
 
   it("shows Created by from created_by_username", async () => {
