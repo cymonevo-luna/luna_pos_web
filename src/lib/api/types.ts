@@ -10,6 +10,21 @@ export type MerchantRole =
   | "cashier"
   | "operational";
 
+/** Privilege feature registered in the backend feature registry. */
+export interface Feature {
+  key: string;
+  name: string;
+  description?: string;
+  category: "admin" | "pos";
+  sort_order: number;
+}
+
+/** Enabled feature keys for a merchant role. */
+export interface RoleFeatureMapping {
+  role: MerchantRole;
+  features: string[];
+}
+
 /** Merchant summary persisted in the auth session. */
 export interface SessionMerchant {
   id: string;

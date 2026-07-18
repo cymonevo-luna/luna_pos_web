@@ -149,6 +149,28 @@ describe("canAccessRoute", () => {
   it("blocks operational users from admin routes", () => {
     const operational = sourceWithFeatures(["operational"]);
     expect(canAccessRoute("/admin/users", operational)).toBe(false);
+    expect(canAccessRoute("/admin/role-features", operational)).toBe(false);
+  });
+
+  it("allows admin users on privilege mapping routes", () => {
+    expect(
+      canAccessRoute("/admin/role-features", sourceWithFeatures(["admin"])),
+    ).toBe(true);
+  });
+
+  it("blocks manager users from privilege mapping routes", () => {
+    expect(
+      canAccessRoute("/admin/role-features", sourceWithFeatures(["manager"])),
+    ).toBe(false);
+  });
+
+  it("blocks cashier users from privilege mapping routes", () => {
+    expect(
+      canAccessRoute(
+        "/admin/role-features",
+        sourceWithFeatures(["cashier"]),
+      ),
+    ).toBe(false);
   });
 
   it("allows multi-feature users on union of routes", () => {

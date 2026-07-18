@@ -73,7 +73,9 @@ describe("AdminProtectedLayout", () => {
 
     expect(screen.getByRole("link", { name: "Users" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Staff" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Privilege Mapping" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Privilege Mapping" }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "List" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Purchases" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Menu" })).not.toBeInTheDocument();
