@@ -53,6 +53,7 @@ const supply: FoodSupply = {
   description: "Extra virgin",
   stock_quantity: 500,
   unit: "ml",
+  has_supplier_price: true,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-15T00:00:00Z",
   manual_edit_history: [],
@@ -411,5 +412,178 @@ describe("AdminFoodSuppliesPage", () => {
     });
 
     expect(screen.getAllByText("+10")).toHaveLength(1);
+  });
+
+  it("renders sort controls on Title, Stock, and Updated headers only", async () => {
+    render(<AdminFoodSuppliesPage />);
+    await screen.findByText("Olive oil");
+
+    expect(
+      screen.getByRole("button", { name: "Sort by title" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sort by stock" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sort by updated" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Sort by description/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Sort by actions/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("omits sort params on initial load", async () => {
+    render(<AdminFoodSuppliesPage />);
+    await screen.findByText("Olive oil");
+
+    expect(foodSuppliesAdminApi.list).toHaveBeenCalledWith({
+      page: 1,
+      perPage: 10,
+      search: "",
+    });
+    expect(
+      screen.getByRole("button", { name: "Sort by title" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sort by stock" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sort by updated" }),
+    ).toBeInTheDocument();
+  });
+
+  it("sorts by title ascending on first Title header click", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminFoodSuppliesPage />);
+    await screen.findByText("Olive oil");
+
+    await user.click(screen.getByRole("button", { name: "Sort by title" }));
+
+    await waitFor(() => {
+      expect(foodSuppliesAdminApi.list).toHaveBeenLastCalledWith({
+        page: 1,
+        perPage: 10,
+        search: "",
+        sortBy: "title",
+        sortOrder: "asc",
+      });
+    });
+    expect(
+      screen.getByRole("button", { name: "Sort by title ascending" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sort by stock" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sort by updated" }),
+    ).toBeInTheDocument();
+  });
+
+  it("toggles active sort column to descending", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminFoodSuppliesPage />);
+    await screen.findByText("Olive oil");
+
+    await user.click(screen.getByRole("button", { name: "Sort by title" }));
+    await user.click(
+      screen.getByRole("button", { name: "Sort by title ascending" }),
+    );
+
+    await waitFor(() => {
+      expect(foodSuppliesAdminApi.list).toHaveBeenLastCalledWith({
+        page: 1,
+        perPage: 10,
+        search: "",
+        sortBy: "title",
+        sortOrder: "desc",
+      });
+    });
+    expect(
+      screen.getByRole("button", { name: "Sort by title descending" }),
+    ).toBeInTheDocument();
+  });
+
+  it("switches sort column and resets to ascending", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminFoodSuppliesPage />);
+    await screen.findByText("Olive oil");
+
+    await user.click(screen.getByRole("button", { name: "Sort by title" }));
+    await user.click(
+      screen.getByRole("button", { name: "Sort by title ascending" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Sort by stock" }),
+    );
+
+    await waitFor(() => {
+      expect(foodSuppliesAdminApi.list).toHaveBeenLastCalledWith({
+        page: 1,
+        perPage: 10,
+        search: "",
+        sortBy: "stock",
+        sortOrder: "asc",
+      });
+    });
+    expect(
+      screen.getByRole("button", { name: "Sort by stock ascending" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps active sort when debounced search changes", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    render(<AdminFoodSuppliesPage />);
+    await screen.findByText("Olive oil");
+
+    await user.click(screen.getByRole("button", { name: "Sort by stock" }));
+    await user.click(
+      screen.getByRole("button", { name: "Sort by stock ascending" }),
+    );
+    await user.type(screen.getByPlaceholderText("Search by title"), "oil");
+    await vi.advanceTimersByTimeAsync(350);
+
+    await waitFor(() => {
+      expect(foodSuppliesAdminApi.list).toHaveBeenLastCalledWith({
+        page: 1,
+        perPage: 10,
+        search: "oil",
+        sortBy: "stock",
+        sortOrder: "desc",
+      });
+    });
+
+    vi.useRealTimers();
+  });
+
+  it("shows Missing supplier badge when has_supplier_price is false", async () => {
+    vi.mocked(foodSuppliesAdminApi.list).mockResolvedValue({
+      data: [{ ...supply, has_supplier_price: false }],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminFoodSuppliesPage />);
+
+    expect(await screen.findByText("Missing supplier")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("missing-supplier-badge-fs-1"),
+    ).toBeInTheDocument();
+  });
+
+  it("does not show Missing supplier badge when has_supplier_price is true", async () => {
+    render(<AdminFoodSuppliesPage />);
+    await screen.findByText("Olive oil");
+
+    expect(screen.queryByText("Missing supplier")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("missing-supplier-badge-fs-1"),
+    ).not.toBeInTheDocument();
   });
 });

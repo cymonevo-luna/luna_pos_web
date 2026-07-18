@@ -18,9 +18,13 @@ interface CookingMeasurementRaw
 interface FoodSupplyRaw
   extends Omit<
     FoodSupply,
-    "stock_quantity" | "manual_edit_history" | "cooking_measurements"
+    | "stock_quantity"
+    | "manual_edit_history"
+    | "cooking_measurements"
+    | "has_supplier_price"
   > {
   stock_quantity: number | string;
+  has_supplier_price?: boolean;
   manual_edit_history?: FoodSupplyManualEditHistoryEntry[];
   cooking_measurements?: CookingMeasurementRaw[];
 }
@@ -85,6 +89,7 @@ export function normalizeFoodSupply(raw: FoodSupplyRaw): FoodSupply {
   return {
     ...raw,
     stock_quantity: parseStockQuantity(raw.stock_quantity),
+    has_supplier_price: raw.has_supplier_price ?? false,
     manual_edit_history: raw.manual_edit_history ?? [],
     cooking_measurements: (raw.cooking_measurements ?? []).map(
       normalizeCookingMeasurement,
@@ -110,10 +115,15 @@ function normalizeItemResult(
   };
 }
 
+export type FoodSupplySortBy = "title" | "stock" | "updated";
+export type FoodSupplySortOrder = "asc" | "desc";
+
 export interface ListFoodSuppliesParams {
   page?: number;
   perPage?: number;
   search?: string;
+  sortBy?: FoodSupplySortBy;
+  sortOrder?: FoodSupplySortOrder;
 }
 
 export interface CookingMeasurementPayload {
@@ -177,12 +187,16 @@ export const foodSuppliesAdminApi = {
     page = 1,
     perPage = 10,
     search = "",
+    sortBy,
+    sortOrder,
   }: ListFoodSuppliesParams = {}) => {
     const params = new URLSearchParams({
       page: String(page),
       per_page: String(perPage),
     });
     if (search) params.set("search", search);
+    if (sortBy) params.set("sort_by", sortBy);
+    if (sortOrder) params.set("sort_order", sortOrder);
     const result = await api.get<FoodSupplyRaw[]>(
       `/api/admin/food-supplies?${params.toString()}`,
     );

@@ -47,6 +47,7 @@ const supplyFixtures = {
     title: "Olive oil",
     unit: "ml" as const,
     stock_quantity: 100,
+    has_supplier_price: true,
     cooking_measurements: [],
   },
   "supply-2": {
@@ -54,6 +55,7 @@ const supplyFixtures = {
     title: "Salt",
     unit: "gr" as const,
     stock_quantity: 50,
+    has_supplier_price: true,
     cooking_measurements: saltCookingMeasurements,
   },
   "supply-3": {
@@ -61,6 +63,7 @@ const supplyFixtures = {
     title: "Flour",
     unit: "gr" as const,
     stock_quantity: 5000,
+    has_supplier_price: true,
     cooking_measurements: [],
   },
 };

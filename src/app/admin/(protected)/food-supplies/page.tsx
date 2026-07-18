@@ -12,6 +12,8 @@ import {
 import {
   foodSuppliesAdminApi,
   foodSupplyFormToPayload,
+  type FoodSupplySortBy,
+  type FoodSupplySortOrder,
 } from "@/lib/api/food-supplies";
 import { ApiError } from "@/lib/api/client";
 import type { FoodSupply } from "@/lib/api/types";
@@ -23,7 +25,9 @@ import {
   type FoodSupplyFormHandle,
 } from "@/components/admin/food-supply-form";
 import { FoodSupplyManualEditHistory } from "@/components/admin/food-supply-manual-edit-history";
+import { SortableTableHeader } from "@/components/admin/sortable-table-header";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -61,6 +65,8 @@ export default function AdminFoodSuppliesPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
+  const [sortBy, setSortBy] = useState<FoodSupplySortBy | undefined>();
+  const [sortOrder, setSortOrder] = useState<FoodSupplySortOrder>("asc");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<FoodSupply | null>(null);
@@ -85,6 +91,7 @@ export default function AdminFoodSuppliesPage() {
         page,
         perPage: PER_PAGE,
         search: debounced,
+        ...(sortBy ? { sortBy, sortOrder } : {}),
       });
       setSupplies(res.data ?? []);
       setTotal(res.meta?.total ?? 0);
@@ -95,7 +102,17 @@ export default function AdminFoodSuppliesPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debounced]);
+  }, [page, debounced, sortBy, sortOrder]);
+
+  const handleSort = (column: FoodSupplySortBy) => {
+    setPage(1);
+    if (sortBy === column) {
+      setSortOrder((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortBy(column);
+    setSortOrder("asc");
+  };
 
   useEffect(() => {
     void load();
@@ -214,10 +231,34 @@ export default function AdminFoodSuppliesPage() {
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/50 text-left text-muted-foreground">
               <tr>
-                <th className="px-4 py-3 font-medium">Title</th>
+                <th className="px-4 py-3 font-medium">
+                  <SortableTableHeader
+                    label="Title"
+                    sortKey="title"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                </th>
                 <th className="px-4 py-3 font-medium">Description</th>
-                <th className="px-4 py-3 font-medium">Stock</th>
-                <th className="px-4 py-3 font-medium">Updated</th>
+                <th className="px-4 py-3 font-medium">
+                  <SortableTableHeader
+                    label="Stock"
+                    sortKey="stock"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                </th>
+                <th className="px-4 py-3 font-medium">
+                  <SortableTableHeader
+                    label="Updated"
+                    sortKey="updated"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                </th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
@@ -257,7 +298,17 @@ export default function AdminFoodSuppliesPage() {
                     className="border-b border-border last:border-0 hover:bg-muted/30"
                   >
                     <td className="px-4 py-3 font-medium">
-                      <div>{supply.title}</div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{supply.title}</span>
+                        {!supply.has_supplier_price ? (
+                          <Badge
+                            variant="warning"
+                            data-testid={`missing-supplier-badge-${supply.id}`}
+                          >
+                            Missing supplier
+                          </Badge>
+                        ) : null}
+                      </div>
                       {formatCookingMeasurementCount(
                         supply.cooking_measurements.length,
                       ) ? (
