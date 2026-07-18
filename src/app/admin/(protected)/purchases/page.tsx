@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Sparkles } from "lucide-react";
 import { purchaseRequestsAdminApi } from "@/lib/api/purchase-requests";
 import { ApiError } from "@/lib/api/client";
 import type {
@@ -103,6 +103,14 @@ export default function AdminPurchasesPage() {
             value={status}
             onChange={(e) => handleStatusChange(e.target.value)}
           />
+          <Link
+            href="/admin/purchases/smart"
+            className={buttonVariants({ variant: "outline" })}
+            data-testid="smart-purchase-request-link"
+          >
+            <Sparkles className="h-4 w-4" />
+            Smart Request
+          </Link>
           <Link href="/admin/purchases/new" className={buttonVariants()}>
             <Plus className="h-4 w-4" />
             New purchase request

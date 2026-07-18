@@ -345,6 +345,126 @@ describe("purchaseRequestsAdminApi", () => {
     expect(result.data[0]?.total_estimated_amount).toBe(560);
     expect(result.data[0]?.item_count).toBe(2);
   });
+
+  it("calls suggest and batch endpoints with normalized responses", async () => {
+    const suggestData = {
+      items: [
+        {
+          food_supply_id: "fs-rice",
+          food_supply_title: "Rice",
+          quantity: "2",
+          unit: "gr" as const,
+          has_supplier_price: true,
+          selected_supplier_id: "sup-cheap",
+          selected_supplier_name: "Cheap Supplier",
+          price_amount: "100000",
+          price_quantity: "1000",
+          unit_price: "100",
+          line_estimated_amount: "200",
+          all_supplier_quotes: [
+            {
+              supplier_id: "sup-cheap",
+              supplier_name: "Cheap Supplier",
+              price_amount: "100000",
+              price_quantity: "1000",
+              unit_price: "100",
+            },
+          ],
+        },
+      ],
+      grouped_by_supplier: [
+        {
+          supplier_id: "sup-cheap",
+          supplier_name: "Cheap Supplier",
+          group_total_estimated_amount: "200",
+          items: [
+            {
+              food_supply_id: "fs-rice",
+              food_supply_title: "Rice",
+              quantity: "2",
+              unit: "gr" as const,
+              has_supplier_price: true,
+              selected_supplier_id: "sup-cheap",
+              selected_supplier_name: "Cheap Supplier",
+              price_amount: "100000",
+              price_quantity: "1000",
+              unit_price: "100",
+              line_estimated_amount: "200",
+              all_supplier_quotes: [],
+            },
+          ],
+        },
+      ],
+    };
+
+    const purchaseRequest = {
+      id: "pr-1",
+      supplier_id: "sup-cheap",
+      supplier_name: "Cheap Supplier",
+      supplier_contact_info: "08123456789",
+      status: "PENDING" as const,
+      notes: null,
+      items: [],
+      total_estimated_amount: "200",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    };
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async (input, init) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+
+        if (
+          method === "POST" &&
+          url.endsWith("/api/admin/purchase-requests/suggest")
+        ) {
+          const body = JSON.parse(String(init?.body));
+          expect(body).toEqual({
+            items: [{ food_supply_id: "fs-rice", quantity: "2" }],
+          });
+          return jsonResponse({ success: true, data: suggestData });
+        }
+
+        if (
+          method === "POST" &&
+          url.endsWith("/api/admin/purchase-requests/batch")
+        ) {
+          const body = JSON.parse(String(init?.body));
+          expect(body).toEqual({
+            groups: [
+              {
+                supplier_id: "sup-cheap",
+                items: [{ food_supply_id: "fs-rice", quantity: "2" }],
+              },
+            ],
+          });
+          return jsonResponse({
+            success: true,
+            data: { purchase_requests: [purchaseRequest] },
+          });
+        }
+
+        return jsonResponse({ success: false }, 404);
+      },
+    );
+
+    const suggested = await purchaseRequestsAdminApi.suggest({
+      items: [{ food_supply_id: "fs-rice", quantity: "2" }],
+    });
+    expect(suggested.data.items[0]?.line_estimated_amount).toBe(200);
+
+    const batched = await purchaseRequestsAdminApi.batch({
+      groups: [
+        {
+          supplier_id: "sup-cheap",
+          items: [{ food_supply_id: "fs-rice", quantity: "2" }],
+        },
+      ],
+    });
+    expect(batched.data.purchase_requests[0]?.status).toBe("PENDING");
+    expect(fetchMock).toHaveBeenCalled();
+  });
 });
 
 describe("normalizePurchaseRequest regression", () => {
