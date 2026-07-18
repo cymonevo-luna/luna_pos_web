@@ -7,13 +7,14 @@ describe("refreshTokenPair", () => {
     vi.restoreAllMocks();
   });
 
-  it("returns tokens on success", async () => {
+  it("returns tokens and features on success", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
           data: {
+            features: ["menus.manage"],
             tokens: {
               access_token: "new-access",
               refresh_token: "new-refresh",
@@ -24,9 +25,10 @@ describe("refreshTokenPair", () => {
       }),
     );
 
-    const tokens = await refreshTokenPair("refresh-1");
-    expect(tokens?.access_token).toBe("new-access");
-    expect(tokens?.refresh_token).toBe("new-refresh");
+    const result = await refreshTokenPair("refresh-1");
+    expect(result?.tokens.access_token).toBe("new-access");
+    expect(result?.tokens.refresh_token).toBe("new-refresh");
+    expect(result?.features).toEqual(["menus.manage"]);
   });
 
   it("returns null on failure", async () => {
@@ -45,6 +47,7 @@ describe("refreshTokenPair", () => {
       ok: true,
       json: async () => ({
         data: {
+          features: ["menus.manage"],
           tokens: {
             access_token: "new-access",
             refresh_token: "new-refresh",
@@ -60,8 +63,8 @@ describe("refreshTokenPair", () => {
       refreshTokenPair("refresh-1"),
     ]);
 
-    expect(first?.access_token).toBe("new-access");
-    expect(second?.access_token).toBe("new-access");
+    expect(first?.tokens.access_token).toBe("new-access");
+    expect(second?.tokens.access_token).toBe("new-access");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

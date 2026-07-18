@@ -17,6 +17,7 @@ import { usersApi } from "@/lib/api/users";
 import { refreshTokenPair } from "@/lib/auth/refresh";
 import { hasMerchantAreaAccess } from "@/lib/auth/roles";
 import { isClaimsValid } from "@/lib/auth/session";
+import { mergeSessionFeatures, subscribeSessionUser } from "@/lib/auth/session-features";
 import { clearAuthSession, sessionStore } from "@/lib/auth/session-store";
 import { tokenStore, decodeJwt } from "@/lib/auth/tokens";
 import type { SessionMerchant, User } from "@/lib/api/types";
@@ -66,18 +67,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    let featuresSyncedFromRefresh = false;
+
     let currentAccess = access;
     if (!accessValid && refreshValid && refresh) {
-      const tokens = await refreshTokenPair(refresh);
-      if (!tokens) {
+      const result = await refreshTokenPair(refresh);
+      if (!result) {
         clearAuthSession();
         setUser(null);
         setMerchant(null);
         setIsLoading(false);
         return;
       }
-      tokenStore.setFromPair(tokens);
-      currentAccess = tokens.access_token;
+      tokenStore.setFromPair(result.tokens);
+      currentAccess = result.tokens.access_token;
+      if (result.features) {
+        mergeSessionFeatures(result.features);
+        featuresSyncedFromRefresh = true;
+      }
     }
 
     const claims = currentAccess ? decodeJwt(currentAccess) : null;
@@ -95,7 +102,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       stored.user.id === claims.uid &&
       stored.user.merchant_id === claims.merchant_id
     ) {
-      setUser(stored.user);
+      if (!featuresSyncedFromRefresh) {
+        try {
+          const { data } = await usersApi.get(claims.uid);
+          const user = { ...stored.user, features: data.features };
+          persistSession(user, stored.merchant);
+          setUser(user);
+        } catch {
+          setUser(stored.user);
+        }
+      } else {
+        const refreshed = sessionStore.get();
+        setUser(refreshed?.user ?? stored.user);
+      }
       setMerchant(stored.merchant);
       setIsLoading(false);
       return;
@@ -122,6 +141,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
+
+  useEffect(() => {
+    return subscribeSessionUser((updatedUser) => {
+      setUser(updatedUser);
+    });
+  }, []);
 
   const login = useCallback(async (payload: LoginPayload) => {
     const { data } = await authApi.login(payload);

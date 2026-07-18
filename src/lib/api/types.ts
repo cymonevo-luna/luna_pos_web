@@ -95,6 +95,7 @@ export interface MerchantRegisterResult {
 
 export interface RefreshResult {
   tokens: TokenPair;
+  features?: string[];
 }
 
 export type FoodSupplyUnit = "ml" | "piece" | "gr";

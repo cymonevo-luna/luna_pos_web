@@ -5,6 +5,13 @@ import { clearAuthSession } from "./session-store";
 import { tokenStore } from "./tokens";
 import { config } from "@/lib/config";
 import { refreshTokenPair } from "@/lib/auth/refresh";
+import { usersApi } from "@/lib/api/users";
+
+vi.mock("@/lib/api/users", () => ({
+  usersApi: {
+    get: vi.fn(),
+  },
+}));
 
 vi.mock("@/lib/auth/refresh", () => ({
   refreshTokenPair: vi.fn(),
@@ -37,6 +44,19 @@ describe("POS-48-2 dashboard session persistence", () => {
     clearAuthSession();
     localStorage.clear();
     vi.mocked(refreshTokenPair).mockReset();
+    vi.mocked(usersApi.get).mockReset();
+    vi.mocked(usersApi.get).mockResolvedValue({
+      data: {
+        id: "user-1",
+        email: "admin-test@cymonevo.com",
+        name: "Admin Test",
+        roles: ["admin"],
+        features: ["users.manage"],
+        merchant_id: "merchant-1",
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      },
+    });
   });
 
   it("dashboard stays logged in after tab close (persisted tokens restore on load)", async () => {

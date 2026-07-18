@@ -73,6 +73,18 @@ describe("AuthProvider session restore", () => {
       "nt_merchant",
       JSON.stringify({ id: "merchant-1", name: "Luna Cafe" }),
     );
+    vi.mocked(usersApi.get).mockResolvedValue({
+      data: {
+        id: "user-1",
+        email: "admin@example.com",
+        name: "Admin",
+        roles: ["admin"],
+        features: ["users.manage"],
+        merchant_id: "merchant-1",
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      },
+    });
 
     const { getByTestId } = render(
       <AuthProvider>
@@ -111,10 +123,12 @@ describe("AuthProvider session restore", () => {
     });
 
     vi.mocked(refreshTokenPair).mockResolvedValue({
-      access_token: newAccess,
-      refresh_token: "refresh-token-2",
-      expires_in: 3600,
-      refresh_expires_in: 604800,
+      tokens: {
+        access_token: newAccess,
+        refresh_token: "refresh-token-2",
+        expires_in: 3600,
+        refresh_expires_in: 604800,
+      },
     });
     vi.mocked(usersApi.get).mockResolvedValue({
       data: {

@@ -68,13 +68,16 @@ function featuresFromRoles(roles: MerchantRole[]): string[] {
   return [...features];
 }
 
-/** Resolve effective feature grants from API user, JWT claims, or legacy roles. */
+/**
+ * Resolve effective feature grants from API user, JWT claims, or legacy roles.
+ * When `features` is an explicit array (including empty), API grants are authoritative.
+ * Legacy role defaults apply only when `features` is unavailable (pre-migration sessions).
+ */
 export function resolveUserFeatures(source: FeatureSource): string[] {
   if (!source) return [];
 
-  const explicit = source.features;
-  if (explicit && explicit.length > 0) {
-    return explicit;
+  if (Array.isArray(source.features)) {
+    return source.features;
   }
 
   const roles = resolveRoles(source);

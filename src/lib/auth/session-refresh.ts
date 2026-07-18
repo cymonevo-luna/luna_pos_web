@@ -1,5 +1,6 @@
 import { refreshTokenPair } from "@/lib/auth/refresh";
 import { redirectToLogin } from "@/lib/auth/redirect";
+import { mergeSessionFeatures } from "@/lib/auth/session-features";
 import { clearAuthSession } from "@/lib/auth/session-store";
 import {
   isAccessExpiringSoon,
@@ -45,10 +46,13 @@ export async function performSessionRefresh(): Promise<boolean> {
   const refresh = tokenStore.refresh;
   if (!refresh || !isRefreshValid()) return false;
 
-  const tokens = await refreshTokenPair(refresh);
-  if (!tokens) return false;
+  const result = await refreshTokenPair(refresh);
+  if (!result) return false;
 
-  setTokens(tokens);
+  setTokens(result.tokens);
+  if (result.features) {
+    mergeSessionFeatures(result.features);
+  }
   return true;
 }
 
