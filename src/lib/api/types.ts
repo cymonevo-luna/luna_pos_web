@@ -255,19 +255,48 @@ export interface Menu {
   updated_at: string;
 }
 
-export interface MenuIngredientInput {
+export interface FoodSupplyMenuIngredientInput {
   food_supply_id: string;
   quantity_per_unit: number;
   cooking_measurement_id?: string;
 }
 
-export interface MenuIngredient extends MenuIngredientInput {
-  food_supply_title: string;
-  food_supply_unit: FoodSupplyUnit;
-  food_supply_stock_quantity: number;
+export interface MenuReferenceMenuIngredientInput {
+  ingredient_menu_id: string;
+  quantity_per_unit: number;
+}
+
+export type MenuIngredientInput =
+  | FoodSupplyMenuIngredientInput
+  | MenuReferenceMenuIngredientInput;
+
+export function isMenuReferenceIngredient(
+  line: MenuIngredientInput | MenuIngredient,
+): line is MenuReferenceMenuIngredientInput | MenuReferenceMenuIngredient {
+  return (
+    "ingredient_menu_id" in line &&
+    typeof line.ingredient_menu_id === "string" &&
+    line.ingredient_menu_id.length > 0
+  );
+}
+
+export interface MenuIngredient {
+  quantity_per_unit: number;
+  food_supply_id?: string;
+  food_supply_title?: string;
+  food_supply_unit?: FoodSupplyUnit;
+  food_supply_stock_quantity?: number;
   /** Chef-entered quantity when a cooking measurement is selected. */
   entry_quantity?: number;
+  cooking_measurement_id?: string;
   cooking_measurement_name?: string | null;
+  ingredient_menu_id?: string;
+  ingredient_menu_title?: string;
+}
+
+export interface MenuReferenceMenuIngredient extends MenuIngredient {
+  ingredient_menu_id: string;
+  ingredient_menu_title: string;
 }
 
 export interface FormulaResponse {

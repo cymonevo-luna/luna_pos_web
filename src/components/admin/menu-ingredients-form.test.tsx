@@ -65,6 +65,14 @@ const supplyFixtures = {
   },
 };
 
+const menuFixtures = {
+  "menu-sambal": {
+    id: "menu-sambal",
+    title: "Sambal Merah",
+    category_name: "Sauce",
+  },
+};
+
 vi.mock("@/components/admin/food-supply-picker", () => ({
   FoodSupplyPicker: ({
     label,
@@ -100,6 +108,45 @@ vi.mock("@/components/admin/food-supply-picker", () => ({
         </option>
         <option value="supply-3" disabled={excludeIds?.includes("supply-3")}>
           Flour
+        </option>
+      </select>
+      {error && <p>{error}</p>}
+    </div>
+  ),
+}));
+
+vi.mock("@/components/admin/menu-picker", () => ({
+  MenuPicker: ({
+    label,
+    value,
+    onChange,
+    error,
+    excludeIds,
+  }: {
+    label: string;
+    value: string;
+    onChange: (menu: (typeof menuFixtures)[keyof typeof menuFixtures]) => void;
+    error?: string;
+    excludeIds?: string[];
+  }) => (
+    <div>
+      <label htmlFor={`menu-picker-${label}`}>{label}</label>
+      <select
+        id={`menu-picker-${label}`}
+        aria-label={label}
+        value={value}
+        onChange={(event) => {
+          const id = event.target.value as keyof typeof menuFixtures;
+          if (!id) return;
+          onChange(menuFixtures[id]);
+        }}
+      >
+        <option value="">Select</option>
+        <option
+          value="menu-sambal"
+          disabled={excludeIds?.includes("menu-sambal")}
+        >
+          Sambal Merah
         </option>
       </select>
       {error && <p>{error}</p>}
@@ -242,7 +289,7 @@ describe("MenuIngredientsForm", () => {
     render(<MenuIngredientsForm menuId="menu-1" />);
     await screen.findByLabelText("Ingredient 1");
 
-    await user.click(screen.getByRole("button", { name: "Add ingredient" }));
+    await user.click(screen.getByRole("button", { name: "Add food supply" }));
     await user.selectOptions(screen.getByLabelText("Ingredient 2"), "supply-2");
     const quantityInputs = screen.getAllByLabelText("Quantity per unit");
     await user.clear(quantityInputs[0]!);
@@ -288,7 +335,7 @@ describe("MenuIngredientsForm", () => {
     render(<MenuIngredientsForm menuId="menu-1" />);
     await screen.findByText(/No ingredients yet/);
 
-    await user.click(screen.getByRole("button", { name: "Add ingredient" }));
+    await user.click(screen.getByRole("button", { name: "Add food supply" }));
     await user.selectOptions(screen.getByLabelText("Ingredient 1"), "supply-2");
     await waitFor(() => {
       expect(screen.getByLabelText("Unit for ingredient 1")).toBeInTheDocument();
@@ -347,11 +394,11 @@ describe("MenuIngredientsForm", () => {
     render(<MenuIngredientsForm menuId="menu-1" />);
     await screen.findByText(/No ingredients yet/);
 
-    await user.click(screen.getByRole("button", { name: "Add ingredient" }));
+    await user.click(screen.getByRole("button", { name: "Add food supply" }));
     await user.selectOptions(screen.getByLabelText("Ingredient 1"), "supply-3");
     await user.type(screen.getByLabelText("Quantity per unit"), "200");
 
-    await user.click(screen.getByRole("button", { name: "Add ingredient" }));
+    await user.click(screen.getByRole("button", { name: "Add food supply" }));
     await user.selectOptions(screen.getByLabelText("Ingredient 2"), "supply-2");
     await waitFor(() => {
       expect(screen.getByLabelText("Unit for ingredient 2")).toBeInTheDocument();
@@ -530,5 +577,107 @@ describe("MenuIngredientsForm", () => {
 
     expect(await screen.findByText("Quantity is too low")).toBeInTheDocument();
     expect(toast.error).toHaveBeenCalledWith("Validation failed");
+  });
+
+  it("loads menu reference ingredients with link to sub-recipe", async () => {
+    vi.mocked(getMenuIngredients).mockResolvedValue({
+      data: {
+        menu_id: "menu-dendeng",
+        ingredients: [
+          {
+            ingredient_menu_id: "menu-sambal",
+            ingredient_menu_title: "Sambal Merah",
+            quantity_per_unit: 20,
+          },
+        ],
+      },
+    });
+
+    render(<MenuIngredientsForm menuId="menu-dendeng" />);
+    await screen.findByLabelText("Ingredient 1");
+
+    expect(screen.getByLabelText("Line type for ingredient 1")).toHaveValue("menu");
+    expect(screen.getByLabelText("Quantity (portions)")).toHaveValue(20);
+    const link = screen.getByRole("link", { name: "Sambal Merah" });
+    expect(link).toHaveAttribute("href", "/admin/menus/menu-sambal/ingredients");
+  });
+
+  it("saves mixed food supply and menu reference formula", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMenuIngredients).mockResolvedValue({
+      data: {
+        menu_id: "menu-dendeng",
+        ingredients: [],
+      },
+    });
+    vi.mocked(replaceMenuIngredients).mockResolvedValue({
+      data: {
+        menu_id: "menu-dendeng",
+        ingredients: [
+          {
+            food_supply_id: "supply-3",
+            quantity_per_unit: 2000,
+            food_supply_title: "Flour",
+            food_supply_unit: "gr",
+            food_supply_stock_quantity: 5000,
+          },
+          {
+            ingredient_menu_id: "menu-sambal",
+            ingredient_menu_title: "Sambal Merah",
+            quantity_per_unit: 20,
+          },
+        ],
+      },
+    });
+
+    render(<MenuIngredientsForm menuId="menu-dendeng" />);
+    await screen.findByText(/No ingredients yet/);
+
+    await user.click(screen.getByRole("button", { name: "Add food supply" }));
+    await user.selectOptions(screen.getByLabelText("Ingredient 1"), "supply-3");
+    await user.type(screen.getByLabelText("Quantity per unit"), "2000");
+
+    await user.click(screen.getByRole("button", { name: "Add menu reference" }));
+    await user.selectOptions(screen.getByLabelText("Ingredient 2"), "menu-sambal");
+    await user.type(screen.getByLabelText("Quantity (portions)"), "20");
+    await user.click(screen.getByRole("button", { name: "Save ingredients" }));
+
+    await waitFor(() => {
+      expect(replaceMenuIngredients).toHaveBeenCalledWith("menu-dendeng", [
+        { food_supply_id: "supply-3", quantity_per_unit: 2000 },
+        { ingredient_menu_id: "menu-sambal", quantity_per_unit: 20 },
+      ]);
+    });
+  });
+
+  it("maps circular reference server errors onto menu rows", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMenuIngredients).mockResolvedValue({
+      data: {
+        menu_id: "menu-a",
+        ingredients: [
+          {
+            ingredient_menu_id: "menu-b",
+            ingredient_menu_title: "Menu B",
+            quantity_per_unit: 1,
+          },
+        ],
+      },
+    });
+    vi.mocked(replaceMenuIngredients).mockRejectedValue(
+      new ApiError(422, "validation_error", "Validation failed", {
+        "ingredients[0].ingredient_menu_id":
+          "Circular reference detected in menu ingredients",
+      }),
+    );
+
+    render(<MenuIngredientsForm menuId="menu-a" />);
+    await screen.findByLabelText("Ingredient 1");
+
+    await user.click(screen.getByRole("button", { name: "Save ingredients" }));
+
+    expect(
+      await screen.findByText("Circular reference detected in menu ingredients"),
+    ).toBeInTheDocument();
   });
 });

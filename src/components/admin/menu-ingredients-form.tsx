@@ -10,7 +10,7 @@ import {
 } from "@/lib/api/menu-ingredients";
 import { foodSuppliesAdminApi } from "@/lib/api/food-supplies";
 import { ApiError } from "@/lib/api/client";
-import type { CookingMeasurement, FoodSupply, MenuIngredient } from "@/lib/api/types";
+import type { CookingMeasurement, FoodSupply, Menu } from "@/lib/api/types";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FoodSupplyPicker } from "@/components/admin/food-supply-picker";
+import { MenuPicker } from "@/components/admin/menu-picker";
 import {
   MenuFormulaIngredientQuantityHelp,
   MenuFormulaPerPortionPreview,
@@ -26,165 +27,26 @@ import {
   BASE_UNIT_SELECTION,
   buildUnitOptions,
   computeBaseQuantityHint,
-  getIngredientDisplayQuantity,
-  getIngredientUnitSelection,
   getSelectedUnitLabel,
   hasCookingUnitOptions,
 } from "@/lib/menu-ingredient-units";
+import {
+  createBlankRow,
+  ingredientToRow,
+  mapServerFieldErrors,
+  type IngredientLineType,
+  type IngredientRowState,
+  type RowErrors,
+  rowToPayload,
+  validateRows,
+} from "@/lib/menu-ingredient-form";
 import { MENU_COGS_DEFAULTS } from "@/lib/menu-cogs";
 import { getUnitLabel } from "@/lib/units";
 
-interface IngredientRowState {
-  key: string;
-  food_supply_id: string;
-  quantity: string;
-  unit_selection: string;
-  cooking_measurements: CookingMeasurement[];
-  supply: Pick<FoodSupply, "id" | "title" | "unit" | "stock_quantity"> | null;
-}
-
-interface RowErrors {
-  food_supply_id?: string;
-  quantity_per_unit?: string;
-}
-
-let rowKeyCounter = 0;
-
-function createRowKey() {
-  rowKeyCounter += 1;
-  return `ingredient-row-${rowKeyCounter}`;
-}
-
-function ingredientToRow(ingredient: MenuIngredient): IngredientRowState {
-  return {
-    key: createRowKey(),
-    food_supply_id: ingredient.food_supply_id,
-    quantity: getIngredientDisplayQuantity(ingredient),
-    unit_selection: getIngredientUnitSelection(ingredient),
-    cooking_measurements: [],
-    supply: {
-      id: ingredient.food_supply_id,
-      title: ingredient.food_supply_title,
-      unit: ingredient.food_supply_unit,
-      stock_quantity: ingredient.food_supply_stock_quantity,
-    },
-  };
-}
-
-function createBlankRow(): IngredientRowState {
-  return {
-    key: createRowKey(),
-    food_supply_id: "",
-    quantity: "",
-    unit_selection: BASE_UNIT_SELECTION,
-    cooking_measurements: [],
-    supply: null,
-  };
-}
-
-function parsePositiveQuantity(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const parsed = Number(trimmed);
-  if (!Number.isFinite(parsed) || parsed <= 0) return null;
-  return parsed;
-}
-
-function validateRows(rows: IngredientRowState[]) {
-  const rowErrors: Record<string, RowErrors> = {};
-  const seen = new Map<string, number>();
-
-  rows.forEach((row, index) => {
-    const errors: RowErrors = {};
-
-    if (!row.food_supply_id) {
-      errors.food_supply_id = "Select a food supply";
-    }
-
-    const quantity = parsePositiveQuantity(row.quantity);
-    if (quantity === null) {
-      errors.quantity_per_unit = "Enter a quantity greater than 0";
-    }
-
-    if (row.food_supply_id) {
-      const firstIndex = seen.get(row.food_supply_id);
-      if (firstIndex !== undefined) {
-        errors.food_supply_id = "This food supply is already selected";
-        const firstKey = rows[firstIndex]?.key;
-        if (firstKey && !rowErrors[firstKey]?.food_supply_id) {
-          rowErrors[firstKey] = {
-            ...rowErrors[firstKey],
-            food_supply_id: "This food supply is already selected",
-          };
-        }
-      } else {
-        seen.set(row.food_supply_id, index);
-      }
-    }
-
-    if (Object.keys(errors).length > 0) {
-      rowErrors[row.key] = errors;
-    }
-  });
-
-  return rowErrors;
-}
-
-function mapServerFieldErrors(
-  fields: Record<string, string>,
-  rows: IngredientRowState[],
-) {
-  const rowErrors: Record<string, RowErrors> = {};
-  let generalError: string | null = null;
-
-  for (const [field, message] of Object.entries(fields)) {
-    const match = /^ingredients(?:\[(\d+)\])?\.(.+)$/.exec(field);
-    if (match) {
-      const index = Number(match[1] ?? "0");
-      const property = match[2];
-      const row = rows[index];
-      if (!row) continue;
-      if (
-        property === "food_supply_id" ||
-        property === "quantity_per_unit" ||
-        property === "cooking_measurement_id"
-      ) {
-        const mappedProperty =
-          property === "cooking_measurement_id" ? "quantity_per_unit" : property;
-        rowErrors[row.key] = {
-          ...rowErrors[row.key],
-          [mappedProperty]: message,
-        };
-      }
-      continue;
-    }
-
-    if (field === "ingredients") {
-      generalError = message;
-      continue;
-    }
-
-    generalError = message;
-  }
-
-  return { rowErrors, generalError };
-}
-
-function rowToPayload(row: IngredientRowState) {
-  const quantity = parsePositiveQuantity(row.quantity) as number;
-  if (row.unit_selection === BASE_UNIT_SELECTION) {
-    return {
-      food_supply_id: row.food_supply_id,
-      quantity_per_unit: quantity,
-    };
-  }
-
-  return {
-    food_supply_id: row.food_supply_id,
-    quantity_per_unit: quantity,
-    cooking_measurement_id: row.unit_selection,
-  };
-}
+const LINE_TYPE_OPTIONS = [
+  { value: "food_supply", label: "Food supply" },
+  { value: "menu", label: "Menu" },
+];
 
 async function loadCookingMeasurementsForSupply(supplyId: string) {
   const result = await foodSuppliesAdminApi.get(supplyId);
@@ -253,7 +115,12 @@ export function MenuIngredientsForm({
       setGeneralError(null);
 
       const uniqueSupplyIds = [
-        ...new Set(nextRows.map((row) => row.food_supply_id).filter(Boolean)),
+        ...new Set(
+          nextRows
+            .filter((row) => row.line_type === "food_supply")
+            .map((row) => row.food_supply_id)
+            .filter(Boolean),
+        ),
       ];
       await Promise.all(
         uniqueSupplyIds.map(async (supplyId) => {
@@ -290,8 +157,8 @@ export function MenuIngredientsForm({
     setGeneralError(null);
   };
 
-  const handleAddRow = () => {
-    setRows((current) => [...current, createBlankRow()]);
+  const handleAddRow = (lineType: IngredientLineType = "food_supply") => {
+    setRows((current) => [...current, createBlankRow(lineType)]);
     setGeneralError(null);
   };
 
@@ -304,6 +171,19 @@ export function MenuIngredientsForm({
       return next;
     });
     setGeneralError(null);
+  };
+
+  const handleLineTypeChange = (rowKey: string, lineType: IngredientLineType) => {
+    updateRow(rowKey, {
+      line_type: lineType,
+      food_supply_id: "",
+      unit_selection: BASE_UNIT_SELECTION,
+      cooking_measurements: [],
+      supply: null,
+      ingredient_menu_id: "",
+      menu: null,
+      quantity: "",
+    });
   };
 
   const handleSupplyChange = (rowKey: string, supply: FoodSupply) => {
@@ -323,6 +203,17 @@ export function MenuIngredientsForm({
       supply.id,
       supply.cooking_measurements,
     );
+  };
+
+  const handleMenuChange = (rowKey: string, menu: Menu) => {
+    updateRow(rowKey, {
+      ingredient_menu_id: menu.id,
+      menu: {
+        id: menu.id,
+        title: menu.title,
+        category_name: menu.category_name,
+      },
+    });
   };
 
   const handleSave = async () => {
@@ -346,7 +237,12 @@ export function MenuIngredientsForm({
       setRowErrors({});
 
       const uniqueSupplyIds = [
-        ...new Set(nextRows.map((row) => row.food_supply_id).filter(Boolean)),
+        ...new Set(
+          nextRows
+            .filter((row) => row.line_type === "food_supply")
+            .map((row) => row.food_supply_id)
+            .filter(Boolean),
+        ),
       ];
       await Promise.all(
         uniqueSupplyIds.map(async (supplyId) => {
@@ -375,8 +271,16 @@ export function MenuIngredientsForm({
   };
 
   const selectedSupplyIds = rows
+    .filter((row) => row.line_type === "food_supply")
     .map((row) => row.food_supply_id)
     .filter((id) => id.length > 0);
+
+  const selectedMenuIds = rows
+    .filter((row) => row.line_type === "menu")
+    .map((row) => row.ingredient_menu_id)
+    .filter((id) => id.length > 0);
+
+  const menuExcludeIds = [menuId, ...selectedMenuIds];
 
   return (
     <section
@@ -386,7 +290,8 @@ export function MenuIngredientsForm({
       <div>
         <h4 className="text-base font-semibold">Ingredients</h4>
         <p className="text-muted-foreground text-sm">
-          Define the food supplies and quantities used for one menu item.
+          Define the food supplies, sub-recipe menus, and quantities used for one
+          menu item.
         </p>
         <MenuFormulaIngredientQuantityHelp />
       </div>
@@ -414,19 +319,24 @@ export function MenuIngredientsForm({
               {rows.map((row, index) => {
                 const baseUnit = row.supply?.unit;
                 const unitOptions =
-                  baseUnit && hasCookingUnitOptions(row.cooking_measurements)
+                  row.line_type === "food_supply" &&
+                  baseUnit &&
+                  hasCookingUnitOptions(row.cooking_measurements)
                     ? buildUnitOptions(baseUnit, row.cooking_measurements)
                     : [];
                 const selectedUnitLabel =
-                  baseUnit != null
-                    ? getSelectedUnitLabel(
-                        row.unit_selection,
-                        baseUnit,
-                        row.cooking_measurements,
-                      )
-                    : "—";
+                  row.line_type === "menu"
+                    ? "portions"
+                    : baseUnit != null
+                      ? getSelectedUnitLabel(
+                          row.unit_selection,
+                          baseUnit,
+                          row.cooking_measurements,
+                        )
+                      : "—";
                 const parsedQuantity = Number(row.quantity);
                 const baseQuantityHint =
+                  row.line_type === "food_supply" &&
                   baseUnit != null &&
                   Number.isFinite(parsedQuantity) &&
                   parsedQuantity > 0
@@ -437,26 +347,75 @@ export function MenuIngredientsForm({
                         baseUnit,
                       )
                     : null;
+                const quantityLabel =
+                  row.line_type === "menu"
+                    ? "Quantity (portions)"
+                    : "Quantity per unit";
 
                 return (
                   <div
                     key={row.key}
-                    className="grid gap-3 rounded-xl border border-border p-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto]"
+                    className="grid gap-3 rounded-xl border border-border p-3 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)_minmax(0,1fr)_auto]"
                   >
-                    <FoodSupplyPicker
-                      id={`ingredient-supply-${row.key}`}
-                      label={`Ingredient ${index + 1}`}
-                      value={row.food_supply_id}
-                      selectedSupply={row.supply}
-                      excludeIds={selectedSupplyIds}
-                      disabled={disabled || saving}
-                      error={rowErrors[row.key]?.food_supply_id}
-                      onChange={(supply) => handleSupplyChange(row.key, supply)}
-                    />
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`ingredient-type-${row.key}`}>
+                        Line type
+                      </Label>
+                      <Select
+                        id={`ingredient-type-${row.key}`}
+                        aria-label={`Line type for ingredient ${index + 1}`}
+                        value={row.line_type}
+                        disabled={disabled || saving}
+                        options={LINE_TYPE_OPTIONS}
+                        onChange={(event) =>
+                          handleLineTypeChange(
+                            row.key,
+                            event.target.value as IngredientLineType,
+                          )
+                        }
+                      />
+                    </div>
+
+                    {row.line_type === "food_supply" ? (
+                      <FoodSupplyPicker
+                        id={`ingredient-supply-${row.key}`}
+                        label={`Ingredient ${index + 1}`}
+                        value={row.food_supply_id}
+                        selectedSupply={row.supply}
+                        excludeIds={selectedSupplyIds}
+                        disabled={disabled || saving}
+                        error={rowErrors[row.key]?.food_supply_id}
+                        onChange={(supply) => handleSupplyChange(row.key, supply)}
+                      />
+                    ) : (
+                      <div className="space-y-1.5">
+                        <MenuPicker
+                          id={`ingredient-menu-${row.key}`}
+                          label={`Ingredient ${index + 1}`}
+                          value={row.ingredient_menu_id}
+                          selectedMenu={row.menu}
+                          excludeIds={menuExcludeIds}
+                          disabled={disabled || saving}
+                          error={rowErrors[row.key]?.ingredient_menu_id}
+                          onChange={(menu) => handleMenuChange(row.key, menu)}
+                        />
+                        {row.ingredient_menu_id && row.menu?.title && (
+                          <p className="text-muted-foreground text-xs">
+                            <Link
+                              href={`/admin/menus/${row.ingredient_menu_id}/ingredients`}
+                              className="font-medium underline"
+                            >
+                              {row.menu.title}
+                            </Link>{" "}
+                            sub-recipe ingredients
+                          </p>
+                        )}
+                      </div>
+                    )}
 
                     <div className="space-y-1.5">
                       <Label htmlFor={`ingredient-quantity-${row.key}`}>
-                        Quantity per unit
+                        {quantityLabel}
                       </Label>
                       <div className="flex items-center gap-2">
                         <Input
@@ -486,11 +445,11 @@ export function MenuIngredientsForm({
                               })
                             }
                           />
-                        ) : (
+                        ) : row.line_type === "food_supply" ? (
                           <span className="text-muted-foreground min-w-12 text-sm">
                             {baseUnit ? getUnitLabel(baseUnit) : "—"}
                           </span>
-                        )}
+                        ) : null}
                       </div>
                       {baseQuantityHint && (
                         <p
@@ -536,15 +495,26 @@ export function MenuIngredientsForm({
           )}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleAddRow}
-              disabled={disabled || saving}
-            >
-              <Plus className="h-4 w-4" />
-              Add ingredient
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleAddRow("food_supply")}
+                disabled={disabled || saving}
+              >
+                <Plus className="h-4 w-4" />
+                Add food supply
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleAddRow("menu")}
+                disabled={disabled || saving}
+              >
+                <Plus className="h-4 w-4" />
+                Add menu reference
+              </Button>
+            </div>
             <Button
               type="button"
               onClick={handleSave}
