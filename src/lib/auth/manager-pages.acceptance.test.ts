@@ -1,60 +1,86 @@
 import { describe, it, expect } from "vitest";
-import { filterAdminNavItems } from "@/app/admin/(protected)/layout";
+import { filterAdminNavItems, flattenAdminNavLabels } from "@/app/admin/(protected)/layout";
 import { canAccessRoute, getUnauthorizedFallbackPath } from "@/lib/auth/roles";
 
-const managerNavLabels = filterAdminNavItems(
-  [
-    {
-      href: "/admin/cogs",
-      label: "COGS",
-      icon: () => null,
-      roles: ["manager"],
-    },
-    {
-      href: "/admin/transactions",
-      label: "Transactions",
-      icon: () => null,
-      roles: ["manager"],
-    },
-    {
-      href: "/admin/cash-flow",
-      label: "Cash Flow",
-      icon: () => null,
-      roles: ["manager"],
-    },
-    {
-      href: "/admin/store-settings",
-      label: "Receipt Settings",
-      icon: () => null,
-      roles: ["manager"],
-    },
-    {
-      href: "/admin/categories",
-      label: "Categories",
-      icon: () => null,
-      roles: ["manager"],
-    },
-    {
-      href: "/admin/menus",
-      label: "Menus",
-      icon: () => null,
-      roles: ["manager"],
-    },
-    {
-      href: "/admin/food-supplies",
-      label: "Food Supplies",
-      icon: () => null,
-      roles: ["manager"],
-    },
-    {
-      href: "/admin/branch-assets",
-      label: "Branch Assets",
-      icon: () => null,
-      roles: ["manager"],
-    },
-  ],
-  ["manager"],
-).map((item) => item.label);
+const managerNavLabels = flattenAdminNavLabels(
+  filterAdminNavItems(
+    [
+      {
+        label: "COGS",
+        icon: () => null,
+        children: [
+          {
+            href: "/admin/cogs/menu-breakdown",
+            label: "Menu Breakdown",
+            icon: () => null,
+            roles: ["manager"],
+          },
+        ],
+      },
+      {
+        label: "Food",
+        icon: () => null,
+        children: [
+          {
+            href: "/admin/transactions",
+            label: "User Transactions",
+            icon: () => null,
+            roles: ["manager"],
+          },
+        ],
+      },
+      {
+        label: "Cash Flow",
+        icon: () => null,
+        children: [
+          {
+            href: "/admin/cash-flow",
+            label: "Summary",
+            icon: () => null,
+            roles: ["manager"],
+          },
+        ],
+      },
+      {
+        href: "/admin/store-settings",
+        label: "Receipt Settings",
+        icon: () => null,
+        roles: ["manager"],
+      },
+      {
+        href: "/admin/categories",
+        label: "Categories",
+        icon: () => null,
+        roles: ["manager"],
+      },
+      {
+        label: "Food",
+        icon: () => null,
+        children: [
+          {
+            href: "/admin/menus",
+            label: "Menus",
+            icon: () => null,
+            roles: ["manager"],
+          },
+          {
+            href: "/admin/food-supplies",
+            label: "Ingredients",
+            icon: () => null,
+            roles: ["manager"],
+          },
+        ],
+      },
+      {
+        href: "/admin/branch-assets",
+        label: "Branch Assets",
+        icon: () => null,
+        roles: ["manager"],
+      },
+    ],
+    ["manager"],
+  ),
+);
 
 /**
  * Checklist coverage for POS-18-12 acceptance criteria.
@@ -62,8 +88,9 @@ const managerNavLabels = filterAdminNavItems(
 describe("POS-18-12 manager-scoped page guards", () => {
   it("1. Manager accesses COGS page", () => {
     expect(canAccessRoute("/admin/cogs", ["manager"])).toBe(true);
+    expect(canAccessRoute("/admin/cogs/menu-breakdown", ["manager"])).toBe(true);
     expect(canAccessRoute("/admin/cogs/menu-1", ["manager"])).toBe(true);
-    expect(managerNavLabels).toContain("COGS");
+    expect(managerNavLabels).toContain("Menu Breakdown");
   });
 
   it("2. Manager accesses transaction history", () => {
@@ -71,12 +98,12 @@ describe("POS-18-12 manager-scoped page guards", () => {
     expect(canAccessRoute("/admin/transactions/txn-1", ["manager"])).toBe(
       true,
     );
-    expect(managerNavLabels).toContain("Transactions");
+    expect(managerNavLabels).toContain("User Transactions");
   });
 
   it("2b. Manager accesses cash flow insights", () => {
     expect(canAccessRoute("/admin/cash-flow", ["manager"])).toBe(true);
-    expect(managerNavLabels).toContain("Cash Flow");
+    expect(managerNavLabels).toContain("Summary");
   });
 
   it("3. Manager edits receipt settings — route and nav are manager-only", () => {
@@ -86,6 +113,7 @@ describe("POS-18-12 manager-scoped page guards", () => {
 
   it("4. Admin-only blocked from COGS", () => {
     expect(canAccessRoute("/admin/cogs", ["admin"])).toBe(false);
+    expect(canAccessRoute("/admin/cogs/menu-breakdown", ["admin"])).toBe(false);
     expect(getUnauthorizedFallbackPath({ roles: ["admin"] })).toBe(
       "/admin/users",
     );
@@ -102,6 +130,7 @@ describe("POS-18-12 manager-scoped page guards", () => {
 
   it("6. Operational blocked from cash flow", () => {
     expect(canAccessRoute("/admin/cash-flow", ["operational"])).toBe(false);
+    expect(canAccessRoute("/admin/cash-flow/bep", ["operational"])).toBe(false);
     expect(canAccessRoute("/admin/cash-flow", ["cashier"] as never)).toBe(
       false,
     );
@@ -115,6 +144,8 @@ describe("POS-18-12 manager-scoped page guards", () => {
       "/admin/order-options",
       "/admin/production-requests/new",
       "/admin/cash-flow",
+      "/admin/cash-flow/bep",
+      "/admin/cogs/summary",
       "/admin/branch-assets",
     ];
     for (const route of managerOnlyRoutes) {

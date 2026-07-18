@@ -32,14 +32,14 @@ export const overviewCards: OverviewCard[] = [
     roles: ["admin"],
   },
   {
-    title: "COGS",
+    title: "Menu breakdown",
     description: "Review cost of goods sold and menu margins.",
-    href: "/admin/cogs",
+    href: "/admin/cogs/menu-breakdown",
     icon: Calculator,
     roles: ["manager"],
   },
   {
-    title: "Transactions",
+    title: "User transactions",
     description: "Browse transaction history and details.",
     href: "/admin/transactions",
     icon: Receipt,
@@ -74,7 +74,7 @@ export const overviewCards: OverviewCard[] = [
     roles: ["manager"],
   },
   {
-    title: "Food supplies",
+    title: "Ingredients",
     description: "Maintain ingredient inventory.",
     href: "/admin/food-supplies",
     icon: Package,
@@ -109,7 +109,7 @@ export const overviewCards: OverviewCard[] = [
     roles: ["operational"],
   },
   {
-    title: "Production requests",
+    title: "Cook request",
     description: "Review and approve production requests.",
     href: "/admin/production-requests",
     icon: ChefHat,
