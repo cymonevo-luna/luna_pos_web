@@ -84,6 +84,20 @@ describe("AdminRouteGuard", () => {
     });
   });
 
+  it("redirects operational users away from COGS summary", async () => {
+    vi.mocked(usePathname).mockReturnValue("/admin/cogs/summary");
+
+    render(
+      <AdminRouteGuard>
+        <div>Protected content</div>
+      </AdminRouteGuard>,
+    );
+
+    await waitFor(() => {
+      expect(replace).toHaveBeenCalledWith("/admin/suppliers");
+    });
+  });
+
   it("allows manager users on production request list", () => {
     vi.mocked(useAuth).mockReturnValue({
       user: { id: "1", roles: ["manager"], merchant_id: "m-1" },

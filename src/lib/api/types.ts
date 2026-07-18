@@ -487,6 +487,37 @@ export interface CogsMenuDetail extends CogsMenuSummary {
   total_cogs: number | null;
 }
 
+/** Category row in GET /api/admin/cogs/portfolio-summary. */
+export interface CogsPortfolioCategoryBreakdown {
+  category_id: string;
+  category_name: string;
+  menu_count: number;
+  complete_count: number;
+  avg_margin_percent: number;
+  avg_cogs_per_piece: number | null;
+}
+
+/** Recommended vs current sell price totals when provided by the API. */
+export interface CogsPortfolioVariance {
+  total_recommended_sell_price: number;
+  total_current_sell_price: number;
+  variance_amount: number;
+  variance_percent: number;
+}
+
+/** Portfolio-level COGS aggregates from GET /api/admin/cogs/portfolio-summary. */
+export interface CogsPortfolioSummary {
+  generated_at: string;
+  total_menus: number;
+  complete_count: number;
+  missing_prices_count: number;
+  no_formula_count: number;
+  avg_margin_percent: number;
+  avg_cogs_per_piece: number | null;
+  variance?: CogsPortfolioVariance | null;
+  categories: CogsPortfolioCategoryBreakdown[];
+}
+
 /** Receipt header/footer settings returned by GET /api/admin/store-settings. */
 export interface StoreSettings {
   brand_name: string;

@@ -3,6 +3,9 @@ import type {
   CogsIngredientBreakdown,
   CogsMenuDetail,
   CogsMenuSummary,
+  CogsPortfolioCategoryBreakdown,
+  CogsPortfolioSummary,
+  CogsPortfolioVariance,
   CogsStatus,
   CogsSupplierQuote,
   FoodSupplyUnit,
@@ -189,5 +192,74 @@ export function normalizeCogsMenuDetail(
     recipe_yield: raw.recipe_yield,
     ingredients: (raw.ingredients ?? []).map(normalizeCogsIngredient),
     total_cogs: computeTotalCogs(summary.cogs_per_piece, raw.recipe_yield),
+  };
+}
+
+export interface CogsPortfolioCategoryBreakdownRaw {
+  category_id?: string;
+  category_name: string;
+  menu_count: number | string;
+  complete_count: number | string;
+  avg_margin_percent: number | string;
+  avg_cogs_per_piece?: number | string | null;
+}
+
+export interface CogsPortfolioVarianceRaw {
+  total_recommended_sell_price: number | string;
+  total_current_sell_price: number | string;
+  variance_amount: number | string;
+  variance_percent: number | string;
+}
+
+/** Wire format from the Go backend (`cogs.PortfolioSummaryResponse`). */
+export interface CogsPortfolioSummaryRaw {
+  generated_at: string;
+  total_menus: number | string;
+  complete_count: number | string;
+  missing_prices_count: number | string;
+  no_formula_count: number | string;
+  avg_margin_percent: number | string;
+  avg_cogs_per_piece?: number | string | null;
+  variance?: CogsPortfolioVarianceRaw | null;
+  categories?: CogsPortfolioCategoryBreakdownRaw[];
+}
+
+function normalizeCogsPortfolioVariance(
+  raw: CogsPortfolioVarianceRaw,
+): CogsPortfolioVariance {
+  return {
+    total_recommended_sell_price: parseNumeric(raw.total_recommended_sell_price),
+    total_current_sell_price: parseNumeric(raw.total_current_sell_price),
+    variance_amount: parseNumeric(raw.variance_amount),
+    variance_percent: parseNumeric(raw.variance_percent),
+  };
+}
+
+export function normalizeCogsPortfolioCategoryBreakdown(
+  raw: CogsPortfolioCategoryBreakdownRaw,
+): CogsPortfolioCategoryBreakdown {
+  return {
+    category_id: raw.category_id ?? "",
+    category_name: raw.category_name,
+    menu_count: parseNumeric(raw.menu_count),
+    complete_count: parseNumeric(raw.complete_count),
+    avg_margin_percent: parseNumeric(raw.avg_margin_percent),
+    avg_cogs_per_piece: parseNullableNumeric(raw.avg_cogs_per_piece),
+  };
+}
+
+export function normalizeCogsPortfolioSummary(
+  raw: CogsPortfolioSummaryRaw,
+): CogsPortfolioSummary {
+  return {
+    generated_at: raw.generated_at,
+    total_menus: parseNumeric(raw.total_menus),
+    complete_count: parseNumeric(raw.complete_count),
+    missing_prices_count: parseNumeric(raw.missing_prices_count),
+    no_formula_count: parseNumeric(raw.no_formula_count),
+    avg_margin_percent: parseNumeric(raw.avg_margin_percent),
+    avg_cogs_per_piece: parseNullableNumeric(raw.avg_cogs_per_piece),
+    variance: raw.variance ? normalizeCogsPortfolioVariance(raw.variance) : null,
+    categories: (raw.categories ?? []).map(normalizeCogsPortfolioCategoryBreakdown),
   };
 }

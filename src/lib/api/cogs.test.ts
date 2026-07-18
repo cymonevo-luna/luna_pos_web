@@ -3,6 +3,7 @@ import { cogsAdminApi, downloadCogsCsv } from "./cogs";
 import { tokenStore } from "@/lib/auth/tokens";
 import {
   backendDetailFixture,
+  backendPortfolioSummaryFixture,
   backendSummaryFixture,
 } from "./cogs-mapper.fixtures";
 
@@ -104,6 +105,59 @@ describe("cogsAdminApi", () => {
 
     const [url] = fetchMock.mock.calls[0];
     expect(url).toBe("http://localhost:8080/api/admin/cogs/export");
+  });
+
+  it("fetches and normalizes portfolio summary", async () => {
+    tokenStore.set("token-abc", "refresh-abc");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: backendPortfolioSummaryFixture,
+      }),
+    );
+
+    const res = await cogsAdminApi.portfolioSummary();
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/cogs/portfolio-summary",
+    );
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer token-abc");
+
+    expect(res.data).toEqual({
+      generated_at: "2026-07-18T03:00:00.000Z",
+      total_menus: 5,
+      complete_count: 3,
+      missing_prices_count: 1,
+      no_formula_count: 1,
+      avg_margin_percent: 28.5,
+      avg_cogs_per_piece: 12500,
+      variance: {
+        total_recommended_sell_price: 110000,
+        total_current_sell_price: 125000,
+        variance_amount: -15000,
+        variance_percent: -12,
+      },
+      categories: [
+        {
+          category_id: "cat-main",
+          category_name: "Main",
+          menu_count: 3,
+          complete_count: 2,
+          avg_margin_percent: 30,
+          avg_cogs_per_piece: 15000,
+        },
+        {
+          category_id: "cat-drinks",
+          category_name: "Drinks",
+          menu_count: 2,
+          complete_count: 1,
+          avg_margin_percent: 25,
+          avg_cogs_per_piece: 8000,
+        },
+      ],
+    });
   });
 });
 
