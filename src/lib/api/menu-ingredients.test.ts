@@ -18,6 +18,9 @@ const formulaResponse = {
     {
       food_supply_id: "supply-1",
       quantity_per_unit: "2.5",
+      entry_quantity: "0.5",
+      cooking_measurement_id: "cm-1",
+      cooking_measurement_name: "Tablespoon",
       food_supply_title: "Olive oil",
       food_supply_unit: "ml",
       food_supply_stock_quantity: "100",
@@ -58,6 +61,9 @@ describe("menu ingredients API", () => {
         {
           food_supply_id: "supply-1",
           quantity_per_unit: 2.5,
+          entry_quantity: 0.5,
+          cooking_measurement_id: "cm-1",
+          cooking_measurement_name: "Tablespoon",
           food_supply_title: "Olive oil",
           food_supply_unit: "ml",
           food_supply_stock_quantity: 100,
@@ -79,13 +85,25 @@ describe("menu ingredients API", () => {
 
     await replaceMenuIngredients("menu-1", [
       { food_supply_id: "supply-1", quantity_per_unit: 1.25 },
+      {
+        food_supply_id: "supply-2",
+        quantity_per_unit: 0.5,
+        cooking_measurement_id: "cm-1",
+      },
     ]);
 
     const [, init] = fetchMock.mock.calls[0];
     expect(init?.method).toBe("PUT");
     expect(init?.body).toBe(
       JSON.stringify({
-        ingredients: [{ food_supply_id: "supply-1", quantity_per_unit: 1.25 }],
+        ingredients: [
+          { food_supply_id: "supply-1", quantity_per_unit: 1.25 },
+          {
+            food_supply_id: "supply-2",
+            quantity_per_unit: 0.5,
+            cooking_measurement_id: "cm-1",
+          },
+        ],
       }),
     );
   });

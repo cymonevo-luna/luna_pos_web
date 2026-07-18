@@ -241,12 +241,16 @@ export interface Menu {
 export interface MenuIngredientInput {
   food_supply_id: string;
   quantity_per_unit: number;
+  cooking_measurement_id?: string;
 }
 
 export interface MenuIngredient extends MenuIngredientInput {
   food_supply_title: string;
   food_supply_unit: FoodSupplyUnit;
   food_supply_stock_quantity: number;
+  /** Chef-entered quantity when a cooking measurement is selected. */
+  entry_quantity?: number;
+  cooking_measurement_name?: string | null;
 }
 
 export interface FormulaResponse {

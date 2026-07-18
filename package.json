@@ -26,6 +26,7 @@
     "verify:pos-79-5-browser": "node scripts/verify-pos-79-5-browser.mjs",
     "verify:pos-79-6-browser": "node scripts/verify-pos-79-6-browser.mjs",
     "verify:pos-84-3-browser": "node scripts/verify-pos-84-3-browser.mjs",
+    "verify:pos-84-4-browser": "node scripts/verify-pos-84-4-browser.mjs",
     "verify:pos-85-3-browser": "node scripts/verify-pos-85-3-browser.mjs",
     "verify:pos-85-4-browser": "node scripts/verify-pos-85-4-browser.mjs"
   },
