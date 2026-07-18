@@ -1,4 +1,8 @@
 import { config } from "@/lib/config";
+import {
+  clearBrowserFeaturesCookie,
+  setBrowserFeaturesCookie,
+} from "@/lib/auth/cookies";
 import type { MerchantRole, TokenPair } from "@/lib/api/types";
 import {
   ACCESS_COOKIE_MAX_AGE,
@@ -81,6 +85,19 @@ function cookieMaxAgeFromExpiry(expiresAt: number | null, fallback: number): num
   return remaining > 0 ? remaining : 0;
 }
 
+function syncFeaturesCookieFromStorage() {
+  const raw = readStorage(config.session.user);
+  if (!raw) return;
+  try {
+    const user = JSON.parse(raw) as { features?: unknown };
+    if (Array.isArray(user.features)) {
+      setBrowserFeaturesCookie(user.features);
+    }
+  } catch {
+    // ignore invalid session payload
+  }
+}
+
 function syncCookies(
   accessToken: string,
   refreshToken: string,
@@ -97,6 +114,7 @@ function syncCookies(
     refreshToken,
     cookieMaxAgeFromExpiry(refreshExpiresAt, REFRESH_COOKIE_MAX_AGE),
   );
+  syncFeaturesCookieFromStorage();
 }
 
 function migrateCookiesToStorage() {
@@ -121,6 +139,7 @@ function migrateCookiesToStorage() {
 
 function ensureStorageHydrated() {
   migrateCookiesToStorage();
+  syncFeaturesCookieFromStorage();
 }
 
 export const tokenStore = {
@@ -181,6 +200,7 @@ export const tokenStore = {
     removeStorage(config.tokens.refreshExpiresAt);
     deleteCookie(config.cookies.accessToken);
     deleteCookie(config.cookies.refreshToken);
+    clearBrowserFeaturesCookie();
   },
 };
 

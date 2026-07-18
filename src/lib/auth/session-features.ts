@@ -1,4 +1,5 @@
 import type { User } from "@/lib/api/types";
+import { setBrowserFeaturesCookie } from "@/lib/auth/cookies";
 import { sessionStore } from "@/lib/auth/session-store";
 
 type SessionUserListener = (user: User) => void;
@@ -26,6 +27,7 @@ export function mergeSessionFeatures(features: string[]): User | null {
 
   const user: User = { ...stored.user, features };
   sessionStore.set({ user, merchant: stored.merchant });
+  setBrowserFeaturesCookie(features);
   notifySessionUser(user);
   return user;
 }

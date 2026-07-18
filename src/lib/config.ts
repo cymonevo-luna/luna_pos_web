@@ -11,6 +11,7 @@ export const config = {
   cookies: {
     accessToken: "nt_access_token",
     refreshToken: "nt_refresh_token",
+    features: "nt_features",
   },
   /** localStorage keys for auth tokens and expiry metadata. */
   tokens: {

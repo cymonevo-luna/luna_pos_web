@@ -62,5 +62,6 @@ describe("clearAuthSession", () => {
     expect(localStorage.getItem(config.tokens.accessExpiresAt)).toBeNull();
     expect(localStorage.getItem(config.tokens.refreshExpiresAt)).toBeNull();
     expect(sessionStore.get()).toBeNull();
+    expect(document.cookie).not.toContain(`${config.cookies.features}=`);
   });
 });

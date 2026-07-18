@@ -18,6 +18,7 @@ import { refreshTokenPair } from "@/lib/auth/refresh";
 import { hasMerchantAreaAccess } from "@/lib/auth/roles";
 import { isClaimsValid } from "@/lib/auth/session";
 import { mergeSessionFeatures, subscribeSessionUser } from "@/lib/auth/session-features";
+import { setBrowserFeaturesCookie } from "@/lib/auth/cookies";
 import { clearAuthSession, sessionStore } from "@/lib/auth/session-store";
 import { tokenStore, decodeJwt } from "@/lib/auth/tokens";
 import type { SessionMerchant, User } from "@/lib/api/types";
@@ -152,6 +153,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data } = await authApi.login(payload);
     tokenStore.setFromPair(data.tokens);
     persistSession(data.user, data.merchant);
+    if (Array.isArray(data.user.features)) {
+      setBrowserFeaturesCookie(data.user.features);
+    }
     setUser(data.user);
     setMerchant(data.merchant);
     return data.user;
@@ -166,6 +170,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     tokenStore.setFromPair(data.tokens);
     const sessionMerchant = { id: data.merchant.id, name: data.merchant.name };
     persistSession(data.user, sessionMerchant);
+    if (Array.isArray(data.user.features)) {
+      setBrowserFeaturesCookie(data.user.features);
+    }
     setUser(data.user);
     setMerchant(sessionMerchant);
     return data.user;
