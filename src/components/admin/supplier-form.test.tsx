@@ -8,7 +8,7 @@ describe("SupplierForm", () => {
     render(<SupplierForm onSubmit={() => {}} onCancel={() => {}} />);
 
     expect(screen.getByLabelText("Name")).toBeInTheDocument();
-    expect(screen.getByLabelText("Phone number")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Phone number/)).toBeInTheDocument();
     expect(screen.getByLabelText("Address")).toBeInTheDocument();
     expect(screen.getByLabelText("Supports delivery")).toBeInTheDocument();
   });
@@ -40,7 +40,7 @@ describe("SupplierForm", () => {
     );
 
     await user.type(screen.getByLabelText("Name"), "Beras Supplier");
-    await user.type(screen.getByLabelText("Phone number"), "08123456789");
+    await user.type(screen.getByLabelText(/Phone number/), "08123456789");
     await user.type(screen.getByLabelText("Address"), "Jl. Pasar 12");
 
     await user.click(screen.getByRole("button", { name: "Save supplier" }));
@@ -57,13 +57,53 @@ describe("SupplierForm", () => {
     });
   });
 
+  it("submits with empty phone number", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<SupplierForm onSubmit={onSubmit} onCancel={() => {}} />);
+
+    await user.type(screen.getByLabelText("Name"), "Beras Supplier");
+    await user.type(screen.getByLabelText("Address"), "Jl. Pasar 12");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalled();
+    });
+    expect(onSubmit.mock.calls[0]?.[0]).toEqual({
+      name: "Beras Supplier",
+      phone_number: "",
+      address: "Jl. Pasar 12",
+      supports_delivery: false,
+      delivery_cost: undefined,
+    });
+    expect(screen.queryByText(/Phone number must be at least/)).not.toBeInTheDocument();
+  });
+
+  it("blocks submit when phone number is too short", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<SupplierForm onSubmit={onSubmit} onCancel={() => {}} />);
+
+    await user.type(screen.getByLabelText("Name"), "Beras Supplier");
+    await user.type(screen.getByLabelText(/Phone number/), "0812");
+    await user.type(screen.getByLabelText("Address"), "Jl. Pasar 12");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("Phone number must be at least 5 characters"),
+    ).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it("blocks submit when name is empty", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
 
     render(<SupplierForm onSubmit={onSubmit} onCancel={() => {}} />);
 
-    await user.type(screen.getByLabelText("Phone number"), "08123456789");
+    await user.type(screen.getByLabelText(/Phone number/), "08123456789");
     await user.type(screen.getByLabelText("Address"), "Jl. Pasar 12");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -80,7 +120,7 @@ describe("SupplierForm", () => {
     render(<SupplierForm onSubmit={onSubmit} onCancel={() => {}} />);
 
     await user.type(screen.getByLabelText("Name"), "Beras Supplier");
-    await user.type(screen.getByLabelText("Phone number"), "08123456789");
+    await user.type(screen.getByLabelText(/Phone number/), "08123456789");
     await user.type(screen.getByLabelText("Address"), "Jl. Pasar 12");
     await user.click(screen.getByLabelText("Supports delivery"));
     await user.click(screen.getByRole("button", { name: "Save" }));

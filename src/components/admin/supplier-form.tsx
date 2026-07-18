@@ -120,7 +120,12 @@ export const SupplierForm = React.forwardRef<SupplierFormHandle, SupplierFormPro
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="supplier-phone">Phone number</Label>
+          <Label htmlFor="supplier-phone">
+            Phone number{" "}
+            <span className="font-normal text-muted-foreground">
+              (recommended)
+            </span>
+          </Label>
           <Input
             id="supplier-phone"
             type="tel"

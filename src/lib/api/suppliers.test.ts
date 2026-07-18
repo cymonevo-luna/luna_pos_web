@@ -67,6 +67,29 @@ describe("supplierSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts an empty phone number", () => {
+    const result = supplierSchema.safeParse({
+      name: base.name,
+      phone_number: "",
+      address: base.address,
+      supports_delivery: false,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a phone number shorter than 5 characters when provided", () => {
+    const result = supplierSchema.safeParse({
+      ...base,
+      phone_number: "0812",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((issue) => issue.path.includes("phone_number")),
+      ).toBe(true);
+    }
+  });
+
   it("rejects a name shorter than 2 characters", () => {
     const result = supplierSchema.safeParse({
       ...base,
@@ -119,6 +142,22 @@ describe("supplierFormToPayload", () => {
     expect(
       supplierFormToPayload({ ...base, phone_number: "  08161974323  " }),
     ).toMatchObject({ phone_number: "08161974323" });
+  });
+
+  it("maps empty phone_number to an empty string", () => {
+    expect(
+      supplierFormToPayload({
+        name: "No Phone Supplier",
+        phone_number: "",
+        address: "Jl Test Address",
+        supports_delivery: false,
+      }),
+    ).toEqual({
+      name: "No Phone Supplier",
+      phone_number: "",
+      address: "Jl Test Address",
+      supports_delivery: false,
+    });
   });
 
   it("omits delivery_cost when delivery is not supported", () => {
