@@ -1,6 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { config as appConfig } from "@/lib/config";
-import { applyTokenCookies, clearTokenCookies } from "@/lib/auth/cookies";
+import {
+  applyFeaturesCookie,
+  applyTokenCookies,
+  clearTokenCookies,
+  parseFeaturesCookie,
+} from "@/lib/auth/cookies";
+import type { FeatureSource } from "@/lib/auth/features";
 import { refreshTokenPair } from "@/lib/auth/refresh";
 import {
   isClaimsValid,
@@ -28,11 +34,15 @@ export async function proxy(request: NextRequest) {
 
   let claims = resolveSessionClaims(accessToken, refreshToken);
   let refreshedTokens = null;
+  let refreshedFeatures: string[] | undefined;
 
   if (needsTokenRefresh(accessToken, refreshToken) && refreshToken) {
     const refreshed = await refreshTokenPair(refreshToken);
     if (refreshed) {
       refreshedTokens = refreshed.tokens;
+      if (refreshed.features) {
+        refreshedFeatures = refreshed.features;
+      }
       claims = decodeJwt(refreshed.tokens.access_token);
     } else {
       claims = null;
@@ -41,9 +51,27 @@ export async function proxy(request: NextRequest) {
 
   const isAuthed = isClaimsValid(claims);
 
+  const featuresFromCookie = parseFeaturesCookie(
+    request.cookies.get(appConfig.cookies.features)?.value,
+  );
+  const effectiveFeatures = refreshedFeatures ?? featuresFromCookie;
+
+  const featureSource: FeatureSource = claims
+    ? {
+        roles: claims.roles,
+        merchant_id: claims.merchant_id,
+        ...(effectiveFeatures !== undefined
+          ? { features: effectiveFeatures }
+          : {}),
+      }
+    : null;
+
   const withCookies = (response: NextResponse) => {
     if (refreshedTokens) {
       applyTokenCookies(response, refreshedTokens);
+    }
+    if (refreshedFeatures) {
+      applyFeaturesCookie(response, refreshedFeatures);
     }
     return response;
   };
@@ -58,7 +86,7 @@ export async function proxy(request: NextRequest) {
 
   // Send authenticated users away from the auth pages.
   if (isAuthed && isAuthRoute(pathname)) {
-    const target = getAuthenticatedLandingPath(claims);
+    const target = getAuthenticatedLandingPath(featureSource);
     return withCookies(NextResponse.redirect(new URL(target, request.url)));
   }
 
@@ -73,16 +101,16 @@ export async function proxy(request: NextRequest) {
     return redirectToLogin(isAdminArea ? "/admin/login" : "/login");
   }
 
-  if (isAdminArea && !hasMerchantAreaAccess(claims)) {
+  if (isAdminArea && !hasMerchantAreaAccess(featureSource)) {
     return withCookies(NextResponse.redirect(new URL("/dashboard", request.url)));
   }
 
   if (
     isAdminArea &&
-    claims &&
-    !canAccessRoute(pathname, claims)
+    featureSource &&
+    !canAccessRoute(pathname, featureSource)
   ) {
-    const fallback = getUnauthorizedRedirectTarget(pathname, claims);
+    const fallback = getUnauthorizedRedirectTarget(pathname, featureSource);
     return withCookies(NextResponse.redirect(new URL(fallback, request.url)));
   }
 

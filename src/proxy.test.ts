@@ -449,4 +449,152 @@ describe("proxy", () => {
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toContain("/dashboard");
   });
+
+  it("allows cashier+operational users on menus when features cookie includes menus.manage", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["cashier", "operational"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+    const cashierOperationalFeatures = JSON.stringify([
+      "pos.menu",
+      "pos.transactions",
+      "menus.manage",
+      "food_supplies.manage",
+      "expenses.manage",
+      "recurring_expenses.manage",
+      "suppliers.manage",
+      "purchases.manage",
+      "production_requests.view",
+    ]);
+
+    const res = await proxy(
+      requestFor("/admin/menus", {
+        [config.cookies.accessToken]: access,
+        [config.cookies.features]: cashierOperationalFeatures,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it("redirects cashier+operational users away from menus without features cookie", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["cashier", "operational"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+
+    const res = await proxy(
+      requestFor("/admin/menus", {
+        [config.cookies.accessToken]: access,
+      }),
+    );
+
+    expect(res.status).toBe(307);
+    const location = res.headers.get("location") ?? "";
+    expect(location).toContain("/admin/unauthorized");
+    expect(location).toContain("feature=menus.manage");
+  });
+
+  it("sets features cookie when proxy refresh returns features", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["cashier", "operational"],
+      merchant_id: "merchant-1",
+      exp: pastExp,
+    });
+    const refresh = makeJwt({
+      uid: "1",
+      roles: ["cashier", "operational"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+    const refreshedFeatures = [
+      "pos.menu",
+      "pos.transactions",
+      "menus.manage",
+      "food_supplies.manage",
+      "expenses.manage",
+      "recurring_expenses.manage",
+      "suppliers.manage",
+      "purchases.manage",
+      "production_requests.view",
+    ];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: {
+            tokens: {
+              access_token: makeJwt({
+                uid: "1",
+                roles: ["cashier", "operational"],
+                merchant_id: "merchant-1",
+                exp: futureExp,
+              }),
+              refresh_token: makeJwt({
+                uid: "1",
+                roles: ["cashier", "operational"],
+                merchant_id: "merchant-1",
+                exp: futureExp,
+              }),
+              expires_in: 900,
+            },
+            features: refreshedFeatures,
+          },
+        }),
+      }),
+    );
+
+    const res = await proxy(
+      requestFor("/admin/menus", {
+        [config.cookies.accessToken]: access,
+        [config.cookies.refreshToken]: refresh,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.cookies.get(config.cookies.features)?.value).toBe(
+      JSON.stringify(refreshedFeatures),
+    );
+  });
+
+  it("clears features cookie when refresh fails and user is redirected to login", async () => {
+    const access = makeJwt({
+      uid: "1",
+      roles: ["cashier", "operational"],
+      merchant_id: "merchant-1",
+      exp: pastExp,
+    });
+    const refresh = makeJwt({
+      uid: "1",
+      roles: ["cashier", "operational"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+      }),
+    );
+
+    const res = await proxy(
+      requestFor("/admin/menus", {
+        [config.cookies.accessToken]: access,
+        [config.cookies.refreshToken]: refresh,
+        [config.cookies.features]: JSON.stringify(["menus.manage"]),
+      }),
+    );
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("/admin/login");
+    expect(res.cookies.get(config.cookies.features)?.value).toBe("");
+  });
 });
