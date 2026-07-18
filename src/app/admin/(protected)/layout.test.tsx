@@ -66,11 +66,14 @@ describe("AdminProtectedLayout", () => {
     );
 
     expect(screen.getByRole("link", { name: "Users" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Staff" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "List" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Purchases" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Menus" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Menu" })).not.toBeInTheDocument();
     expect(screen.queryByText("COGS")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Receipt Settings" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Receipt Setting" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Assets" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Order Option" })).not.toBeInTheDocument();
   });
 
   it("includes Cash Flow group for manager users", () => {
@@ -106,8 +109,10 @@ describe("AdminProtectedLayout", () => {
 
     expect(labels).toContain("Food");
     expect(labels).toContain("Ingredients");
-    expect(labels).not.toContain("Menus");
+    expect(labels).not.toContain("Menu");
+    expect(labels).not.toContain("Categories");
     expect(labels).not.toContain("User Transactions");
+    expect(labels).not.toContain("Branch");
   });
 
   it("includes operational items for operational users", () => {
@@ -141,7 +146,59 @@ describe("AdminProtectedLayout", () => {
       .filter((entry) => isNavGroup(entry))
       .map((entry) => entry.label);
 
-    expect(groupLabels).toEqual(["Food", "COGS", "Cash Flow"]);
+    expect(groupLabels).toEqual(["Food", "COGS", "Cash Flow", "Branch"]);
+  });
+
+  it("shows manager Food group children in order", () => {
+    const filtered = filterAdminNavItems(allNavItems, ["manager"]);
+    const foodGroup = filtered.find(
+      (entry) => isNavGroup(entry) && entry.label === "Food",
+    );
+    expect(foodGroup && isNavGroup(foodGroup)).toBe(true);
+    if (!foodGroup || !isNavGroup(foodGroup)) {
+      return;
+    }
+
+    expect(foodGroup.children.map((child) => child.label)).toEqual([
+      "Ingredients",
+      "Categories",
+      "Menu",
+      "Cook Request",
+      "User Transactions",
+    ]);
+  });
+
+  it("shows manager Branch group children in order", () => {
+    const filtered = filterAdminNavItems(allNavItems, ["manager"]);
+    const branchGroup = filtered.find(
+      (entry) => isNavGroup(entry) && entry.label === "Branch",
+    );
+    expect(branchGroup && isNavGroup(branchGroup)).toBe(true);
+    if (!branchGroup || !isNavGroup(branchGroup)) {
+      return;
+    }
+
+    expect(branchGroup.children.map((child) => child.label)).toEqual([
+      "Assets",
+      "Order Option",
+      "Receipt Setting",
+    ]);
+  });
+
+  it("shows admin Branch group with Users and Staff only", () => {
+    const filtered = filterAdminNavItems(allNavItems, ["admin"]);
+    const branchGroup = filtered.find(
+      (entry) => isNavGroup(entry) && entry.label === "Branch",
+    );
+    expect(branchGroup && isNavGroup(branchGroup)).toBe(true);
+    if (!branchGroup || !isNavGroup(branchGroup)) {
+      return;
+    }
+
+    expect(branchGroup.children.map((child) => child.label)).toEqual([
+      "Users",
+      "Staff",
+    ]);
   });
 
   it("filters empty groups when no children are visible", () => {

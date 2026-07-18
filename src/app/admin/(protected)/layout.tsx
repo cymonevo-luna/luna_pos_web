@@ -19,6 +19,7 @@ import {
   Repeat,
   ListOrdered,
   Wallet,
+  Building2,
 } from "lucide-react";
 import {
   DashboardShell,
@@ -37,32 +38,6 @@ import type { MerchantRole } from "@/lib/api/types";
 
 export const allNavItems: NavEntry[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
-  { href: "/admin/users", label: "Users", icon: Users, roles: ["admin"] },
-  { href: "/admin/staff", label: "Staff", icon: UserCog, roles: ["admin"] },
-  {
-    href: "/admin/branch-assets",
-    label: "Branch Assets",
-    icon: Box,
-    roles: ["manager"],
-  },
-  {
-    href: "/admin/categories",
-    label: "Categories",
-    icon: Tags,
-    roles: ["manager"],
-  },
-  {
-    href: "/admin/store-settings",
-    label: "Receipt Settings",
-    icon: Printer,
-    roles: ["manager"],
-  },
-  {
-    href: "/admin/order-options",
-    label: "Order Options",
-    icon: ListOrdered,
-    roles: ["manager"],
-  },
   {
     label: "Food",
     icon: UtensilsCrossed,
@@ -74,8 +49,14 @@ export const allNavItems: NavEntry[] = [
         roles: ["manager", "operational"],
       },
       {
+        href: "/admin/categories",
+        label: "Categories",
+        icon: Tags,
+        roles: ["manager"],
+      },
+      {
         href: "/admin/menus",
-        label: "Menus",
+        label: "Menu",
         icon: UtensilsCrossed,
         roles: ["manager"],
       },
@@ -155,6 +136,42 @@ export const allNavItems: NavEntry[] = [
         href: "/admin/cash-flow",
         label: "Summary",
         icon: TrendingUp,
+        roles: ["manager"],
+      },
+    ],
+  },
+  {
+    label: "Branch",
+    icon: Building2,
+    children: [
+      {
+        href: "/admin/users",
+        label: "Users",
+        icon: Users,
+        roles: ["admin"],
+      },
+      {
+        href: "/admin/staff",
+        label: "Staff",
+        icon: UserCog,
+        roles: ["admin"],
+      },
+      {
+        href: "/admin/branch-assets",
+        label: "Assets",
+        icon: Box,
+        roles: ["manager"],
+      },
+      {
+        href: "/admin/order-options",
+        label: "Order Option",
+        icon: ListOrdered,
+        roles: ["manager"],
+      },
+      {
+        href: "/admin/store-settings",
+        label: "Receipt Setting",
+        icon: Printer,
         roles: ["manager"],
       },
     ],
