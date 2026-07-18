@@ -40,4 +40,16 @@ describe("POS-52-5 branch assets summary guards", () => {
       false,
     );
   });
+
+  it("manager can access cash-flow BEP projection page", () => {
+    const manager = sourceWithFeatures(["manager"]);
+    expect(canAccessRoute("/admin/cash-flow/bep", manager)).toBe(true);
+  });
+
+  it("cashier and operational users cannot access cash-flow BEP", () => {
+    const cashier = sourceWithFeatures(["cashier"]);
+    const operational = sourceWithFeatures(["operational"]);
+    expect(canAccessRoute("/admin/cash-flow/bep", cashier)).toBe(false);
+    expect(canAccessRoute("/admin/cash-flow/bep", operational)).toBe(false);
+  });
 });

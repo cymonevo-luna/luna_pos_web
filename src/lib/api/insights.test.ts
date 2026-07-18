@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
+  bepProjection,
   cashFlowSummary,
+  formatBEPHistoricalSubtitle,
   normalizeCashFlowOutflowBySource,
   normalizeCashFlowProductionCost,
   normalizeCashFlowSummary,
@@ -342,5 +344,93 @@ describe("insights API", () => {
     const got = await productionNextDayInsight({ lookbackDays: 14 });
 
     expect(got.data).toBeUndefined();
+  });
+
+  it("builds the BEP projection URL and unwraps the response", async () => {
+    const projection = {
+      total_asset_value: 30_000_000,
+      asset_count: 2,
+      historical: {
+        profit_daily_avg: 100_000,
+        profit_monthly_avg: 3_000_000,
+        net_amount_total: 3_000_000,
+        lookback_days: 30,
+        date_from: "2026-06-13T00:00:00Z",
+        date_to: "2026-07-13T00:00:00Z",
+      },
+      bep: {
+        bep_days: 300,
+        bep_months: 10,
+        bep_reachable: true,
+        bep_message: null,
+      },
+      projection: {
+        projection_days: 90,
+        daily_inflow_avg: 150_000,
+        daily_expense_avg: 50_000,
+        daily_staff_payout_avg: 0,
+        daily_production_cost_avg: 0,
+        daily_net_projected: 100_000,
+        buckets: Array.from({ length: 90 }, (_, day_offset) => ({
+          day_offset,
+          date: `2026-07-${String(day_offset + 14).padStart(2, "0")}`,
+          projected_inflow: 150_000,
+          projected_outflow: 50_000,
+          projected_production_cost: 0,
+          projected_net: 100_000,
+          cumulative_net: 100_000 * (day_offset + 1),
+        })),
+        upcoming_recurring_expenses: [
+          {
+            recurring_expense_id: "rec-1",
+            title: "Rent",
+            amount: 5_000_000,
+            next_run_at: "2026-08-01T00:00:00Z",
+          },
+        ],
+      },
+      generated_at: "2026-07-13T10:00:00Z",
+    };
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, data: projection }),
+    );
+
+    const got = await bepProjection({
+      profitLookbackDays: 30,
+      projectionDays: 90,
+    });
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/insights/bep/projection?profit_lookback_days=30&projection_days=90",
+    );
+    expect(got.data?.bep.bep_days).toBe(300);
+    expect(got.data?.projection.buckets).toHaveLength(90);
+    expect(got.data?.projection.upcoming_recurring_expenses).toHaveLength(1);
+  });
+
+  it("formats BEP historical subtitle for positive and zero net profit", () => {
+    expect(
+      formatBEPHistoricalSubtitle({
+        profit_daily_avg: 100_000,
+        profit_monthly_avg: 3_000_000,
+        net_amount_total: 3_000_000,
+        lookback_days: 30,
+        date_from: "2026-06-13T00:00:00Z",
+        date_to: "2026-07-13T00:00:00Z",
+      }),
+    ).toContain("Rp 3.000.000");
+
+    expect(
+      formatBEPHistoricalSubtitle({
+        profit_daily_avg: 0,
+        profit_monthly_avg: 0,
+        net_amount_total: 0,
+        lookback_days: 30,
+        date_from: "2026-06-13T00:00:00Z",
+        date_to: "2026-07-13T00:00:00Z",
+      }),
+    ).toContain("No sales in the last 30 days");
   });
 });

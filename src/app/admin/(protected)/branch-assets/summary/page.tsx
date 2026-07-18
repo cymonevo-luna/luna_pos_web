@@ -12,7 +12,7 @@ export default function BranchAssetsSummaryPage() {
             Branch assets summary
           </h1>
           <p className="text-muted-foreground">
-            Total asset capital and projected break-even based on recent profit.
+            Total asset capital across branch assets.
           </p>
         </div>
         <BranchAssetsNav />

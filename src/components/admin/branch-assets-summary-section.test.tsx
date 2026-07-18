@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BranchAssetsSummarySection } from "./branch-assets-summary-section";
-import { formatProfitSourceSubtitle } from "@/lib/api/branch-assets";
 import { tokenStore } from "@/lib/auth/tokens";
 import { toast } from "sonner";
 
@@ -29,18 +28,6 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-vi.mock("recharts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("recharts")>();
-  return {
-    ...actual,
-    ResponsiveContainer: ({
-      children,
-    }: {
-      children: React.ReactElement<{ width?: number; height?: number }>;
-    }) => React.cloneElement(children, { width: 800, height: 300 }),
-  };
-});
-
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -48,21 +35,7 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-const profitableProfitSource = {
-  lookback_days: 30,
-  date_from: "2026-06-13T00:00:00Z",
-  date_to: "2026-07-13T00:00:00Z",
-  net_amount_total: 15_000_000,
-};
-
-const noProfitProfitSource = {
-  lookback_days: 30,
-  date_from: "2026-06-13T00:00:00Z",
-  date_to: "2026-07-13T00:00:00Z",
-  net_amount_total: 0,
-};
-
-const profitableSummary = {
+const assetSummary = {
   total_asset_value: 30_000_000,
   asset_count: 3,
   total_quantity: 8,
@@ -72,20 +45,12 @@ const profitableSummary = {
   bep_months: 10,
   bep_message: null,
   bep_reachable: true,
-  profit_source: profitableProfitSource,
-};
-
-const noProfitSummary = {
-  total_asset_value: 30_000_000,
-  asset_count: 2,
-  total_quantity: 4,
-  profit_daily_avg: 0,
-  profit_monthly_avg: 0,
-  bep_days: null,
-  bep_months: null,
-  bep_message: "Insufficient profit data to calculate break-even",
-  bep_reachable: false,
-  profit_source: noProfitProfitSource,
+  profit_source: {
+    lookback_days: 30,
+    date_from: "2026-06-13T00:00:00Z",
+    date_to: "2026-07-13T00:00:00Z",
+    net_amount_total: 15_000_000,
+  },
 };
 
 describe("BranchAssetsSummarySection", () => {
@@ -93,7 +58,7 @@ describe("BranchAssetsSummarySection", () => {
     tokenStore.clear();
     vi.restoreAllMocks();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      jsonResponse({ success: true, data: profitableSummary }),
+      jsonResponse({ success: true, data: assetSummary }),
     );
   });
 
@@ -119,27 +84,22 @@ describe("BranchAssetsSummarySection", () => {
     expect(screen.getByText("8")).toBeInTheDocument();
   });
 
-  it("3. BEP days and months displayed when profit is positive", async () => {
+  it("3. BEP stat cards are not shown on branch assets summary", async () => {
     render(<BranchAssetsSummarySection />);
 
-    await screen.findByTestId("bep-days-card");
-    expect(screen.getByText("300")).toBeInTheDocument();
-    expect(screen.getByTestId("bep-months-card")).toHaveTextContent("10");
-    expect(screen.queryByText("N/A")).not.toBeInTheDocument();
+    await screen.findByTestId("total-asset-value-card");
+    expect(screen.queryByTestId("bep-days-card")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("bep-months-card")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("branch-assets-bep-section")).not.toBeInTheDocument();
+    expect(screen.queryByText("Projected break-even")).not.toBeInTheDocument();
   });
 
-  it("4. BEP shows N/A without profit", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      jsonResponse({ success: true, data: noProfitSummary }),
-    );
-
+  it("4. Links to the dedicated BEP projection page", async () => {
     render(<BranchAssetsSummarySection />);
 
-    await screen.findByTestId("bep-days-card");
-    expect(screen.getAllByText("N/A")).toHaveLength(2);
-    expect(screen.getByTestId("bep-unreachable-message")).toHaveTextContent(
-      "Insufficient profit data to calculate break-even",
-    );
+    const link = await screen.findByTestId("branch-assets-bep-link");
+    expect(link).toHaveAttribute("href", "/admin/cash-flow/bep");
+    expect(link).toHaveTextContent("View BEP projection");
   });
 
   it("5. Refresh reloads summary", async () => {
@@ -155,25 +115,6 @@ describe("BranchAssetsSummarySection", () => {
       expect(fetchMock.mock.calls.length).toBeGreaterThan(initialCalls);
     });
     expect(screen.getByTestId("branch-assets-summary-refresh")).toBeInTheDocument();
-  });
-
-  it("shows profit source on daily profit card", async () => {
-    render(<BranchAssetsSummarySection />);
-
-    expect(
-      await screen.findByText(
-        formatProfitSourceSubtitle(profitableProfitSource),
-      ),
-    ).toBeInTheDocument();
-  });
-
-  it("renders successfully when profit_source is an object", async () => {
-    render(<BranchAssetsSummarySection />);
-
-    expect(await screen.findByTestId("total-asset-value-card")).toBeInTheDocument();
-    expect(
-      screen.getByText(formatProfitSourceSubtitle(profitableProfitSource)),
-    ).toBeInTheDocument();
   });
 
   it("links back to asset list", async () => {

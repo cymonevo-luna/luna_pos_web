@@ -76,6 +76,15 @@ export function formatRupiah(amount: number) {
   }).format(amount)}`;
 }
 
+/** Format break-even day/month estimates; null or undefined renders as N/A. */
+export function formatBepValue(value: number | null | undefined): string {
+  if (value == null) return "N/A";
+  return new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
 /** Compute unit price from a supplier price quote (price_amount / price_quantity). */
 export function computeSupplierUnitPrice(
   priceAmount: number,
