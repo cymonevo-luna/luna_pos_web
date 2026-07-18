@@ -7,13 +7,21 @@ import type {
 import { parseStockQuantity } from "./food-supplies";
 
 /** Wire format from the Go backend (`decimal.Decimal` marshals as JSON string). */
-interface MenuIngredientRaw
-  extends Omit<
-    MenuIngredient,
-    "quantity_per_unit" | "food_supply_stock_quantity" | "entry_quantity"
-  > {
+interface MenuIngredientRaw {
+  id?: string;
+  food_supply_id: string;
+  food_supply_title: string;
   quantity_per_unit: number | string;
-  food_supply_stock_quantity: number | string;
+  /** Live API field name (menuingredient.IngredientResponse). */
+  unit?: MenuIngredient["food_supply_unit"];
+  /** Legacy/mock field name kept for backward compatibility. */
+  food_supply_unit?: MenuIngredient["food_supply_unit"];
+  /** Live API field name (menuingredient.IngredientResponse). */
+  current_stock_quantity?: number | string;
+  /** Legacy/mock field name kept for backward compatibility. */
+  food_supply_stock_quantity?: number | string;
+  cooking_measurement_id?: string;
+  cooking_measurement_name?: string | null;
   entry_quantity?: number | string;
 }
 
@@ -22,11 +30,25 @@ interface FormulaResponseRaw extends Omit<FormulaResponse, "ingredients"> {
 }
 
 function normalizeMenuIngredient(raw: MenuIngredientRaw): MenuIngredient {
-  const { entry_quantity: rawEntryQuantity, ...rest } = raw;
+  const {
+    entry_quantity: rawEntryQuantity,
+    unit,
+    food_supply_unit,
+    current_stock_quantity,
+    food_supply_stock_quantity,
+    ...rest
+  } = raw;
+  const resolvedUnit = food_supply_unit ?? unit;
+  if (!resolvedUnit) {
+    throw new Error("Menu ingredient response missing unit");
+  }
   const ingredient: MenuIngredient = {
     ...rest,
+    food_supply_unit: resolvedUnit,
     quantity_per_unit: parseStockQuantity(raw.quantity_per_unit),
-    food_supply_stock_quantity: parseStockQuantity(raw.food_supply_stock_quantity),
+    food_supply_stock_quantity: parseStockQuantity(
+      food_supply_stock_quantity ?? current_stock_quantity ?? 0,
+    ),
   };
   if (rawEntryQuantity != null) {
     ingredient.entry_quantity = parseStockQuantity(rawEntryQuantity);
