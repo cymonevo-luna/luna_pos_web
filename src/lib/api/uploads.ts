@@ -129,7 +129,7 @@ async function uploadPurchasePhotoRequest(
   }
 
   const res = await fetch(
-    `${config.apiBaseUrl}/api/admin/uploads/purchase-photo`,
+    `${config.apiBaseUrl}/api/admin/uploads/purchase-proof`,
     {
       method: "POST",
       headers,

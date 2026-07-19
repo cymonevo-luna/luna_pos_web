@@ -178,7 +178,7 @@ describe("uploadPurchasePhoto", () => {
     vi.restoreAllMocks();
   });
 
-  it("uploads with FormData to the purchase-photo endpoint", async () => {
+  it("uploads with FormData to the purchase-proof endpoint", async () => {
     tokenStore.set("token-abc", "refresh-abc");
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({
@@ -201,7 +201,7 @@ describe("uploadPurchasePhoto", () => {
     });
 
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe("http://localhost:8080/api/admin/uploads/purchase-photo");
+    expect(url).toBe("http://localhost:8080/api/admin/uploads/purchase-proof");
     expect(init?.method).toBe("POST");
 
     const headers = new Headers(init?.headers);
