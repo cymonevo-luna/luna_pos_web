@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { invalidatePurchaseRequestQueries } from "@/lib/query/invalidate-purchase-request-queries";
 import { ArrowLeft, Camera, MessageCircle, Upload } from "lucide-react";
 import {
   purchaseRequestsAdminApi,
@@ -133,6 +135,7 @@ function statusHistoryPhotoAltText(toStatus: string) {
 
 export function AdminPurchaseDetailContent({ id }: { id: string }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { hasRole } = useRoles();
   const isAdmin = hasRole("admin");
   const [purchase, setPurchase] = useState<PurchaseRequest | null>(null);
@@ -309,6 +312,7 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
     try {
       await purchaseRequestsAdminApi.delete(id);
       toast.success("Purchase request deleted");
+      await invalidatePurchaseRequestQueries(queryClient);
       router.push("/admin/purchases");
     } catch (err) {
       const message =

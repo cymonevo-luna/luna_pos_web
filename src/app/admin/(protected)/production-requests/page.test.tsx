@@ -239,4 +239,26 @@ describe("AdminProductionRequestsPage", () => {
 
     expect(await screen.findByText("No")).toBeInTheDocument();
   });
+
+  it("refetches list on remount so deleted production request is not shown", async () => {
+    const { unmount } = render(<AdminProductionRequestsPage />);
+
+    expect(await screen.findByText("manager1")).toBeInTheDocument();
+    expect(productionRequestsAdminApi.list).toHaveBeenCalledTimes(1);
+
+    unmount();
+
+    vi.mocked(productionRequestsAdminApi.list).mockResolvedValue({
+      data: [],
+      meta: { page: 1, per_page: 10, total: 0 },
+    });
+
+    render(<AdminProductionRequestsPage />);
+
+    await waitFor(() => {
+      expect(productionRequestsAdminApi.list).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.queryByText("manager1")).not.toBeInTheDocument();
+    expect(screen.getByText("0 total")).toBeInTheDocument();
+  });
 });

@@ -191,4 +191,26 @@ describe("AdminPurchasesPage", () => {
     expect(await screen.findByText("Rp 118.000")).toBeInTheDocument();
     expect(screen.getByText("Rp 40.000")).toBeInTheDocument();
   });
+
+  it("refetches list on remount so deleted purchase is not shown", async () => {
+    const { unmount } = render(<AdminPurchasesPage />);
+
+    expect(await screen.findByText("Beras Supplier")).toBeInTheDocument();
+    expect(purchaseRequestsAdminApi.list).toHaveBeenCalledTimes(1);
+
+    unmount();
+
+    vi.mocked(purchaseRequestsAdminApi.list).mockResolvedValue({
+      data: [],
+      meta: { page: 1, per_page: 10, total: 0 },
+    });
+
+    render(<AdminPurchasesPage />);
+
+    await waitFor(() => {
+      expect(purchaseRequestsAdminApi.list).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.queryByText("Beras Supplier")).not.toBeInTheDocument();
+    expect(screen.getByText("0 total")).toBeInTheDocument();
+  });
 });

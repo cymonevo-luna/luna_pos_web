@@ -9,6 +9,8 @@ import type { PurchaseRequest } from "@/lib/api/types";
 import { config } from "@/lib/config";
 import { useRoles } from "@/lib/auth/use-roles";
 import { toast } from "sonner";
+import { renderWithProviders } from "@/test/render";
+import { invalidatePurchaseRequestQueries } from "@/lib/query/invalidate-purchase-request-queries";
 
 const mockPush = vi.fn();
 
@@ -26,6 +28,10 @@ vi.mock("@/lib/api/purchase-requests", () => ({
     updateStatus: vi.fn(),
     delete: vi.fn(),
   },
+}));
+
+vi.mock("@/lib/query/invalidate-purchase-request-queries", () => ({
+  invalidatePurchaseRequestQueries: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/api/uploads", () => ({
@@ -120,7 +126,7 @@ describe("AdminPurchaseDetailContent", () => {
   });
 
   it("renders purchase detail with line items and total", async () => {
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
 
     expect(await screen.findByText("Beras Supplier")).toBeInTheDocument();
     expect(screen.getByText("Beras")).toBeInTheDocument();
@@ -182,7 +188,7 @@ describe("AdminPurchaseDetailContent", () => {
       },
     );
 
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
     await screen.findByText("Beras Supplier");
 
     await user.click(screen.getByRole("button", { name: "Mark as Requested" }));
@@ -235,7 +241,7 @@ describe("AdminPurchaseDetailContent", () => {
       },
     );
 
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
     await screen.findByText("Beras Supplier");
 
     await user.click(screen.getByRole("button", { name: "Mark as Paid" }));
@@ -298,7 +304,7 @@ describe("AdminPurchaseDetailContent", () => {
       },
     );
 
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
     await screen.findByText("Beras Supplier");
 
     await user.click(screen.getByRole("button", { name: "Mark as Delivered" }));
@@ -327,7 +333,7 @@ describe("AdminPurchaseDetailContent", () => {
       data: { ...purchase, status: "DELIVERED" },
     });
 
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
     await screen.findByText("Beras Supplier");
 
     expect(
@@ -368,7 +374,7 @@ describe("AdminPurchaseDetailContent", () => {
       },
     );
 
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
     await screen.findByText("Beras Supplier");
 
     const statusHistoryHeading = screen.getByRole("heading", {
@@ -401,7 +407,7 @@ describe("AdminPurchaseDetailContent", () => {
       new ApiError(422, "invalid_transition", "Cannot change status from DELIVERED"),
     );
 
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
     await screen.findByText("Beras Supplier");
 
     await user.click(screen.getByRole("button", { name: "Mark as Requested" }));
@@ -422,7 +428,7 @@ describe("AdminPurchaseDetailContent", () => {
       },
     });
 
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
     await screen.findByText("Beras Supplier");
 
     const button = screen.getByRole("button", {
@@ -443,7 +449,7 @@ describe("AdminPurchaseDetailContent", () => {
       },
     });
 
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
     await screen.findByText("Beras Supplier");
 
     const button = screen.getByRole("button", {
@@ -460,7 +466,7 @@ describe("AdminPurchaseDetailContent", () => {
     const user = userEvent.setup();
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
 
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
     await screen.findByText("Beras Supplier");
 
     const button = screen.getByRole("button", { name: "Contact supplier" });
@@ -477,7 +483,7 @@ describe("AdminPurchaseDetailContent", () => {
   });
 
   it("shows Created by from created_by_username", async () => {
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
 
     const createdByCard = await screen.findByText("Created by");
     expect(
@@ -492,7 +498,7 @@ describe("AdminPurchaseDetailContent", () => {
       data: { ...purchase, created_by_username: null, status_history: [] },
     });
 
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
 
     const createdByCard = await screen.findByText("Created by");
     expect(
@@ -505,7 +511,7 @@ describe("AdminPurchaseDetailContent", () => {
       new Error("Purchase request not found"),
     );
 
-    render(<AdminPurchaseDetailContent id="nonexistent-id" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="nonexistent-id" />);
 
     expect(
       await screen.findByText("Failed to load purchase request"),
@@ -513,7 +519,7 @@ describe("AdminPurchaseDetailContent", () => {
   });
 
   it("renders Status History above Line items in DOM order", async () => {
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
 
     const statusHistoryHeading = await screen.findByRole("heading", {
       name: "Status History",
@@ -553,7 +559,7 @@ describe("AdminPurchaseDetailContent", () => {
       },
     });
 
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
 
     const statusHistoryHeading = await screen.findByRole("heading", {
       name: "Status History",
@@ -599,7 +605,7 @@ describe("AdminPurchaseDetailContent", () => {
       },
     });
 
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
 
     const receiptLink = await screen.findByRole("link", { name: "Receipt photo" });
     expect(receiptLink).toHaveAttribute(
@@ -619,13 +625,13 @@ describe("AdminPurchaseDetailContent", () => {
       data: { ...purchase, status_history: [] },
     });
 
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
 
     expect(await screen.findByText("No status history yet")).toBeInTheDocument();
   });
 
   it("shows Delete purchase button for admin users", async () => {
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
 
     expect(
       await screen.findByRole("button", { name: "Delete purchase" }),
@@ -635,7 +641,7 @@ describe("AdminPurchaseDetailContent", () => {
   it("hides Delete purchase button for operational users but keeps status actions", async () => {
     mockOperationalRoles();
 
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
 
     await screen.findByText("Beras Supplier");
 
@@ -649,11 +655,19 @@ describe("AdminPurchaseDetailContent", () => {
 
   it("redirects to purchases list after successful delete confirmation", async () => {
     const user = userEvent.setup();
-    vi.mocked(purchaseRequestsAdminApi.delete).mockResolvedValue({
-      data: undefined,
+    const callOrder: string[] = [];
+    vi.mocked(purchaseRequestsAdminApi.delete).mockImplementation(async () => {
+      callOrder.push("delete");
+      return { data: undefined };
+    });
+    vi.mocked(invalidatePurchaseRequestQueries).mockImplementation(async () => {
+      callOrder.push("invalidate");
+    });
+    mockPush.mockImplementation(() => {
+      callOrder.push("push");
     });
 
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
     await screen.findByText("Beras Supplier");
 
     await user.click(screen.getByRole("button", { name: "Delete purchase" }));
@@ -668,8 +682,10 @@ describe("AdminPurchaseDetailContent", () => {
 
     await waitFor(() => {
       expect(purchaseRequestsAdminApi.delete).toHaveBeenCalledWith("pr-1");
+      expect(invalidatePurchaseRequestQueries).toHaveBeenCalled();
       expect(toast.success).toHaveBeenCalledWith("Purchase request deleted");
       expect(mockPush).toHaveBeenCalledWith("/admin/purchases");
+      expect(callOrder).toEqual(["delete", "invalidate", "push"]);
     });
   });
 
@@ -679,7 +695,7 @@ describe("AdminPurchaseDetailContent", () => {
       new ApiError(403, "forbidden", "Not allowed to delete purchase requests"),
     );
 
-    render(<AdminPurchaseDetailContent id="pr-1" />);
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
     await screen.findByText("Beras Supplier");
 
     await user.click(screen.getByRole("button", { name: "Delete purchase" }));
