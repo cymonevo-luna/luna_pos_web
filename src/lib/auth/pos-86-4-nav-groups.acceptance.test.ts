@@ -53,11 +53,11 @@ describe("POS-86-4 admin sidebar nav groups", () => {
       "Summary",
     ]);
     expect(childLabels(filtered, "Cash Flow")).toEqual([
-      "Expenses",
-      "Recurring Expenses",
       "Cashier Balance",
       "BEP",
       "Summary",
+      "Expenses",
+      "Recurring Expenses",
     ]);
   });
 
@@ -90,9 +90,9 @@ describe("POS-86-4 admin sidebar nav groups", () => {
     ]);
     expect(childLabels(filtered, "Supplier")).toEqual(["List", "Purchases"]);
     expect(childLabels(filtered, "Cash Flow")).toEqual([
+      "Cashier Balance",
       "Expenses",
       "Recurring Expenses",
-      "Cashier Balance",
     ]);
   });
 
