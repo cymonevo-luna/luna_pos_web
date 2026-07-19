@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import * as React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ExpenseForm } from "./expense-form";
@@ -11,6 +12,15 @@ vi.mock("@/lib/api/uploads", async (importOriginal) => {
     uploadExpenseReceipt: vi.fn(),
   };
 });
+
+vi.mock("@/lib/hooks/use-cashier-balance", () => ({
+  useCashierBalance: () => ({
+    balance: { balance: 500_000 },
+    loading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+}));
 
 function createImageFile(name = "receipt.jpg"): File {
   return new File([new Uint8Array([0xff, 0xd8, 0xff])], name, {
@@ -70,6 +80,7 @@ describe("ExpenseForm", () => {
       title: "Office Supplies",
       description: "Printer paper",
       amount: 150_000,
+      source_of_fund: "PERSONAL_MONEY",
       receipt_url: "",
     });
   });
@@ -150,6 +161,60 @@ describe("ExpenseForm", () => {
     expect(screen.getByLabelText(/^Description/)).toHaveValue("Electric bill");
     expect(screen.getByLabelText(/^Amount/)).toHaveValue(250_000);
     expect(screen.getByTestId("expense-receipt-remove-button")).toBeInTheDocument();
+  });
+
+  it("shows Source of Fund dropdown defaulting to Personal Money", () => {
+    render(<ExpenseForm onSubmit={() => {}} onCancel={() => {}} />);
+
+    const select = screen.getByTestId("expense-source-of-fund-select");
+    expect(screen.getByLabelText("Source of Fund")).toBe(select);
+    expect(select).toHaveValue("PERSONAL_MONEY");
+    expect(screen.getByRole("option", { name: "Cashier" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Personal Money" }),
+    ).toBeInTheDocument();
+  });
+
+  it("submits with Cashier source of fund when selected", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<ExpenseForm onSubmit={onSubmit} onCancel={() => {}} />);
+
+    await user.type(screen.getByLabelText(/^Title/), "Petty cash");
+    await user.type(screen.getByLabelText(/^Amount/), "50000");
+    await user.selectOptions(
+      screen.getByTestId("expense-source-of-fund-select"),
+      "CASHIER",
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalled();
+    });
+
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
+      source_of_fund: "CASHIER",
+    });
+    expect(
+      screen.getByTestId("expense-cashier-balance-hint"),
+    ).toHaveTextContent("Current cashier balance:");
+  });
+
+  it("applies server errors for source_of_fund", async () => {
+    const ref = React.createRef<import("./expense-form").ExpenseFormHandle>();
+
+    render(
+      <ExpenseForm ref={ref} onSubmit={() => {}} onCancel={() => {}} />,
+    );
+
+    ref.current?.applyServerErrors({
+      source_of_fund: "Insufficient cashier balance",
+    });
+
+    expect(
+      await screen.findByTestId("expense-source-of-fund-error"),
+    ).toHaveTextContent("Insufficient cashier balance");
   });
 
   it("title-cases the title on blur", async () => {

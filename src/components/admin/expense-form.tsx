@@ -7,12 +7,43 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiError } from "@/lib/api/client";
 import { uploadExpenseReceipt, validateMenuPhotoFile } from "@/lib/api/uploads";
 import { expenseSchema, type ExpenseFormValues } from "@/lib/validations";
-import { menuPhotoUrl } from "@/lib/utils";
+import { menuPhotoUrl, formatRupiah } from "@/lib/utils";
 import { withTitleCaseOnBlur } from "@/lib/withTitleCaseOnBlur";
+import { useCashierBalance } from "@/lib/hooks/use-cashier-balance";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+
+const SOURCE_OF_FUND_OPTIONS = [
+  { value: "CASHIER", label: "Cashier" },
+  { value: "PERSONAL_MONEY", label: "Personal Money" },
+] as const;
+
+function CashierBalanceHint() {
+  const { balance, loading } = useCashierBalance();
+
+  if (loading) {
+    return (
+      <p
+        className="text-xs text-muted-foreground"
+        data-testid="expense-cashier-balance-loading"
+      >
+        Loading cashier balance…
+      </p>
+    );
+  }
+
+  return (
+    <p
+      className="text-xs text-muted-foreground"
+      data-testid="expense-cashier-balance-hint"
+    >
+      Current cashier balance: {formatRupiah(balance?.balance ?? 0)}
+    </p>
+  );
+}
 
 function buildDefaultValues(
   defaultValues?: Partial<ExpenseFormValues>,
@@ -21,6 +52,7 @@ function buildDefaultValues(
     title: defaultValues?.title ?? "",
     description: defaultValues?.description ?? "",
     amount: defaultValues?.amount ?? Number.NaN,
+    source_of_fund: defaultValues?.source_of_fund ?? "PERSONAL_MONEY",
     receipt_url: defaultValues?.receipt_url ?? "",
   };
 }
@@ -90,6 +122,7 @@ export const ExpenseForm = React.forwardRef<ExpenseFormHandle, ExpenseFormProps>
     });
 
     const receiptUrl = watch("receipt_url");
+    const sourceOfFund = watch("source_of_fund");
 
     useEffect(() => {
       const values = buildDefaultValues(defaultValues);
@@ -104,6 +137,7 @@ export const ExpenseForm = React.forwardRef<ExpenseFormHandle, ExpenseFormProps>
             field === "title" ||
             field === "description" ||
             field === "amount" ||
+            field === "source_of_fund" ||
             field === "receipt_url"
           ) {
             setError(field, { message });
@@ -197,6 +231,25 @@ export const ExpenseForm = React.forwardRef<ExpenseFormHandle, ExpenseFormProps>
           />
           {errors.amount && (
             <p className="text-sm text-destructive">{errors.amount.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="expense-source-of-fund">Source of Fund</Label>
+          <Select
+            id="expense-source-of-fund"
+            options={[...SOURCE_OF_FUND_OPTIONS]}
+            data-testid="expense-source-of-fund-select"
+            {...register("source_of_fund")}
+          />
+          {sourceOfFund === "CASHIER" ? <CashierBalanceHint /> : null}
+          {errors.source_of_fund && (
+            <p
+              className="text-sm text-destructive"
+              data-testid="expense-source-of-fund-error"
+            >
+              {errors.source_of_fund.message}
+            </p>
           )}
         </div>
 

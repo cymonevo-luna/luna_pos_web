@@ -25,6 +25,7 @@ const expenseRaw = {
   title: "Office supplies",
   description: "Printer paper",
   amount: "150000",
+  source_of_fund: "PERSONAL_MONEY",
   receipt_url: "https://example.com/receipt.jpg",
   created_by_user_id: "user-1",
   created_by_username: "manager",
@@ -100,6 +101,7 @@ describe("expensesAdminApi", () => {
     const created = await createExpense({
       title: "Office supplies",
       amount: 150_000,
+      source_of_fund: "PERSONAL_MONEY",
       receipt_url: "https://example.com/receipt.jpg",
     });
     expect(created.data?.title).toBe("Office supplies");
@@ -107,6 +109,7 @@ describe("expensesAdminApi", () => {
     const updated = await updateExpense("exp-1", {
       title: "Office supplies",
       amount: 150_000,
+      source_of_fund: "PERSONAL_MONEY",
     });
     expect(updated.data?.title).toBe("Office supplies");
 
@@ -148,12 +151,30 @@ describe("expenseFormToPayload", () => {
         title: "  Office supplies  ",
         description: "Printer paper",
         amount: 150_000,
+        source_of_fund: "PERSONAL_MONEY",
         receipt_url: "",
       }),
     ).toEqual({
       title: "Office supplies",
       description: "Printer paper",
       amount: 150_000,
+      source_of_fund: "PERSONAL_MONEY",
+    });
+  });
+
+  it("includes source_of_fund for cashier expenses", () => {
+    expect(
+      expenseFormToPayload({
+        title: "Petty cash",
+        description: "",
+        amount: 50_000,
+        source_of_fund: "CASHIER",
+        receipt_url: "",
+      }),
+    ).toEqual({
+      title: "Petty cash",
+      amount: 50_000,
+      source_of_fund: "CASHIER",
     });
   });
 
@@ -163,11 +184,13 @@ describe("expenseFormToPayload", () => {
         title: "Office supplies",
         description: "",
         amount: 150_000,
+        source_of_fund: "PERSONAL_MONEY",
         receipt_url: "https://cdn.example.com/receipt.jpg",
       }),
     ).toEqual({
       title: "Office supplies",
       amount: 150_000,
+      source_of_fund: "PERSONAL_MONEY",
       receipt_url: "https://cdn.example.com/receipt.jpg",
     });
   });
@@ -179,6 +202,7 @@ describe("expenseFormToPayload", () => {
           title: "Office supplies",
           description: "",
           amount: 150_000,
+          source_of_fund: "PERSONAL_MONEY",
           receipt_url: "",
         },
         { includeEmptyReceipt: true },
@@ -186,6 +210,7 @@ describe("expenseFormToPayload", () => {
     ).toEqual({
       title: "Office supplies",
       amount: 150_000,
+      source_of_fund: "PERSONAL_MONEY",
       receipt_url: "",
     });
   });
@@ -199,6 +224,7 @@ describe("expenseToFormValues", () => {
         title: "Utilities",
         description: null,
         amount: 250_000,
+        source_of_fund: "CASHIER",
         receipt_url: "https://cdn.example.com/receipt.jpg",
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-01T00:00:00Z",
@@ -207,7 +233,28 @@ describe("expenseToFormValues", () => {
       title: "Utilities",
       description: "",
       amount: 250_000,
+      source_of_fund: "CASHIER",
       receipt_url: "https://cdn.example.com/receipt.jpg",
+    });
+  });
+
+  it("defaults missing source_of_fund to Personal Money", () => {
+    expect(
+      expenseToFormValues({
+        id: "exp-1",
+        title: "Utilities",
+        description: null,
+        amount: 250_000,
+        receipt_url: null,
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      }),
+    ).toEqual({
+      title: "Utilities",
+      description: "",
+      amount: 250_000,
+      source_of_fund: "PERSONAL_MONEY",
+      receipt_url: "",
     });
   });
 });

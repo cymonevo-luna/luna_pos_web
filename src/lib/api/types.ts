@@ -800,11 +800,14 @@ export interface BranchAssetsProfitSource {
   net_amount_total: number;
 }
 
+export type ExpenseSourceOfFund = "CASHIER" | "PERSONAL_MONEY";
+
 export interface Expense {
   id: string;
   title: string;
   description?: string | null;
   amount: number;
+  source_of_fund?: ExpenseSourceOfFund;
   receipt_url?: string | null;
   created_by_user_id?: string | null;
   created_by_username?: string | null;

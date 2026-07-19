@@ -256,6 +256,10 @@ export const recurringExpenseSchema = z.object({
 
 export type RecurringExpenseFormValues = z.infer<typeof recurringExpenseSchema>;
 
+export const expenseSourceOfFundSchema = z.enum(["CASHIER", "PERSONAL_MONEY"], {
+  error: "Select source of fund",
+});
+
 export const expenseSchema = z.object({
   title: z
     .string()
@@ -271,6 +275,7 @@ export const expenseSchema = z.object({
     .number({ error: "Amount is required" })
     .int("Amount must be a whole number")
     .min(1, "Amount must be at least 1"),
+  source_of_fund: expenseSourceOfFundSchema,
   receipt_url: z.string().optional().or(z.literal("")),
 });
 
