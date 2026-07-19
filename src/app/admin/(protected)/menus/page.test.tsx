@@ -123,9 +123,13 @@ describe("AdminMenusPage", () => {
     expect(screen.getByText("Rp 25.000")).toBeInTheDocument();
     expect(screen.getByText("1 total")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add Menu" })).toBeInTheDocument();
-    expect(screen.getByText("Title")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sort by title" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sort by stock" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Category")).toBeInTheDocument();
-    expect(screen.getByText("Stock")).toBeInTheDocument();
     expect(screen.getByText("Price")).toBeInTheDocument();
   });
 
@@ -152,6 +156,49 @@ describe("AdminMenusPage", () => {
       await screen.findByText(/Create a category before adding menu items/),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add Menu" })).toBeDisabled();
+  });
+
+  it("sends sort params when Title header is clicked", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<AdminMenusPage />);
+    await screen.findByText("Nasi Goreng");
+
+    await user.click(screen.getByRole("button", { name: "Sort by title" }));
+
+    await waitFor(() => {
+      expect(menusAdminApi.list).toHaveBeenLastCalledWith({
+        page: 1,
+        perPage: 10,
+        search: "",
+        categoryId: "",
+        sortBy: "title",
+        sortOrder: "asc",
+      });
+    });
+  });
+
+  it("toggles stock sort direction on repeated Stock header clicks", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<AdminMenusPage />);
+    await screen.findByText("Nasi Goreng");
+
+    await user.click(screen.getByRole("button", { name: "Sort by stock" }));
+    await user.click(
+      screen.getByRole("button", { name: "Sort by stock ascending" }),
+    );
+
+    await waitFor(() => {
+      expect(menusAdminApi.list).toHaveBeenLastCalledWith({
+        page: 1,
+        perPage: 10,
+        search: "",
+        categoryId: "",
+        sortBy: "stock",
+        sortOrder: "desc",
+      });
+    });
   });
 
   it("debounces search and reloads with the search term", async () => {
