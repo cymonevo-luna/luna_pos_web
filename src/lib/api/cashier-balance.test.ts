@@ -3,7 +3,9 @@ import {
   cashierBalanceAdminApi,
   cashierBalanceAdjustmentFormToPayload,
   createAdjustment,
+  deleteEntry,
   getBalance,
+  isCashierBalanceEntryDeletable,
   listEntries,
   normalizeCashierBalance,
   normalizeCashierBalanceEntry,
@@ -25,6 +27,7 @@ const balanceRaw = {
 const entryRaw = {
   id: "cb-entry-1",
   type: "ADD" as const,
+  source: "MANUAL" as const,
   amount: "50000",
   purpose: "Web test",
   transaction_id: null,
@@ -98,6 +101,12 @@ describe("cashierBalanceAdminApi", () => {
       ) {
         return jsonResponse({ success: true, data: entryRaw });
       }
+      if (
+        method === "DELETE" &&
+        url.endsWith("/api/admin/cashier-balance/entries/cb-entry-1")
+      ) {
+        return jsonResponse({ success: true, data: balanceRaw });
+      }
       return jsonResponse({ success: false }, 404);
     });
 
@@ -113,6 +122,23 @@ describe("cashierBalanceAdminApi", () => {
       purpose: "Web test",
     });
     expect(created.data.purpose).toBe("Web test");
+
+    const deleted = await deleteEntry("cb-entry-1");
+    expect(deleted.data.balance).toBe(500_000);
+  });
+
+  it("builds the correct delete entry URL", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, data: balanceRaw }),
+    );
+
+    await deleteEntry("cb-entry-99");
+
+    const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/cashier-balance/entries/cb-entry-99",
+    );
+    expect(init?.method).toBe("DELETE");
   });
 });
 
@@ -133,6 +159,25 @@ describe("normalizeCashierBalance", () => {
 describe("normalizeCashierBalanceEntry", () => {
   it("coerces string amount to number", () => {
     expect(normalizeCashierBalanceEntry(entryRaw).amount).toBe(50_000);
+  });
+});
+
+describe("isCashierBalanceEntryDeletable", () => {
+  it("returns true for MANUAL and EXPENSE sources", () => {
+    expect(isCashierBalanceEntryDeletable({ source: "MANUAL" })).toBe(true);
+    expect(isCashierBalanceEntryDeletable({ source: "EXPENSE" })).toBe(true);
+  });
+
+  it("returns false for transaction-linked sources", () => {
+    expect(isCashierBalanceEntryDeletable({ source: "CASH_PAYMENT" })).toBe(
+      false,
+    );
+    expect(isCashierBalanceEntryDeletable({ source: "CASH_CHANGE" })).toBe(
+      false,
+    );
+    expect(
+      isCashierBalanceEntryDeletable({ source: "TRANSACTION_REVERSAL" }),
+    ).toBe(false);
   });
 });
 
