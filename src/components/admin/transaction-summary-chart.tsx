@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -10,12 +10,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { transactionsAdminApi } from "@/lib/api/transactions";
 import { ApiError } from "@/lib/api/client";
 import type {
   TransactionSummaryBucket,
   TransactionSummaryPeriod,
 } from "@/lib/api/types";
+import { useTransactionSummaryQuery } from "@/lib/query/hooks/use-transaction-summary";
+import { getDefaultTransactionDateRange } from "@/lib/query/date-range";
 import { cn, formatRupiah } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -34,23 +35,6 @@ const PERIODS: { value: TransactionSummaryPeriod; label: string }[] = [
   { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
 ];
-
-function formatDateInput(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function getDefaultDateRange() {
-  const dateTo = new Date();
-  const dateFrom = new Date();
-  dateFrom.setDate(dateFrom.getDate() - 30);
-  return {
-    dateFrom: formatDateInput(dateFrom),
-    dateTo: formatDateInput(dateTo),
-  };
-}
 
 interface ChartTooltipProps {
   active?: boolean;
@@ -78,37 +62,28 @@ interface TransactionSummaryChartProps {
 export function TransactionSummaryChart({
   className,
 }: TransactionSummaryChartProps) {
-  const defaults = getDefaultDateRange();
+  const defaults = getDefaultTransactionDateRange();
   const [period, setPeriod] = useState<TransactionSummaryPeriod>("daily");
   const [dateFrom, setDateFrom] = useState(defaults.dateFrom);
   const [dateTo, setDateTo] = useState(defaults.dateTo);
-  const [buckets, setBuckets] = useState<TransactionSummaryBucket[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await transactionsAdminApi.summary({
-        period,
-        dateFrom,
-        dateTo,
-      });
-      setBuckets(res.data?.buckets ?? []);
-    } catch (err) {
-      toast.error(
-        err instanceof ApiError
-          ? err.message
-          : "Failed to load transaction summary",
-      );
-      setBuckets([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [period, dateFrom, dateTo]);
+  const { data, isLoading, isError, error } = useTransactionSummaryQuery({
+    period,
+    dateFrom,
+    dateTo,
+  });
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (isError) {
+      toast.error(
+        error instanceof ApiError
+          ? error.message
+          : "Failed to load transaction summary",
+      );
+    }
+  }, [isError, error]);
+
+  const buckets = data?.data?.buckets ?? [];
 
   return (
     <Card className={cn(className)}>
@@ -155,7 +130,7 @@ export function TransactionSummaryChart({
         </div>
       </CardHeader>
       <CardContent>
-        {loading ? (
+        {isLoading ? (
           <div className="space-y-3" data-testid="chart-loading">
             <Skeleton className="h-[280px] w-full rounded-xl" />
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   Banknote,
   Receipt,
@@ -9,23 +9,22 @@ import {
   Truck,
   ShoppingCart,
 } from "lucide-react";
-import { transactionsAdminApi } from "@/lib/api/transactions";
-import { adminApi } from "@/lib/api/users";
-import { suppliersAdminApi } from "@/lib/api/suppliers";
-import { purchaseRequestsAdminApi } from "@/lib/api/purchase-requests";
+import { useAdminUsersListQuery } from "@/lib/query/hooks/use-admin-users-list";
+import {
+  usePurchaseRequestsListQuery,
+  useSuppliersListQuery,
+} from "@/lib/query/hooks/use-operational-stats";
+import { useTransactionSummaryQuery } from "@/lib/query/hooks/use-transaction-summary";
+import {
+  getDefaultTransactionDateRange,
+  getTodayDateInput,
+} from "@/lib/query/date-range";
 import { formatRupiah } from "@/lib/utils";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 
 const PLACEHOLDER = "—";
-
-function formatDateInput(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
 
 function sumBucketAmounts(
   buckets: { total_amount: number }[] | undefined,
@@ -35,21 +34,6 @@ function sumBucketAmounts(
 
 function sumBucketCounts(buckets: { count: number }[] | undefined): number {
   return (buckets ?? []).reduce((sum, bucket) => sum + bucket.count, 0);
-}
-
-interface ManagerStats {
-  todayRevenue: number | null;
-  todayTransactions: number | null;
-  last30DaysRevenue: number | null;
-}
-
-interface AdminStats {
-  totalUsers: number | null;
-}
-
-interface OperationalStats {
-  suppliers: number | null;
-  purchaseRequests: number | null;
 }
 
 interface DashboardSummaryStatsProps {
@@ -81,139 +65,39 @@ export function DashboardSummaryStats({ features }: DashboardSummaryStatsProps) 
     return count;
   }, [isManager, isAdmin, isOperational]);
 
-  const [loading, setLoading] = useState(cardCount > 0);
-  const [managerStats, setManagerStats] = useState<ManagerStats>({
-    todayRevenue: null,
-    todayTransactions: null,
-    last30DaysRevenue: null,
-  });
-  const [adminStats, setAdminStats] = useState<AdminStats>({
-    totalUsers: null,
-  });
-  const [operationalStats, setOperationalStats] = useState<OperationalStats>({
-    suppliers: null,
-    purchaseRequests: null,
-  });
+  const today = getTodayDateInput();
+  const defaultRange = getDefaultTransactionDateRange();
 
-  useEffect(() => {
-    if (cardCount === 0) {
-      setLoading(false);
-      return;
-    }
+  const todaySummary = useTransactionSummaryQuery(
+    { period: "daily", dateFrom: today, dateTo: today },
+    { enabled: isManager },
+  );
+  const last30Summary = useTransactionSummaryQuery(
+    {
+      period: "daily",
+      dateFrom: defaultRange.dateFrom,
+      dateTo: defaultRange.dateTo,
+    },
+    { enabled: isManager },
+  );
+  const usersList = useAdminUsersListQuery(
+    { page: 1, perPage: 1 },
+    { enabled: isAdmin },
+  );
+  const suppliersList = useSuppliersListQuery(
+    { page: 1, perPage: 1 },
+    { enabled: isOperational && features.includes("suppliers.manage") },
+  );
+  const purchaseRequestsList = usePurchaseRequestsListQuery(
+    { page: 1, perPage: 1 },
+    { enabled: isOperational && features.includes("purchases.manage") },
+  );
 
-    let cancelled = false;
-
-    const load = async () => {
-      setLoading(true);
-
-      const today = formatDateInput(new Date());
-      const tasks: Promise<void>[] = [];
-
-      if (isManager) {
-        tasks.push(
-          transactionsAdminApi
-            .summary({ period: "daily", dateFrom: today, dateTo: today })
-            .then((res) => {
-              if (cancelled) return;
-              const buckets = res.data?.buckets;
-              setManagerStats((prev) => ({
-                ...prev,
-                todayRevenue: sumBucketAmounts(buckets),
-                todayTransactions: sumBucketCounts(buckets),
-              }));
-            })
-            .catch(() => {
-              if (cancelled) return;
-              setManagerStats((prev) => ({
-                ...prev,
-                todayRevenue: null,
-                todayTransactions: null,
-              }));
-            }),
-          transactionsAdminApi
-            .summary({ period: "daily" })
-            .then((res) => {
-              if (cancelled) return;
-              setManagerStats((prev) => ({
-                ...prev,
-                last30DaysRevenue: sumBucketAmounts(res.data?.buckets),
-              }));
-            })
-            .catch(() => {
-              if (cancelled) return;
-              setManagerStats((prev) => ({
-                ...prev,
-                last30DaysRevenue: null,
-              }));
-            }),
-        );
-      }
-
-      if (isAdmin) {
-        tasks.push(
-          adminApi
-            .listUsers({ page: 1, perPage: 1 })
-            .then((res) => {
-              if (cancelled) return;
-              setAdminStats({ totalUsers: res.meta?.total ?? 0 });
-            })
-            .catch(() => {
-              if (cancelled) return;
-              setAdminStats({ totalUsers: null });
-            }),
-        );
-      }
-
-      if (isOperational) {
-        tasks.push(
-          suppliersAdminApi
-            .list({ page: 1, perPage: 1 })
-            .then((res) => {
-              if (cancelled) return;
-              setOperationalStats((prev) => ({
-                ...prev,
-                suppliers: res.meta?.total ?? 0,
-              }));
-            })
-            .catch(() => {
-              if (cancelled) return;
-              setOperationalStats((prev) => ({
-                ...prev,
-                suppliers: null,
-              }));
-            }),
-          purchaseRequestsAdminApi
-            .list({ page: 1, perPage: 1 })
-            .then((res) => {
-              if (cancelled) return;
-              setOperationalStats((prev) => ({
-                ...prev,
-                purchaseRequests: res.meta?.total ?? 0,
-              }));
-            })
-            .catch(() => {
-              if (cancelled) return;
-              setOperationalStats((prev) => ({
-                ...prev,
-                purchaseRequests: null,
-              }));
-            }),
-        );
-      }
-
-      await Promise.all(tasks);
-
-      if (!cancelled) {
-        setLoading(false);
-      }
-    };
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [cardCount, isManager, isAdmin, isOperational]);
+  const loading =
+    (isManager && (todaySummary.isLoading || last30Summary.isLoading)) ||
+    (isAdmin && usersList.isLoading) ||
+    (features.includes("suppliers.manage") && suppliersList.isLoading) ||
+    (features.includes("purchases.manage") && purchaseRequestsList.isLoading);
 
   if (cardCount === 0) {
     return null;
@@ -229,6 +113,9 @@ export function DashboardSummaryStats({ features }: DashboardSummaryStatsProps) 
     );
   }
 
+  const todayBuckets = todaySummary.data?.data?.buckets;
+  const last30Buckets = last30Summary.data?.data?.buckets;
+
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {isManager && (
@@ -236,9 +123,9 @@ export function DashboardSummaryStats({ features }: DashboardSummaryStatsProps) 
           <StatCard
             label="Today's revenue"
             value={
-              managerStats.todayRevenue == null
+              todaySummary.isError
                 ? PLACEHOLDER
-                : formatRupiah(managerStats.todayRevenue)
+                : formatRupiah(sumBucketAmounts(todayBuckets))
             }
             icon={Banknote}
             color="green"
@@ -246,9 +133,9 @@ export function DashboardSummaryStats({ features }: DashboardSummaryStatsProps) 
           <StatCard
             label="Today's transactions"
             value={
-              managerStats.todayTransactions == null
+              todaySummary.isError
                 ? PLACEHOLDER
-                : managerStats.todayTransactions
+                : sumBucketCounts(todayBuckets)
             }
             icon={Receipt}
             color="blue"
@@ -256,9 +143,9 @@ export function DashboardSummaryStats({ features }: DashboardSummaryStatsProps) 
           <StatCard
             label="Last 30 days revenue"
             value={
-              managerStats.last30DaysRevenue == null
+              last30Summary.isError
                 ? PLACEHOLDER
-                : formatRupiah(managerStats.last30DaysRevenue)
+                : formatRupiah(sumBucketAmounts(last30Buckets))
             }
             icon={TrendingUp}
             color="purple"
@@ -269,7 +156,9 @@ export function DashboardSummaryStats({ features }: DashboardSummaryStatsProps) 
         <StatCard
           label="Total users"
           value={
-            adminStats.totalUsers == null ? PLACEHOLDER : adminStats.totalUsers
+            usersList.isError
+              ? PLACEHOLDER
+              : (usersList.data?.meta?.total ?? 0)
           }
           icon={Users}
           color="blue"
@@ -277,26 +166,30 @@ export function DashboardSummaryStats({ features }: DashboardSummaryStatsProps) 
       )}
       {isOperational && (
         <>
-          <StatCard
-            label="Suppliers"
-            value={
-              operationalStats.suppliers == null
-                ? PLACEHOLDER
-                : operationalStats.suppliers
-            }
-            icon={Truck}
-            color="teal"
-          />
-          <StatCard
-            label="Purchase requests"
-            value={
-              operationalStats.purchaseRequests == null
-                ? PLACEHOLDER
-                : operationalStats.purchaseRequests
-            }
-            icon={ShoppingCart}
-            color="amber"
-          />
+          {features.includes("suppliers.manage") && (
+            <StatCard
+              label="Suppliers"
+              value={
+                suppliersList.isError
+                  ? PLACEHOLDER
+                  : (suppliersList.data?.meta?.total ?? 0)
+              }
+              icon={Truck}
+              color="teal"
+            />
+          )}
+          {features.includes("purchases.manage") && (
+            <StatCard
+              label="Purchase requests"
+              value={
+                purchaseRequestsList.isError
+                  ? PLACEHOLDER
+                  : (purchaseRequestsList.data?.meta?.total ?? 0)
+              }
+              icon={ShoppingCart}
+              color="amber"
+            />
+          )}
         </>
       )}
     </div>

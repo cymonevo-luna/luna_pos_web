@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "@/test/render";
 import userEvent from "@testing-library/user-event";
 import AdminStoreSettingsPage from "./page";
 import {
@@ -50,7 +51,7 @@ describe("AdminStoreSettingsPage", () => {
   });
 
   it("loads receipt settings from the API", async () => {
-    render(<AdminStoreSettingsPage />);
+    renderWithProviders(<AdminStoreSettingsPage />);
 
     expect(await screen.findByDisplayValue("Luna Cafe")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Downtown")).toBeInTheDocument();
@@ -69,7 +70,7 @@ describe("AdminStoreSettingsPage", () => {
       data: updatedSettings,
     });
 
-    render(<AdminStoreSettingsPage />);
+    renderWithProviders(<AdminStoreSettingsPage />);
     await screen.findByDisplayValue("Thank you for visiting!");
 
     const noteField = screen.getByLabelText(/Thank you note/i);

@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { transactionsAdminApi } from "@/lib/api/transactions";
 import { ApiError } from "@/lib/api/client";
-import type { Transaction, TransactionMethod } from "@/lib/api/types";
+import type { TransactionMethod } from "@/lib/api/types";
+import { useTransactionsListQuery } from "@/lib/query/hooks/use-transactions-list";
 import { formatDate, formatRupiah, truncateId } from "@/lib/utils";
 import { toast } from "sonner";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -23,42 +24,32 @@ const METHOD_OPTIONS = [
 
 export default function AdminTransactionsPage() {
   const router = useRouter();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [method, setMethod] = useState<TransactionMethod | "">("");
-  const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await transactionsAdminApi.list({
-        page,
-        perPage: PER_PAGE,
-        method,
-        dateFrom,
-        dateTo,
-      });
-      setTransactions(res.data ?? []);
-      setTotal(res.meta?.total ?? 0);
-    } catch (err) {
-      toast.error(
-        err instanceof ApiError
-          ? err.message
-          : "Failed to load transactions",
-      );
-      setTransactions([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, method, dateFrom, dateTo]);
+  const { data, isLoading, isError, error } = useTransactionsListQuery({
+    page,
+    perPage: PER_PAGE,
+    method,
+    dateFrom,
+    dateTo,
+  });
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (isError) {
+      toast.error(
+        error instanceof ApiError
+          ? error.message
+          : "Failed to load transactions",
+      );
+    }
+  }, [isError, error]);
+
+  const transactions = data?.data ?? [];
+  const total = data?.meta?.total ?? 0;
+  const loading = isLoading;
 
   const handleDateFromChange = (value: string) => {
     setDateFrom(value);

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "@/test/render";
 import { CashFlowOverviewStats } from "./cash-flow-overview-stats";
 import { cashFlowAdminApi } from "@/lib/api/cash-flow";
 import { formatRupiah } from "@/lib/utils";
@@ -53,7 +54,7 @@ describe("CashFlowOverviewStats", () => {
   });
 
   it("renders today's cash flow KPIs from the summary API", async () => {
-    render(<CashFlowOverviewStats />);
+    renderWithProviders(<CashFlowOverviewStats />);
 
     expect(await screen.findByText("Today's Inflow")).toBeInTheDocument();
     expect(screen.getByText(formatRupiah(1_200_000))).toBeInTheDocument();
@@ -66,7 +67,7 @@ describe("CashFlowOverviewStats", () => {
   });
 
   it("links to the cash flow details page", async () => {
-    render(<CashFlowOverviewStats />);
+    renderWithProviders(<CashFlowOverviewStats />);
 
     const link = await screen.findByRole("link", { name: "View details →" });
     expect(link).toHaveAttribute("href", "/admin/cash-flow");
@@ -80,7 +81,7 @@ describe("CashFlowOverviewStats", () => {
 
     vi.mocked(cashFlowAdminApi.summary).mockReturnValue(summaryPromise);
 
-    render(<CashFlowOverviewStats />);
+    renderWithProviders(<CashFlowOverviewStats />);
 
     expect(screen.getAllByTestId("cash-flow-overview-stat-skeleton")).toHaveLength(
       3,
@@ -103,7 +104,7 @@ describe("CashFlowOverviewStats", () => {
       data: zeroSummary,
     });
 
-    render(<CashFlowOverviewStats />);
+    renderWithProviders(<CashFlowOverviewStats />);
 
     await screen.findByText("Today's Inflow");
     expect(screen.getAllByText(formatRupiah(0))).toHaveLength(3);
@@ -116,7 +117,7 @@ describe("CashFlowOverviewStats", () => {
       new ApiError(500, "server_error", "Cash flow unavailable"),
     );
 
-    render(<CashFlowOverviewStats />);
+    renderWithProviders(<CashFlowOverviewStats />);
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Cash flow unavailable");

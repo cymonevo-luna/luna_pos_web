@@ -9,6 +9,7 @@ import {
 } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import AdminCashFlowPage from "./page";
+import { resetInFlightGetsForTests } from "@/lib/api/client";
 import { tokenStore } from "@/lib/auth/tokens";
 import type {
   ProductionNextDayInsightRaw,
@@ -177,6 +178,7 @@ describe("AdminCashFlowPage", () => {
 
     beforeEach(() => {
       tokenStore.clear();
+      resetInFlightGetsForTests();
       vi.restoreAllMocks();
       mockInsightsFetch();
       consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});

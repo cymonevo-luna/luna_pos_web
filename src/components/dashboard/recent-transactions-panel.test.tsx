@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "@/test/render";
 import { RecentTransactionsPanel } from "./recent-transactions-panel";
 import { transactionsAdminApi } from "@/lib/api/transactions";
 import { useRoles } from "@/lib/auth/use-roles";
@@ -75,10 +76,38 @@ describe("RecentTransactionsPanel", () => {
       data: [transaction1, transaction2],
       meta: { page: 1, per_page: 5, total: 2 },
     });
+
+    class MockIntersectionObserver implements IntersectionObserver {
+      readonly root = null;
+      readonly rootMargin = "";
+      readonly thresholds = [0];
+
+      constructor(private callback: IntersectionObserverCallback) {
+        queueMicrotask(() => {
+          this.callback(
+            [{ isIntersecting: true } as IntersectionObserverEntry],
+            this,
+          );
+        });
+      }
+
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+      takeRecords() {
+        return [];
+      }
+    }
+
+    vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("lists latest sales with Rupiah amounts and formatted dates", async () => {
-    render(<RecentTransactionsPanel />);
+    renderWithProviders(<RecentTransactionsPanel />);
 
     expect(await screen.findByText("kasir1")).toBeInTheDocument();
     expect(screen.getByText("kasir2")).toBeInTheDocument();
@@ -103,7 +132,7 @@ describe("RecentTransactionsPanel", () => {
       meta: { page: 1, per_page: 5, total: 0 },
     });
 
-    render(<RecentTransactionsPanel />);
+    renderWithProviders(<RecentTransactionsPanel />);
 
     expect(await screen.findByText("No transactions yet")).toBeInTheDocument();
   });
@@ -111,14 +140,14 @@ describe("RecentTransactionsPanel", () => {
   it("renders nothing for non-managers and does not call the API", () => {
     mockOperationalRoles();
 
-    const { container } = render(<RecentTransactionsPanel />);
+    const { container } = renderWithProviders(<RecentTransactionsPanel />);
 
     expect(container).toBeEmptyDOMElement();
     expect(transactionsAdminApi.list).not.toHaveBeenCalled();
   });
 
   it('links "View all" to the transactions page', async () => {
-    render(<RecentTransactionsPanel />);
+    renderWithProviders(<RecentTransactionsPanel />);
 
     await screen.findByText("kasir1");
 
@@ -129,7 +158,7 @@ describe("RecentTransactionsPanel", () => {
   });
 
   it("links each row to the transaction detail route", async () => {
-    render(<RecentTransactionsPanel />);
+    renderWithProviders(<RecentTransactionsPanel />);
 
     await screen.findByText("kasir1");
 
@@ -146,7 +175,7 @@ describe("RecentTransactionsPanel", () => {
       new ApiError(500, "server_error", "Server error"),
     );
 
-    render(<RecentTransactionsPanel />);
+    renderWithProviders(<RecentTransactionsPanel />);
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Server error");

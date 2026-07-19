@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "@/test/render";
 import userEvent from "@testing-library/user-event";
 import AdminTransactionsPage from "./page";
 import { transactionsAdminApi } from "@/lib/api/transactions";
@@ -83,7 +84,7 @@ describe("AdminTransactionsPage", () => {
   });
 
   it("renders transactions from the API with Rupiah amounts and cashier names", async () => {
-    render(<AdminTransactionsPage />);
+    renderWithProviders(<AdminTransactionsPage />);
 
     expect(await screen.findByText("Rp 50.000")).toBeInTheDocument();
     expect(screen.getByText("Rp 30.000")).toBeInTheDocument();
@@ -99,7 +100,7 @@ describe("AdminTransactionsPage", () => {
       meta: { page: 1, per_page: 10, total: 0 },
     });
 
-    render(<AdminTransactionsPage />);
+    renderWithProviders(<AdminTransactionsPage />);
 
     expect(
       await screen.findByText("No transactions found."),
@@ -109,7 +110,7 @@ describe("AdminTransactionsPage", () => {
   it("reloads with date and method filters", async () => {
     const user = userEvent.setup();
 
-    render(<AdminTransactionsPage />);
+    renderWithProviders(<AdminTransactionsPage />);
     await screen.findByText("kasir1");
 
     await user.selectOptions(
@@ -131,7 +132,7 @@ describe("AdminTransactionsPage", () => {
   it("navigates to detail on row click", async () => {
     const user = userEvent.setup();
 
-    render(<AdminTransactionsPage />);
+    renderWithProviders(<AdminTransactionsPage />);
     await screen.findByText("kasir1");
 
     await user.click(screen.getByText("kasir1"));
@@ -146,7 +147,7 @@ describe("AdminTransactionsPage", () => {
       new ApiError(500, "server_error", "Server error"),
     );
 
-    render(<AdminTransactionsPage />);
+    renderWithProviders(<AdminTransactionsPage />);
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Server error");
