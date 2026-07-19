@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { menusAdminApi, menuFullFormToPayload } from "@/lib/api/menus";
+import {
+  menusAdminApi,
+  menuFullFormToPayload,
+  normalizeMenuPhotoFormValue,
+} from "@/lib/api/menus";
 import { ApiError } from "@/lib/api/client";
 import type { Menu } from "@/lib/api/types";
 import type { MenuBasicFormValues, MenuCogsFormValues } from "@/lib/validations";
@@ -30,7 +34,7 @@ function menuToBasicFormValues(menu: Menu): MenuBasicFormValues {
     title: menu.title,
     description: menu.description ?? "",
     category_id: menu.category_id,
-    photo_url: menu.photo_url ?? "",
+    photo_url: normalizeMenuPhotoFormValue(menu.photo_url),
     available_stock: menu.available_stock,
     sell_price: menu.sell_price,
   };

@@ -423,4 +423,54 @@ describe("MenuForm", () => {
 
     expect(titleInput).toHaveValue("Es Teh Manis");
   });
+
+  it("shows an empty Photo URL field for the system default image", () => {
+    render(
+      <MenuForm
+        categories={categories}
+        defaultValues={{ photo_url: "/static/default-food.png" }}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+
+    expect(screen.getByLabelText(/Photo URL/)).toHaveValue("");
+    expect(screen.getByAltText("Menu photo preview")).toHaveAttribute(
+      "src",
+      "/default-food.svg",
+    );
+    expect(screen.queryByText("Enter a valid URL")).not.toBeInTheDocument();
+  });
+
+  it("submits with an absolute photo URL on edit", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <MenuForm
+        categories={categories}
+        defaultValues={{
+          title: "Nasi Goreng",
+          category_id: "cat-1",
+          photo_url: "https://example.com/food.jpg",
+          available_stock: 10,
+          sell_price: 25000,
+        }}
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+        submitLabel="Save changes"
+      />,
+    );
+
+    await user.clear(screen.getByLabelText("Available stock"));
+    await user.type(screen.getByLabelText("Available stock"), "15");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
+        photo_url: "https://example.com/food.jpg",
+        available_stock: 15,
+      });
+    });
+  });
 });

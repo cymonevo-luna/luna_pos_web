@@ -40,12 +40,43 @@ export type MenuCogsPayload = Pick<
   "recipe_yield" | "margin_percent" | "vat_percent"
 >;
 
+const DEFAULT_MENU_PHOTO_FILENAME = "default-food.png";
+
 /** True when `value` is a non-empty absolute http(s) URL suitable for the API. */
 export function isAbsolutePhotoUrl(value: string): boolean {
   const trimmed = value.trim();
   return (
     trimmed.startsWith("http://") || trimmed.startsWith("https://")
   );
+}
+
+/** True when a menu photo form value is empty, an absolute URL, or an allowed `/static/` path. */
+export function isAllowedMenuPhotoUrl(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return true;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return isAbsolutePhotoUrl(trimmed);
+  }
+  return trimmed.startsWith("/static/");
+}
+
+/**
+ * Map API `photo_url` values to form display values.
+ * System default images normalize to empty; uploaded `/static/` paths are kept.
+ */
+export function normalizeMenuPhotoFormValue(photoUrl?: string | null): string {
+  const trimmed = photoUrl?.trim() ?? "";
+  if (!trimmed) return "";
+
+  if (trimmed.startsWith("/static/")) {
+    const filename = trimmed.split("/").pop() ?? "";
+    if (filename === DEFAULT_MENU_PHOTO_FILENAME) {
+      return "";
+    }
+    return trimmed;
+  }
+
+  return trimmed;
 }
 
 /** Map basic menu form values to an API payload, omitting blank optional fields. */

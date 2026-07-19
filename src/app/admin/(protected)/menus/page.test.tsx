@@ -23,37 +23,49 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-vi.mock("@/lib/api/menus", () => ({
-  menusAdminApi: {
-    list: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-  },
-  menuBasicFormToPayload: vi.fn((basic) => ({
-    title: basic.title.trim(),
-    category_id: basic.category_id,
-    available_stock: basic.available_stock,
-    sell_price: basic.sell_price,
-    ...(basic.description?.trim()
-      ? { description: basic.description.trim() }
-      : {}),
-    ...(basic.photo_url?.trim() ? { photo_url: basic.photo_url.trim() } : {}),
-  })),
-  menuFullFormToPayload: vi.fn((basic, cogs) => ({
-    title: basic.title.trim(),
-    category_id: basic.category_id,
-    available_stock: basic.available_stock,
-    sell_price: basic.sell_price,
-    recipe_yield: cogs.recipe_yield,
-    margin_percent: cogs.margin_percent,
-    vat_percent: cogs.vat_percent,
-    ...(basic.description?.trim()
-      ? { description: basic.description.trim() }
-      : {}),
-    ...(basic.photo_url?.trim() ? { photo_url: basic.photo_url.trim() } : {}),
-  })),
-}));
+vi.mock("@/lib/api/menus", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api/menus")>();
+  return {
+    ...actual,
+    menusAdminApi: {
+      list: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
+    menuBasicFormToPayload: vi.fn((basic) => ({
+      title: basic.title.trim(),
+      category_id: basic.category_id,
+      available_stock: basic.available_stock,
+      sell_price: basic.sell_price,
+      ...(basic.description?.trim()
+        ? { description: basic.description.trim() }
+        : {}),
+      ...(basic.photo_url?.trim() &&
+      (basic.photo_url.trim().startsWith("http://") ||
+        basic.photo_url.trim().startsWith("https://"))
+        ? { photo_url: basic.photo_url.trim() }
+        : {}),
+    })),
+    menuFullFormToPayload: vi.fn((basic, cogs) => ({
+      title: basic.title.trim(),
+      category_id: basic.category_id,
+      available_stock: basic.available_stock,
+      sell_price: basic.sell_price,
+      recipe_yield: cogs.recipe_yield,
+      margin_percent: cogs.margin_percent,
+      vat_percent: cogs.vat_percent,
+      ...(basic.description?.trim()
+        ? { description: basic.description.trim() }
+        : {}),
+      ...(basic.photo_url?.trim() &&
+      (basic.photo_url.trim().startsWith("http://") ||
+        basic.photo_url.trim().startsWith("https://"))
+        ? { photo_url: basic.photo_url.trim() }
+        : {}),
+    })),
+  };
+});
 
 vi.mock("@/lib/api/categories", () => ({
   categoriesAdminApi: {
@@ -499,5 +511,98 @@ describe("AdminMenusPage", () => {
     expect(
       screen.queryByRole("region", { name: "Menu ingredients" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("edits a menu with the system default photo without validation errors", async () => {
+    const user = userEvent.setup();
+    const menuWithDefaultPhoto: Menu = {
+      ...menu,
+      photo_url: "/static/default-food.png",
+    };
+
+    vi.mocked(menusAdminApi.list).mockResolvedValue({
+      data: [menuWithDefaultPhoto],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+    vi.mocked(menusAdminApi.update).mockResolvedValue({
+      data: {
+        ...menuWithDefaultPhoto,
+        available_stock: 20,
+        sell_price: 30000,
+      },
+    });
+
+    render(<AdminMenusPage />);
+    await screen.findByText("Nasi Goreng");
+
+    await user.click(screen.getByLabelText("Edit menu"));
+    expect(screen.getByLabelText(/Photo URL/)).toHaveValue("");
+    expect(screen.queryByText("Enter a valid URL")).not.toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText("Available stock"));
+    await user.type(screen.getByLabelText("Available stock"), "20");
+    await user.clear(screen.getByLabelText("Sell price (Rp)"));
+    await user.type(screen.getByLabelText("Sell price (Rp)"), "30000");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(menusAdminApi.update).toHaveBeenCalledWith("menu-1", {
+        title: "Nasi Goreng",
+        description: "Spicy fried rice",
+        category_id: "cat-1",
+        available_stock: 20,
+        sell_price: 30000,
+        recipe_yield: 1,
+        margin_percent: 0,
+        vat_percent: 0,
+      });
+    });
+    expect(screen.queryByText("Enter a valid URL")).not.toBeInTheDocument();
+    expect(toast.success).toHaveBeenCalledWith("Menu updated");
+  });
+
+  it("edits a menu with an absolute photo URL and retains it in the payload", async () => {
+    const user = userEvent.setup();
+    const menuWithPhoto: Menu = {
+      ...menu,
+      photo_url: "https://example.com/food.jpg",
+    };
+
+    vi.mocked(menusAdminApi.list).mockResolvedValue({
+      data: [menuWithPhoto],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+    vi.mocked(menusAdminApi.update).mockResolvedValue({
+      data: {
+        ...menuWithPhoto,
+        available_stock: 20,
+      },
+    });
+
+    render(<AdminMenusPage />);
+    await screen.findByText("Nasi Goreng");
+
+    await user.click(screen.getByLabelText("Edit menu"));
+    expect(screen.getByLabelText(/Photo URL/)).toHaveValue(
+      "https://example.com/food.jpg",
+    );
+
+    await user.clear(screen.getByLabelText("Available stock"));
+    await user.type(screen.getByLabelText("Available stock"), "20");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(menusAdminApi.update).toHaveBeenCalledWith("menu-1", {
+        title: "Nasi Goreng",
+        description: "Spicy fried rice",
+        category_id: "cat-1",
+        photo_url: "https://example.com/food.jpg",
+        available_stock: 20,
+        sell_price: 25000,
+        recipe_yield: 1,
+        margin_percent: 0,
+        vat_percent: 0,
+      });
+    });
   });
 });
