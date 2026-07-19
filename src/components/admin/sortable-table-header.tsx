@@ -3,6 +3,7 @@
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
 interface SortableTableHeaderProps<T extends string> {
   label: string;
   sortKey: T;

@@ -17,6 +17,8 @@ import {
   menuBasicFormToPayload,
   menuFullFormToPayload,
   normalizeMenuPhotoFormValue,
+  type MenuSortBy,
+  type MenuSortOrder,
 } from "@/lib/api/menus";
 import { ApiError } from "@/lib/api/client";
 import type { Menu } from "@/lib/api/types";
@@ -28,6 +30,7 @@ import { useCategoriesListQuery } from "@/lib/query/hooks/use-categories-list";
 import { useMenusListQuery } from "@/lib/query/hooks/use-menus-list";
 import { queryKeys } from "@/lib/query/keys";
 import { MenuForm, type MenuFormHandle } from "@/components/admin/menu-form";
+import { SortableTableHeader } from "@/components/admin/sortable-table-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -76,6 +79,8 @@ export default function AdminMenusPage() {
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [sortBy, setSortBy] = useState<MenuSortBy | undefined>();
+  const [sortOrder, setSortOrder] = useState<MenuSortOrder>("asc");
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Menu | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -95,6 +100,7 @@ export default function AdminMenusPage() {
     perPage: PER_PAGE,
     search: debounced,
     categoryId: categoryFilter,
+    ...(sortBy ? { sortBy, sortOrder } : {}),
   });
   const menus = menusQuery.data?.data ?? [];
   const total = menusQuery.data?.meta?.total ?? 0;
@@ -129,6 +135,16 @@ export default function AdminMenusPage() {
   const handleCategoryFilterChange = (value: string) => {
     setCategoryFilter(value);
     setPage(1);
+  };
+
+  const handleSort = (column: MenuSortBy) => {
+    setPage(1);
+    if (sortBy === column) {
+      setSortOrder((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortBy(column);
+    setSortOrder("asc");
   };
 
   const handleDelete = async () => {
@@ -261,9 +277,25 @@ export default function AdminMenusPage() {
             <thead className="border-b border-border bg-muted/50 text-left text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Photo</th>
-                <th className="px-4 py-3 font-medium">Title</th>
+                <th className="px-4 py-3 font-medium">
+                  <SortableTableHeader
+                    label="Title"
+                    sortKey="title"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                </th>
                 <th className="px-4 py-3 font-medium">Category</th>
-                <th className="px-4 py-3 font-medium">Stock</th>
+                <th className="px-4 py-3 font-medium">
+                  <SortableTableHeader
+                    label="Stock"
+                    sortKey="stock"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                </th>
                 <th className="px-4 py-3 font-medium">Price</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>

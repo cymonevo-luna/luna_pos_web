@@ -6,11 +6,16 @@ import type {
   MenuFormValues,
 } from "@/lib/validations";
 
+export type MenuSortBy = "title" | "stock";
+export type MenuSortOrder = "asc" | "desc";
+
 export interface ListMenusParams {
   page?: number;
   perPage?: number;
   search?: string;
   categoryId?: string;
+  sortBy?: MenuSortBy;
+  sortOrder?: MenuSortOrder;
 }
 
 export interface CreateMenuPayload {
@@ -136,6 +141,8 @@ export const menusAdminApi = {
     perPage = 10,
     search = "",
     categoryId = "",
+    sortBy,
+    sortOrder,
   }: ListMenusParams = {}) => {
     const params = new URLSearchParams({
       page: String(page),
@@ -143,6 +150,8 @@ export const menusAdminApi = {
     });
     if (search) params.set("search", search);
     if (categoryId) params.set("category_id", categoryId);
+    if (sortBy) params.set("sort_by", sortBy);
+    if (sortOrder) params.set("sort_order", sortOrder);
     return api.get<Menu[]>(`/api/admin/menus?${params.toString()}`);
   },
 

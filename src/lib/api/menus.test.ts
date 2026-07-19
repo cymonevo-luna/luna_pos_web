@@ -319,6 +319,28 @@ describe("menusAdminApi", () => {
     expect(headers.get("Authorization")).toBe("Bearer token-abc");
   });
 
+  it("includes sort query params when provided", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: [],
+        meta: { page: 1, per_page: 10, total: 0 },
+      }),
+    );
+
+    await menusAdminApi.list({
+      page: 1,
+      perPage: 10,
+      sortBy: "stock",
+      sortOrder: "desc",
+    });
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/menus?page=1&per_page=10&sort_by=stock&sort_order=desc",
+    );
+  });
+
   it("unwraps envelope responses for get, create, update, and delete", async () => {
     const menu = {
       id: "menu-1",
