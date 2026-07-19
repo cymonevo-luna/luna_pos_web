@@ -113,18 +113,6 @@ export const allNavItems: NavEntry[] = [
     icon: TrendingUp,
     children: [
       {
-        href: "/admin/expenses",
-        label: "Expenses",
-        icon: Wallet,
-        feature: "expenses.manage",
-      },
-      {
-        href: "/admin/recurring-expenses",
-        label: "Recurring Expenses",
-        icon: Repeat,
-        feature: "recurring_expenses.manage",
-      },
-      {
         href: "/admin/cashier-balance",
         label: "Cashier Balance",
         icon: Wallet,
@@ -141,6 +129,18 @@ export const allNavItems: NavEntry[] = [
         label: "Summary",
         icon: TrendingUp,
         feature: "insights.cash_flow",
+      },
+      {
+        href: "/admin/expenses",
+        label: "Expenses",
+        icon: Wallet,
+        feature: "expenses.manage",
+      },
+      {
+        href: "/admin/recurring-expenses",
+        label: "Recurring Expenses",
+        icon: Repeat,
+        feature: "recurring_expenses.manage",
       },
     ],
   },
