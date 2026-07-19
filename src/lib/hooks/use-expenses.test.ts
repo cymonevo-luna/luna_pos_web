@@ -135,6 +135,7 @@ describe("useCreateExpense", () => {
       await createHook.result.current.mutateAsync({
         title: "New expense",
         amount: 50_000,
+        source_of_fund: "PERSONAL_MONEY",
       });
     });
 

@@ -1,6 +1,6 @@
 import { api, type ApiResult } from "./client";
 import { parseNumeric } from "./suppliers";
-import type { Expense } from "./types";
+import type { Expense, ExpenseSourceOfFund } from "./types";
 import type { ExpenseFormValues } from "@/lib/validations";
 
 /** Wire format from the Go backend (`decimal.Decimal` marshals as JSON string). */
@@ -43,6 +43,7 @@ export interface CreateExpensePayload {
   title: string;
   description?: string | null;
   amount: number;
+  source_of_fund: ExpenseSourceOfFund;
   receipt_url?: string;
 }
 
@@ -56,6 +57,7 @@ export function expenseFormToPayload(
   const payload: CreateExpensePayload = {
     title: values.title.trim(),
     amount: values.amount,
+    source_of_fund: values.source_of_fund,
   };
 
   const description = values.description?.trim();
@@ -80,6 +82,7 @@ export function expenseToFormValues(
     title: expense.title,
     description: expense.description ?? "",
     amount: expense.amount,
+    source_of_fund: expense.source_of_fund ?? "PERSONAL_MONEY",
     receipt_url: expense.receipt_url ?? "",
   };
 }

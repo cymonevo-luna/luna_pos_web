@@ -27,12 +27,18 @@ export default function AdminNewExpensePage() {
       toast.success("Expense created");
       router.push("/admin/expenses");
     } catch (err) {
-      if (err instanceof ApiError && err.fields) {
-        formRef.current?.applyServerErrors(err.fields);
+      if (err instanceof ApiError) {
+        if (err.fields) {
+          formRef.current?.applyServerErrors(err.fields);
+        } else if (err.code === "insufficient_balance") {
+          formRef.current?.applyServerErrors({
+            source_of_fund: err.message,
+          });
+        }
+        toast.error(err.message);
+      } else {
+        toast.error("Failed to create expense");
       }
-      toast.error(
-        err instanceof ApiError ? err.message : "Failed to create expense",
-      );
     }
   };
 
