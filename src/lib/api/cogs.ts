@@ -13,11 +13,20 @@ import type {
   CogsPortfolioSummary,
 } from "./types";
 
+export type CogsSortBy =
+  | "menu_title"
+  | "margin"
+  | "current_sell_price"
+  | "status";
+export type CogsSortOrder = "asc" | "desc";
+
 export interface ListCogsParams {
   page?: number;
   perPage?: number;
   search?: string;
   categoryId?: string;
+  sortBy?: CogsSortBy;
+  sortOrder?: CogsSortOrder;
 }
 
 function normalizeListResult(
@@ -53,6 +62,8 @@ export const cogsAdminApi = {
     perPage = 10,
     search = "",
     categoryId = "",
+    sortBy,
+    sortOrder,
   }: ListCogsParams = {}) => {
     const params = new URLSearchParams({
       page: String(page),
@@ -60,6 +71,8 @@ export const cogsAdminApi = {
     });
     if (search) params.set("search", search);
     if (categoryId) params.set("category_id", categoryId);
+    if (sortBy) params.set("sort_by", sortBy);
+    if (sortOrder) params.set("sort_order", sortOrder);
     const result = await api.get<CogsMenuSummaryRaw[]>(
       `/api/admin/cogs?${params.toString()}`,
     );

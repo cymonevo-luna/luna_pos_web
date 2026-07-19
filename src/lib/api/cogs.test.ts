@@ -49,6 +49,23 @@ describe("cogsAdminApi", () => {
     expect(headers.get("Authorization")).toBe("Bearer token-abc");
   });
 
+  it("builds the list URL with sort query params", async () => {
+    tokenStore.set("token-abc", "refresh-abc");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: [],
+        meta: { page: 1, per_page: 10, total: 0 },
+      }),
+    );
+
+    await cogsAdminApi.list({ sortBy: "status", sortOrder: "asc" });
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain("sort_by=status");
+    expect(url).toContain("sort_order=asc");
+  });
+
   it("normalizes backend-shaped COGS list responses", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({

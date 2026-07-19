@@ -221,4 +221,99 @@ describe("AdminCogsPage", () => {
       expect(toast.error).toHaveBeenCalledWith("Server error");
     });
   });
+
+  it("renders four sortable column headers", async () => {
+    render(<AdminCogsPage />);
+    await screen.findByText("Rendang");
+
+    expect(
+      screen.getByRole("button", { name: "Sort by menu" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sort by margin %" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sort by current sell price" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sort by status" }),
+    ).toBeInTheDocument();
+  });
+
+  it("sends menu_title sort on Menu header click", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminCogsPage />);
+    await screen.findByText("Rendang");
+
+    await user.click(screen.getByRole("button", { name: "Sort by menu" }));
+
+    await waitFor(() => {
+      expect(cogsAdminApi.list).toHaveBeenLastCalledWith({
+        page: 1,
+        perPage: 10,
+        search: "",
+        categoryId: "",
+        sortBy: "menu_title",
+        sortOrder: "asc",
+      });
+    });
+  });
+
+  it("sends margin desc on second Margin header click", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminCogsPage />);
+    await screen.findByText("Rendang");
+
+    await user.click(screen.getByRole("button", { name: "Sort by margin %" }));
+    await user.click(
+      screen.getByRole("button", { name: "Sort by margin % ascending" }),
+    );
+
+    await waitFor(() => {
+      expect(cogsAdminApi.list).toHaveBeenLastCalledWith({
+        page: 1,
+        perPage: 10,
+        search: "",
+        categoryId: "",
+        sortBy: "margin",
+        sortOrder: "desc",
+      });
+    });
+  });
+
+  it("resets to page 1 when sort changes", async () => {
+    const user = userEvent.setup();
+    vi.mocked(cogsAdminApi.list).mockResolvedValue({
+      data: [rendangSummary, missingPricesSummary],
+      meta: { page: 2, per_page: 10, total: 20 },
+    });
+
+    render(<AdminCogsPage />);
+    await screen.findByText("Rendang");
+
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await waitFor(() => {
+      expect(cogsAdminApi.list).toHaveBeenLastCalledWith({
+        page: 2,
+        perPage: 10,
+        search: "",
+        categoryId: "",
+      });
+    });
+
+    await user.click(screen.getByRole("button", { name: "Sort by status" }));
+
+    await waitFor(() => {
+      expect(cogsAdminApi.list).toHaveBeenLastCalledWith({
+        page: 1,
+        perPage: 10,
+        search: "",
+        categoryId: "",
+        sortBy: "status",
+        sortOrder: "asc",
+      });
+    });
+  });
 });
