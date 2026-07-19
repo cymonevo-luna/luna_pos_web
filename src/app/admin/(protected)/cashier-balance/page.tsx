@@ -152,7 +152,7 @@ export default function AdminCashierBalancePage() {
             Add
           </Button>
           <Button
-            variant="outline"
+            variant="destructive"
             onClick={() => openDialog("DEDUCT")}
             data-testid="cashier-balance-deduct-button"
           >
