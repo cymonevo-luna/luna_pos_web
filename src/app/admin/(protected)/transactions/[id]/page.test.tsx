@@ -160,6 +160,53 @@ describe("AdminTransactionDetailPage", () => {
     ]);
   });
 
+  it("shows Change Rp 0 when change_amount is omitted for exact-payment CASH", async () => {
+    const exactPaymentTransaction = {
+      id: "txn-exact-payment",
+      method: "CASH" as const,
+      amount: 25000,
+      cash_tendered: 25000,
+      cashier_user_id: "user-1",
+      cashier_username: "kasir1",
+      items: [
+        {
+          menu_id: "menu-1",
+          title: "Nasi Goreng",
+          quantity: 1,
+          unit_price: 25000,
+          line_total: 25000,
+        },
+      ],
+      transaction_date: "2026-01-15T10:30:00Z",
+      created_at: "2026-01-15T10:30:00Z",
+    };
+    vi.mocked(transactionsAdminApi.get).mockResolvedValue({
+      data: exactPaymentTransaction,
+    });
+
+    renderDetail(exactPaymentTransaction.id);
+
+    await screen.findByText("Cash payment");
+
+    expect(screen.getByText("Change").nextElementSibling).toHaveTextContent(
+      "Rp 0",
+    );
+    expect(screen.queryByText(/NaN/)).not.toBeInTheDocument();
+  });
+
+  it("formats cash tendered and change for CASH transactions with change", async () => {
+    renderDetail();
+
+    await screen.findByText("Cash payment");
+
+    expect(
+      screen.getByText("Cash tendered").nextElementSibling,
+    ).toHaveTextContent("Rp 100.000");
+    expect(screen.getByText("Change").nextElementSibling).toHaveTextContent(
+      "Rp 50.000",
+    );
+  });
+
   it("shows error toast and stays on page when delete returns 403", async () => {
     const user = userEvent.setup();
     vi.mocked(transactionsAdminApi.delete).mockRejectedValue(

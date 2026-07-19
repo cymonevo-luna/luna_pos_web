@@ -347,8 +347,8 @@ export interface Transaction {
   id: string;
   method: TransactionMethod;
   amount: number;
-  cash_tendered: number;
-  change_amount: number;
+  cash_tendered?: number;
+  change_amount?: number;
   cashier_user_id: string;
   cashier_username: string;
   items: TransactionLineItem[];

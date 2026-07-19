@@ -140,13 +140,13 @@ export function AdminTransactionDetailContent({ id }: { id: string }) {
                       Cash tendered
                     </dt>
                     <dd className="text-lg font-medium">
-                      {formatRupiah(transaction.cash_tendered)}
+                      {formatRupiah(transaction.cash_tendered ?? 0)}
                     </dd>
                   </div>
                   <div>
                     <dt className="text-sm text-muted-foreground">Change</dt>
                     <dd className="text-lg font-medium">
-                      {formatRupiah(transaction.change_amount)}
+                      {formatRupiah(transaction.change_amount ?? 0)}
                     </dd>
                   </div>
                 </dl>
