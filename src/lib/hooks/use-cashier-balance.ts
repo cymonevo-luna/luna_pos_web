@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError, type ApiResult } from "@/lib/api/client";
 import {
   createAdjustment,
+  deleteEntry,
   getBalance,
   listEntries,
   type CreateCashierBalanceAdjustmentPayload,
@@ -180,4 +181,8 @@ export function useCreateCashierBalanceAdjustment() {
     (payload: CreateCashierBalanceAdjustmentPayload) =>
       createAdjustment(payload),
   );
+}
+
+export function useDeleteCashierBalanceEntry() {
+  return useCashierBalanceMutation((id: string) => deleteEntry(id));
 }

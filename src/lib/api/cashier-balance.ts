@@ -4,6 +4,7 @@ import type {
   CashierBalance,
   CashierBalanceAdjustmentType,
   CashierBalanceEntry,
+  CashierBalanceEntrySource,
 } from "./types";
 import type { CashierBalanceAdjustmentFormValues } from "@/lib/validations";
 
@@ -71,6 +72,17 @@ export function cashierBalanceAdjustmentFormToPayload(
   };
 }
 
+const DELETABLE_ENTRY_SOURCES = new Set<CashierBalanceEntrySource>([
+  "MANUAL",
+  "EXPENSE",
+]);
+
+export function isCashierBalanceEntryDeletable(
+  entry: Pick<CashierBalanceEntry, "source">,
+): boolean {
+  return DELETABLE_ENTRY_SOURCES.has(entry.source);
+}
+
 export async function getBalance() {
   const result = await api.get<CashierBalanceRaw>("/api/admin/cashier-balance");
   return normalizeBalanceResult(result);
@@ -103,8 +115,16 @@ export async function createAdjustment(
   };
 }
 
+export async function deleteEntry(id: string) {
+  const result = await api.delete<CashierBalanceRaw>(
+    `/api/admin/cashier-balance/entries/${id}`,
+  );
+  return normalizeBalanceResult(result);
+}
+
 export const cashierBalanceAdminApi = {
   getBalance,
   listEntries,
   createAdjustment,
+  deleteEntry,
 };

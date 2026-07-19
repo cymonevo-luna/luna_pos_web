@@ -890,6 +890,13 @@ export interface BEPProjectionResponse {
 
 export type CashierBalanceAdjustmentType = "ADD" | "DEDUCT";
 
+export type CashierBalanceEntrySource =
+  | "MANUAL"
+  | "EXPENSE"
+  | "CASH_PAYMENT"
+  | "CASH_CHANGE"
+  | "TRANSACTION_REVERSAL";
+
 /** Wire `data` payload from GET /api/admin/cashier-balance. */
 export interface CashierBalance {
   balance: number;
@@ -900,6 +907,7 @@ export interface CashierBalance {
 export interface CashierBalanceEntry {
   id: string;
   type: CashierBalanceAdjustmentType;
+  source: CashierBalanceEntrySource;
   amount: number;
   purpose: string;
   transaction_id?: string | null;

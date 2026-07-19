@@ -4,14 +4,19 @@ import { useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Minus, Plus, Trash2 } from "lucide-react";
 import { ApiError } from "@/lib/api/client";
-import { cashierBalanceAdjustmentFormToPayload } from "@/lib/api/cashier-balance";
+import {
+  cashierBalanceAdjustmentFormToPayload,
+  isCashierBalanceEntryDeletable,
+} from "@/lib/api/cashier-balance";
 import type { CashierBalanceAdjustmentType, CashierBalanceEntry } from "@/lib/api/types";
+import { useFeatures } from "@/lib/auth/use-features";
 import {
   useCashierBalance,
   useCashierBalanceEntries,
   useCreateCashierBalanceAdjustment,
+  useDeleteCashierBalanceEntry,
 } from "@/lib/hooks/use-cashier-balance";
 import {
   cashierBalanceAdjustmentSchema,
@@ -21,7 +26,7 @@ import { cn, formatDateTime, formatRupiah } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogFooter, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -55,9 +60,29 @@ function signedAmountClassName(type: CashierBalanceAdjustmentType) {
     : "text-destructive";
 }
 
+function getDeleteEntryErrorMessage(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.code === "entry_not_deletable") {
+      return "Transaction-linked entries cannot be removed.";
+    }
+    if (err.code === "insufficient_balance") {
+      return (
+        err.message || "Removing this entry would overdraw the cashier balance."
+      );
+    }
+    return err.message;
+  }
+  return "Failed to remove history item";
+}
+
 export default function AdminCashierBalancePage() {
   const [page, setPage] = useState(1);
   const [dialog, setDialog] = useState<AdjustmentDialogState>(null);
+  const [pendingDelete, setPendingDelete] = useState<CashierBalanceEntry | null>(
+    null,
+  );
+  const { hasFeature } = useFeatures();
+  const canDeleteEntry = hasFeature("cashier_balance.delete_entry");
 
   const {
     balance,
@@ -72,6 +97,8 @@ export default function AdminCashierBalancePage() {
   } = useCashierBalanceEntries({ page, perPage: PER_PAGE });
   const { mutateAsync: createAdjustment, isPending: saving } =
     useCreateCashierBalanceAdjustment();
+  const { mutateAsync: deleteEntry, isPending: deleting } =
+    useDeleteCashierBalanceEntry();
 
   const {
     register,
@@ -92,6 +119,7 @@ export default function AdminCashierBalancePage() {
   const total = meta?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
   const loading = balanceLoading || entriesLoading;
+  const columnCount = canDeleteEntry ? 6 : 5;
 
   const openDialog = (type: CashierBalanceAdjustmentType) => {
     reset({
@@ -128,6 +156,23 @@ export default function AdminCashierBalancePage() {
       toast.error(
         err instanceof ApiError ? err.message : "Failed to save adjustment",
       );
+    }
+  };
+
+  const closeDeleteDialog = () => {
+    if (deleting) return;
+    setPendingDelete(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+
+    try {
+      await deleteEntry(pendingDelete.id);
+      toast.success("Cashier balance history item removed");
+      setPendingDelete(null);
+    } catch (err) {
+      toast.error(getDeleteEntryErrorMessage(err));
     }
   };
 
@@ -188,13 +233,16 @@ export default function AdminCashierBalancePage() {
                 <th className="px-4 py-3 font-medium">Amount</th>
                 <th className="px-4 py-3 font-medium">Purpose</th>
                 <th className="px-4 py-3 font-medium">Requested By</th>
+                {canDeleteEntry ? (
+                  <th className="px-4 py-3 font-medium text-right">Actions</th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-border">
-                    {Array.from({ length: 5 }).map((__, j) => (
+                    {Array.from({ length: columnCount }).map((__, j) => (
                       <td key={j} className="px-4 py-3">
                         <Skeleton className="h-4 w-24" />
                       </td>
@@ -204,7 +252,7 @@ export default function AdminCashierBalancePage() {
               ) : entriesError ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={columnCount}
                     className="px-4 py-10 text-center text-destructive"
                   >
                     {entriesError}
@@ -213,7 +261,7 @@ export default function AdminCashierBalancePage() {
               ) : entries.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={columnCount}
                     className="px-4 py-10 text-center text-muted-foreground"
                     data-testid="cashier-balance-empty-state"
                   >
@@ -221,7 +269,11 @@ export default function AdminCashierBalancePage() {
                   </td>
                 </tr>
               ) : (
-                entries.map((entry) => (
+                entries.map((entry) => {
+                  const showDelete =
+                    canDeleteEntry && isCashierBalanceEntryDeletable(entry);
+
+                  return (
                   <tr
                     key={entry.id}
                     className="border-b border-border last:border-0 hover:bg-muted/30"
@@ -257,8 +309,27 @@ export default function AdminCashierBalancePage() {
                     <td className="px-4 py-3 text-muted-foreground">
                       {entry.requested_by_username ?? "—"}
                     </td>
+                    {canDeleteEntry ? (
+                      <td className="px-4 py-3">
+                        {showDelete ? (
+                          <div className="flex justify-end">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive"
+                              aria-label="Remove history item"
+                              data-testid={`cashier-balance-delete-${entry.id}`}
+                              onClick={() => setPendingDelete(entry)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : null}
+                      </td>
+                    ) : null}
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -359,6 +430,36 @@ export default function AdminCashierBalancePage() {
             </Button>
           </DialogFooter>
         </form>
+      </Dialog>
+
+      <Dialog
+        open={pendingDelete !== null}
+        onClose={closeDeleteDialog}
+        className="max-w-md"
+      >
+        <DialogTitle>Remove history item</DialogTitle>
+        <DialogDescription>
+          Remove this history item? This will adjust the cashier balance.
+        </DialogDescription>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={closeDeleteDialog}
+            disabled={deleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            isLoading={deleting}
+            data-testid="cashier-balance-delete-confirm"
+            onClick={() => void confirmDelete()}
+          >
+            Remove
+          </Button>
+        </DialogFooter>
       </Dialog>
     </div>
   );

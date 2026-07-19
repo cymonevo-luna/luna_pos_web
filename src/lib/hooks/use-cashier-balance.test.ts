@@ -5,6 +5,7 @@ import {
   useCashierBalance,
   useCashierBalanceEntries,
   useCreateCashierBalanceAdjustment,
+  useDeleteCashierBalanceEntry,
 } from "@/lib/hooks/use-cashier-balance";
 import { tokenStore } from "@/lib/auth/tokens";
 
@@ -86,6 +87,7 @@ describe("useCashierBalanceEntries", () => {
           {
             id: "cb-entry-1",
             type: "ADD",
+            source: "MANUAL",
             amount: 50_000,
             purpose: "Web test",
             created_at: "2026-01-01T00:00:00Z",
@@ -146,6 +148,7 @@ describe("useCreateCashierBalanceAdjustment", () => {
             data: {
               id: "cb-entry-new",
               type: "ADD",
+              source: "MANUAL",
               amount: 50_000,
               purpose: "Web test",
               created_at: "2026-01-01T00:00:00Z",
@@ -177,6 +180,78 @@ describe("useCreateCashierBalanceAdjustment", () => {
 
     await waitFor(() => {
       expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBeforeCreate);
+    });
+  });
+});
+
+describe("useDeleteCashierBalanceEntry", () => {
+  beforeEach(() => {
+    tokenStore.clear();
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("invalidates balance and entries after delete", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async (input, init) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+
+        if (method === "GET" && url.endsWith("/api/admin/cashier-balance")) {
+          return jsonResponse({ success: true, data: { balance: 100_000 } });
+        }
+        if (
+          method === "GET" &&
+          url.includes("/api/admin/cashier-balance/entries")
+        ) {
+          return jsonResponse({
+            success: true,
+            data: [
+              {
+                id: "cb-entry-1",
+                type: "DEDUCT",
+                source: "MANUAL",
+                amount: 10_000,
+                purpose: "Petty cash",
+                created_at: "2026-01-01T00:00:00Z",
+              },
+            ],
+            meta: { page: 1, per_page: 10, total: 1 },
+          });
+        }
+        if (
+          method === "DELETE" &&
+          url.endsWith("/api/admin/cashier-balance/entries/cb-entry-1")
+        ) {
+          return jsonResponse({
+            success: true,
+            data: { balance: 110_000, updated_at: "2026-01-02T00:00:00Z" },
+          });
+        }
+        return jsonResponse({ success: false }, 404);
+      },
+    );
+
+    const balanceHook = renderHook(() => useCashierBalance());
+    const entriesHook = renderHook(() => useCashierBalanceEntries());
+    const deleteHook = renderHook(() => useDeleteCashierBalanceEntry());
+
+    await waitFor(() => {
+      expect(balanceHook.result.current.loading).toBe(false);
+      expect(entriesHook.result.current.loading).toBe(false);
+    });
+
+    const callsBeforeDelete = fetchMock.mock.calls.length;
+
+    await act(async () => {
+      await deleteHook.result.current.mutateAsync("cb-entry-1");
+    });
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBeforeDelete);
     });
   });
 });
