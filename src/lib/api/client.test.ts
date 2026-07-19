@@ -11,11 +11,26 @@ vi.mock("@/lib/auth/refresh", async (importOriginal) => {
   };
 });
 
-function jsonResponse(body: unknown, status = 200) {
+function jsonResponse(
+  body: unknown,
+  status = 200,
+  extraHeaders: Record<string, string> = {},
+) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...extraHeaders },
   });
+}
+
+function rateLimitedResponse(retryAfter = "2") {
+  return jsonResponse(
+    {
+      success: false,
+      error: { code: "rate_limited", message: "too many requests" },
+    },
+    429,
+    { "Retry-After": retryAfter },
+  );
 }
 
 function mockAdminRoute() {
@@ -216,6 +231,124 @@ describe("api client", () => {
     ).rejects.toMatchObject({
       message: "Export failed",
       status: 500,
+    });
+  });
+
+  describe("429 rate-limit retry", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("GET 429 auto-retries and succeeds", async () => {
+      const fetchMock = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(rateLimitedResponse("2"))
+        .mockResolvedValueOnce(jsonResponse({ success: true, data: { ok: true } }));
+
+      const resultPromise = api.get<{ ok: boolean }>("/items", { auth: false });
+      await vi.advanceTimersByTimeAsync(2000);
+      const res = await resultPromise;
+
+      expect(res.data.ok).toBe(true);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("POST 429 is not auto-retried", async () => {
+      const fetchMock = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(rateLimitedResponse());
+
+      await expect(
+        api.post("/items", { name: "Ada" }, { auth: false }),
+      ).rejects.toMatchObject({
+        status: 429,
+        code: "rate_limited",
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries POST when explicitly marked retry-safe", async () => {
+      const fetchMock = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(rateLimitedResponse("1"))
+        .mockResolvedValueOnce(jsonResponse({ success: true, data: { ok: true } }));
+
+      const resultPromise = api.post<{ ok: boolean }>(
+        "/items",
+        { name: "Ada" },
+        { auth: false, retrySafe: true },
+      );
+      await vi.advanceTimersByTimeAsync(1000);
+      const res = await resultPromise;
+
+      expect(res.data.ok).toBe(true);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("shows error after three failed 429 retries", async () => {
+      const fetchMock = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(rateLimitedResponse("1"));
+
+      const resultPromise = api.get("/items", { auth: false });
+      const assertion = expect(resultPromise).rejects.toMatchObject({
+        status: 429,
+        code: "rate_limited",
+      });
+      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(2000);
+      await assertion;
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    });
+
+    it("does not retry when AbortSignal is cancelled", async () => {
+      const controller = new AbortController();
+      const fetchMock = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(rateLimitedResponse("2"))
+        .mockResolvedValueOnce(jsonResponse({ success: true, data: { ok: true } }));
+
+      const resultPromise = api.get<{ ok: boolean }>("/items", {
+        auth: false,
+        signal: controller.signal,
+      });
+      const assertion = expect(resultPromise).rejects.toMatchObject({
+        status: 429,
+        code: "rate_limited",
+      });
+      controller.abort();
+      await vi.advanceTimersByTimeAsync(2000);
+      await assertion;
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("401 refresh is unaffected by rate-limit handling", async () => {
+      tokenStore.set("expired", "refresh-1", {
+        expires_in: 3600,
+        refresh_expires_in: 604800,
+      });
+      vi.mocked(refreshTokenPair).mockResolvedValue({
+        tokens: {
+          access_token: "new",
+          refresh_token: "newR",
+          expires_in: 900,
+          refresh_expires_in: 604800,
+        },
+      });
+      const fetchMock = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(jsonResponse({ success: false }, 401))
+        .mockResolvedValueOnce(jsonResponse({ success: true, data: { ok: true } }));
+
+      const res = await api.get<{ ok: boolean }>("/protected");
+
+      expect(res.data.ok).toBe(true);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(refreshTokenPair).toHaveBeenCalledTimes(1);
     });
   });
 });
