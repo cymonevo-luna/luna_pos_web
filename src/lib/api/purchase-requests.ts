@@ -316,7 +316,7 @@ export const purchaseRequestsAdminApi = {
 
 export interface UpdatePurchaseStatusPayload {
   status: PurchaseRequestStatus;
-  photo_url?: string;
+  proof_url?: string;
 }
 
 /** Advance purchase request status (optionally with proof photo URL). */

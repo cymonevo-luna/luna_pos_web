@@ -262,7 +262,7 @@ describe("AdminPurchaseDetailContent", () => {
       expect(uploadPurchasePhoto).toHaveBeenCalled();
       expect(purchaseRequestsAdminApi.updateStatus).toHaveBeenCalledWith("pr-1", {
         status: "PAID",
-        photo_url: "https://cdn.example.com/receipt.jpg",
+        proof_url: "https://cdn.example.com/receipt.jpg",
       });
     });
 
@@ -320,7 +320,7 @@ describe("AdminPurchaseDetailContent", () => {
       expect(uploadPurchasePhoto).toHaveBeenCalled();
       expect(purchaseRequestsAdminApi.updateStatus).toHaveBeenCalledWith("pr-1", {
         status: "DELIVERED",
-        photo_url: "https://cdn.example.com/package.jpg",
+        proof_url: "https://cdn.example.com/package.jpg",
       });
     });
 
