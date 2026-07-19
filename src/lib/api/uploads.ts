@@ -165,7 +165,7 @@ async function uploadPurchasePhotoRequest(
   return json.data as PurchasePhotoUploadResult;
 }
 
-/** Upload a purchase proof photo and return the hosted URL for `photo_url`. */
+/** Upload a purchase proof photo and return the hosted URL for `proof_url`. */
 export async function uploadPurchasePhoto(
   file: File,
 ): Promise<PurchasePhotoUploadResult> {

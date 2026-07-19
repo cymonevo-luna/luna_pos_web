@@ -251,7 +251,7 @@ describe("purchaseRequestsAdminApi", () => {
     expect(fetchMock).toHaveBeenCalled();
   });
 
-  it("sends photo_url when provided for status update", async () => {
+  it("sends proof_url when provided for status update", async () => {
     const purchaseRequest = {
       id: "pr-1",
       supplier_id: "sup-1",
@@ -277,8 +277,9 @@ describe("purchaseRequestsAdminApi", () => {
           const body = JSON.parse(String(init?.body));
           expect(body).toEqual({
             status: "PAID",
-            photo_url: "https://cdn.example.com/receipt.jpg",
+            proof_url: "https://cdn.example.com/receipt.jpg",
           });
+          expect(body).not.toHaveProperty("photo_url");
           return jsonResponse({
             success: true,
             data: { ...purchaseRequest, status: "PAID" },
@@ -290,7 +291,7 @@ describe("purchaseRequestsAdminApi", () => {
 
     const updated = await purchaseRequestsAdminApi.updateStatus("pr-1", {
       status: "PAID",
-      photo_url: "https://cdn.example.com/receipt.jpg",
+      proof_url: "https://cdn.example.com/receipt.jpg",
     });
     expect(updated.data.status).toBe("PAID");
     expect(fetchMock).toHaveBeenCalled();

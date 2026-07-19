@@ -203,7 +203,7 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
   ) => {
     const payload: UpdatePurchaseStatusPayload = { status };
     if (photoUrl) {
-      payload.photo_url = photoUrl;
+      payload.proof_url = photoUrl;
     }
 
     setAdvancingStatus(true);
