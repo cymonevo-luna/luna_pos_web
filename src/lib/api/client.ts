@@ -32,12 +32,72 @@ export class ApiError extends Error {
   }
 }
 
+const IDEMPOTENT_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+const MAX_RATE_LIMIT_ATTEMPTS = 3;
+const DEFAULT_RETRY_AFTER_SECONDS = 2;
+const MAX_RATE_LIMIT_WAIT_SECONDS = 30;
+
 interface RequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
   /** Attach the bearer access token. Defaults to true. */
   auth?: boolean;
+  /**
+   * Allow automatic retry on 429 for non-idempotent methods (POST, PUT, PATCH, DELETE).
+   * Idempotent methods are retried by default.
+   */
+  retrySafe?: boolean;
   /** Internal flag to avoid infinite refresh loops. */
   _retried?: boolean;
+  /** Internal counter for rate-limit retry attempts (1-based). */
+  _rateLimitAttempt?: number;
+}
+
+function isIdempotentRetryable(
+  method: string | undefined,
+  retrySafe?: boolean,
+): boolean {
+  const normalized = (method ?? "GET").toUpperCase();
+  return IDEMPOTENT_METHODS.has(normalized) || retrySafe === true;
+}
+
+function parseRetryAfterSeconds(header: string | null): number {
+  if (!header) return DEFAULT_RETRY_AFTER_SECONDS;
+  const seconds = Number.parseInt(header, 10);
+  return Number.isFinite(seconds) && seconds > 0
+    ? seconds
+    : DEFAULT_RETRY_AFTER_SECONDS;
+}
+
+function rateLimitWaitSeconds(
+  retryAfterHeader: string | null,
+  attemptIndex: number,
+): number {
+  const base = parseRetryAfterSeconds(retryAfterHeader);
+  return Math.min(base * 2 ** attemptIndex, MAX_RATE_LIMIT_WAIT_SECONDS);
+}
+
+async function isRateLimitedResponse(res: Response): Promise<boolean> {
+  try {
+    const json = (await res.clone().json()) as Envelope<unknown>;
+    return json.success === false && json.error?.code === "rate_limited";
+  } catch {
+    return false;
+  }
+}
+
+function sleep(ms: number, signal?: AbortSignal | null): Promise<void> {
+  if (signal?.aborted) {
+    return Promise.reject(new DOMException("Aborted", "AbortError"));
+  }
+
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 export interface ApiResult<T> {
@@ -80,7 +140,17 @@ async function authorizedFetch(
   path: string,
   options: RequestOptions = {},
 ): Promise<Response> {
-  const { body, auth = true, _retried, headers, ...rest } = options;
+  const {
+    body,
+    auth = true,
+    retrySafe,
+    _retried,
+    _rateLimitAttempt = 1,
+    headers,
+    signal,
+    method,
+    ...rest
+  } = options;
   const shouldAuthenticate =
     auth && !isAuthExemptApiPath(path) && !isLoginRoute();
   const hasStoredTokens = !!(tokenStore.access || tokenStore.refresh);
@@ -104,8 +174,10 @@ async function authorizedFetch(
 
   const res = await fetch(`${config.apiBaseUrl}${path}`, {
     ...rest,
+    method,
     headers: finalHeaders,
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    signal,
   });
 
   if (res.status === 401 && shouldAuthenticate && !_retried) {
@@ -115,6 +187,37 @@ async function authorizedFetch(
     }
     clearSessionAndRedirectToLogin();
     return res;
+  }
+
+  if (
+    res.status === 429 &&
+    _rateLimitAttempt < MAX_RATE_LIMIT_ATTEMPTS &&
+    !signal?.aborted &&
+    isIdempotentRetryable(method, retrySafe) &&
+    (await isRateLimitedResponse(res))
+  ) {
+    const waitSeconds = rateLimitWaitSeconds(
+      res.headers.get("Retry-After"),
+      _rateLimitAttempt - 1,
+    );
+    console.debug(
+      `[api] rate limited on ${method ?? "GET"} ${path}; retrying in ${waitSeconds}s (attempt ${_rateLimitAttempt}/${MAX_RATE_LIMIT_ATTEMPTS})`,
+    );
+
+    try {
+      await sleep(waitSeconds * 1000, signal);
+    } catch {
+      return res;
+    }
+
+    if (signal?.aborted) {
+      return res;
+    }
+
+    return authorizedFetch(path, {
+      ...options,
+      _rateLimitAttempt: _rateLimitAttempt + 1,
+    });
   }
 
   return res;
