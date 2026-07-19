@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiError } from "@/lib/api/client";
 import { uploadMenuPhoto, validateMenuPhotoFile } from "@/lib/api/uploads";
+import { normalizeMenuPhotoFormValue } from "@/lib/api/menus";
 import { menuBasicSchema, type MenuBasicFormValues } from "@/lib/validations";
 import { menuPhotoUrl } from "@/lib/utils";
 import { withTitleCaseOnBlur } from "@/lib/withTitleCaseOnBlur";
@@ -27,7 +28,7 @@ function buildDefaultValues(
     title: defaultValues?.title ?? "",
     description: defaultValues?.description ?? "",
     category_id: defaultValues?.category_id ?? "",
-    photo_url: defaultValues?.photo_url ?? "",
+    photo_url: normalizeMenuPhotoFormValue(defaultValues?.photo_url),
     available_stock: defaultValues?.available_stock ?? Number.NaN,
     sell_price: defaultValues?.sell_price ?? Number.NaN,
   };

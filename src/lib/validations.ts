@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isAllowedMenuPhotoUrl } from "@/lib/api/menus";
 
 export const loginSchema = z.object({
   email: z.string().email("Enter a valid email address"),
@@ -435,7 +436,7 @@ export const menuBasicSchema = z.object({
     .optional()
     .or(z.literal(""))
     .refine(
-      (value) => !value?.trim() || z.string().url().safeParse(value.trim()).success,
+      (value) => isAllowedMenuPhotoUrl(value ?? ""),
       "Enter a valid URL",
     ),
   available_stock: z

@@ -15,6 +15,7 @@ import {
   menusAdminApi,
   menuBasicFormToPayload,
   menuFullFormToPayload,
+  normalizeMenuPhotoFormValue,
 } from "@/lib/api/menus";
 import { categoriesAdminApi } from "@/lib/api/categories";
 import { ApiError } from "@/lib/api/client";
@@ -44,7 +45,7 @@ function menuToFormValues(menu: Menu): Partial<MenuBasicFormValues> {
     title: menu.title,
     description: menu.description ?? "",
     category_id: menu.category_id,
-    photo_url: menu.photo_url ?? "",
+    photo_url: normalizeMenuPhotoFormValue(menu.photo_url),
     available_stock: menu.available_stock,
     sell_price: menu.sell_price,
   };

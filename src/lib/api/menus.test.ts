@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   menusAdminApi,
   isAbsolutePhotoUrl,
+  isAllowedMenuPhotoUrl,
+  normalizeMenuPhotoFormValue,
   menuBasicFormToPayload,
   menuCogsFormToPayload,
   menuFullFormToPayload,
@@ -44,6 +46,24 @@ describe("menuBasicSchema", () => {
       menuBasicSchema.safeParse({
         ...base,
         photo_url: "https://example.com/food.jpg",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts the system default photo path", () => {
+    expect(
+      menuBasicSchema.safeParse({
+        ...base,
+        photo_url: "/static/default-food.png",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts uploaded menu photo relative paths", () => {
+    expect(
+      menuBasicSchema.safeParse({
+        ...base,
+        photo_url: "/static/uploads/menus/custom.jpg",
       }).success,
     ).toBe(true);
   });
@@ -364,6 +384,55 @@ describe("menusAdminApi", () => {
 
     await menusAdminApi.delete("menu-1");
     expect(fetchMock).toHaveBeenCalled();
+  });
+});
+
+describe("isAllowedMenuPhotoUrl", () => {
+  it("accepts empty values", () => {
+    expect(isAllowedMenuPhotoUrl("")).toBe(true);
+    expect(isAllowedMenuPhotoUrl("   ")).toBe(true);
+  });
+
+  it("accepts absolute http and https URLs", () => {
+    expect(isAllowedMenuPhotoUrl("https://cdn.example.com/a.jpg")).toBe(true);
+    expect(isAllowedMenuPhotoUrl("http://cdn.example.com/a.jpg")).toBe(true);
+  });
+
+  it("accepts relative /static/ paths", () => {
+    expect(isAllowedMenuPhotoUrl("/static/default-food.png")).toBe(true);
+    expect(isAllowedMenuPhotoUrl("/static/uploads/menus/custom.jpg")).toBe(true);
+  });
+
+  it("rejects arbitrary strings", () => {
+    expect(isAllowedMenuPhotoUrl("not-a-url")).toBe(false);
+    expect(isAllowedMenuPhotoUrl("ftp://cdn.example.com/a.jpg")).toBe(false);
+  });
+});
+
+describe("normalizeMenuPhotoFormValue", () => {
+  it("maps blank and null values to empty string", () => {
+    expect(normalizeMenuPhotoFormValue(null)).toBe("");
+    expect(normalizeMenuPhotoFormValue("")).toBe("");
+    expect(normalizeMenuPhotoFormValue("   ")).toBe("");
+  });
+
+  it("maps system default paths to empty string", () => {
+    expect(normalizeMenuPhotoFormValue("/static/default-food.png")).toBe("");
+    expect(normalizeMenuPhotoFormValue("/static/assets/default-food.png")).toBe(
+      "",
+    );
+  });
+
+  it("keeps uploaded menu photo relative paths", () => {
+    expect(
+      normalizeMenuPhotoFormValue("/static/uploads/menus/custom.jpg"),
+    ).toBe("/static/uploads/menus/custom.jpg");
+  });
+
+  it("keeps absolute URLs unchanged", () => {
+    expect(normalizeMenuPhotoFormValue("https://example.com/food.jpg")).toBe(
+      "https://example.com/food.jpg",
+    );
   });
 });
 
