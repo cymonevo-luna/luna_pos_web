@@ -146,6 +146,8 @@ describe("AdminFoodSuppliesPage", () => {
         page: 1,
         perPage: 10,
         search: "oil",
+        sortBy: "title",
+        sortOrder: "asc",
       });
     });
 
@@ -419,7 +421,7 @@ describe("AdminFoodSuppliesPage", () => {
     await screen.findByText("Olive oil");
 
     expect(
-      screen.getByRole("button", { name: "Sort by title" }),
+      screen.getByRole("button", { name: "Sort by title ascending" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Sort by stock" }),
@@ -435,7 +437,7 @@ describe("AdminFoodSuppliesPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("omits sort params on initial load", async () => {
+  it("loads with title ascending sort on initial render", async () => {
     render(<AdminFoodSuppliesPage />);
     await screen.findByText("Olive oil");
 
@@ -443,34 +445,8 @@ describe("AdminFoodSuppliesPage", () => {
       page: 1,
       perPage: 10,
       search: "",
-    });
-    expect(
-      screen.getByRole("button", { name: "Sort by title" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Sort by stock" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Sort by updated" }),
-    ).toBeInTheDocument();
-  });
-
-  it("sorts by title ascending on first Title header click", async () => {
-    const user = userEvent.setup();
-
-    render(<AdminFoodSuppliesPage />);
-    await screen.findByText("Olive oil");
-
-    await user.click(screen.getByRole("button", { name: "Sort by title" }));
-
-    await waitFor(() => {
-      expect(foodSuppliesAdminApi.list).toHaveBeenLastCalledWith({
-        page: 1,
-        perPage: 10,
-        search: "",
-        sortBy: "title",
-        sortOrder: "asc",
-      });
+      sortBy: "title",
+      sortOrder: "asc",
     });
     expect(
       screen.getByRole("button", { name: "Sort by title ascending" }),
@@ -489,7 +465,6 @@ describe("AdminFoodSuppliesPage", () => {
     render(<AdminFoodSuppliesPage />);
     await screen.findByText("Olive oil");
 
-    await user.click(screen.getByRole("button", { name: "Sort by title" }));
     await user.click(
       screen.getByRole("button", { name: "Sort by title ascending" }),
     );
@@ -514,7 +489,6 @@ describe("AdminFoodSuppliesPage", () => {
     render(<AdminFoodSuppliesPage />);
     await screen.findByText("Olive oil");
 
-    await user.click(screen.getByRole("button", { name: "Sort by title" }));
     await user.click(
       screen.getByRole("button", { name: "Sort by title ascending" }),
     );

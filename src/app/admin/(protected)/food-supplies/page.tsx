@@ -65,7 +65,7 @@ export default function AdminFoodSuppliesPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
-  const [sortBy, setSortBy] = useState<FoodSupplySortBy | undefined>();
+  const [sortBy, setSortBy] = useState<FoodSupplySortBy>("title");
   const [sortOrder, setSortOrder] = useState<FoodSupplySortOrder>("asc");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +91,8 @@ export default function AdminFoodSuppliesPage() {
         page,
         perPage: PER_PAGE,
         search: debounced,
-        ...(sortBy ? { sortBy, sortOrder } : {}),
+        sortBy,
+        sortOrder,
       });
       setSupplies(res.data ?? []);
       setTotal(res.meta?.total ?? 0);
