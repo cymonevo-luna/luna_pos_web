@@ -100,6 +100,51 @@ describe("AuthProvider session restore", () => {
     expect(refreshTokenPair).not.toHaveBeenCalled();
   });
 
+  it("skips usersApi.get on hydrate when stored user already has features", async () => {
+    const access = makeJwt({
+      uid: "user-1",
+      email: "admin@example.com",
+      roles: ["admin"],
+      merchant_id: "merchant-1",
+      exp: futureExp,
+    });
+    tokenStore.setFromPair({
+      access_token: access,
+      refresh_token: "refresh-token",
+      expires_in: 3600,
+      refresh_expires_in: 604800,
+    });
+    localStorage.setItem(
+      "nt_user",
+      JSON.stringify({
+        id: "user-1",
+        email: "admin@example.com",
+        name: "Admin",
+        roles: ["admin"],
+        features: ["users.manage"],
+        merchant_id: "merchant-1",
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      }),
+    );
+    localStorage.setItem(
+      "nt_merchant",
+      JSON.stringify({ id: "merchant-1", name: "Luna Cafe" }),
+    );
+
+    const { getByTestId } = render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("loading").textContent).toBe("false");
+    });
+    expect(getByTestId("authenticated").textContent).toBe("true");
+    expect(usersApi.get).not.toHaveBeenCalled();
+  });
+
   it("silently refreshes when access is expired but refresh is valid", async () => {
     const pastExp = Math.floor(Date.now() / 1000) - 60;
     const expiredAccess = makeJwt({

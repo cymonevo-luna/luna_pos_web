@@ -1,6 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import { renderWithProviders } from "@/test/render";
 import userEvent from "@testing-library/user-event";
 import { TransactionSummaryChart } from "./transaction-summary-chart";
 import { transactionsAdminApi } from "@/lib/api/transactions";
@@ -66,7 +67,7 @@ describe("TransactionSummaryChart", () => {
   });
 
   it("renders buckets with period labels and bar points", async () => {
-    render(<TransactionSummaryChart />);
+    renderWithProviders(<TransactionSummaryChart />);
 
     const chart = await screen.findByTestId("transaction-chart");
     expect(chart).toBeInTheDocument();
@@ -83,7 +84,7 @@ describe("TransactionSummaryChart", () => {
   it("refetches data when Weekly period is selected", async () => {
     const user = userEvent.setup();
 
-    render(<TransactionSummaryChart />);
+    renderWithProviders(<TransactionSummaryChart />);
     await screen.findByTestId("transaction-chart");
 
     await user.click(screen.getByRole("button", { name: "Weekly" }));
@@ -100,7 +101,7 @@ describe("TransactionSummaryChart", () => {
       data: { period: "daily", buckets: [] },
     });
 
-    render(<TransactionSummaryChart />);
+    renderWithProviders(<TransactionSummaryChart />);
 
     expect(
       await screen.findByText("No transactions in this period"),
@@ -113,7 +114,7 @@ describe("TransactionSummaryChart", () => {
       new ApiError(500, "server_error", "Server error"),
     );
 
-    render(<TransactionSummaryChart />);
+    renderWithProviders(<TransactionSummaryChart />);
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Server error");

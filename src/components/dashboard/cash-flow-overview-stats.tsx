@@ -1,26 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowDownLeft, ArrowUpRight, Scale } from "lucide-react";
-import { cashFlowAdminApi } from "@/lib/api/cash-flow";
 import { ApiError } from "@/lib/api/client";
-import type { CashFlowSummaryTotals } from "@/lib/api/types";
+import { useCashFlowSummaryQuery } from "@/lib/query/hooks/use-cash-flow-summary";
+import { getTodayDateInput } from "@/lib/query/date-range";
 import { formatRupiah } from "@/lib/utils";
 import { toast } from "sonner";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
+import { useEffect } from "react";
 
 const PLACEHOLDER = "—";
 const CARD_COUNT = 3;
-
-function formatDateInput(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
 
 function formatTransactionCount(count: number): string {
   return `${count} ${count === 1 ? "transaction" : "transactions"}`;
@@ -41,49 +34,24 @@ function StatCardSkeleton() {
 }
 
 export function CashFlowOverviewStats() {
-  const [loading, setLoading] = useState(true);
-  const [totals, setTotals] = useState<CashFlowSummaryTotals | null>(null);
+  const today = getTodayDateInput();
+  const { data, isLoading, isError, error } = useCashFlowSummaryQuery({
+    period: "daily",
+    dateFrom: today,
+    dateTo: today,
+  });
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      const today = formatDateInput(new Date());
-
-      try {
-        const res = await cashFlowAdminApi.summary({
-          period: "daily",
-          dateFrom: today,
-          dateTo: today,
-        });
-        if (!cancelled) {
-          setTotals(res.data?.totals ?? null);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          toast.error(
-            err instanceof ApiError
-              ? err.message
-              : "Failed to load cash flow summary",
-          );
-          setTotals(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
+    if (isError) {
+      toast.error(
+        error instanceof ApiError
+          ? error.message
+          : "Failed to load cash flow summary",
+      );
     }
+  }, [isError, error]);
 
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-3" data-testid="cash-flow-overview-stats">
         <div className="flex items-center justify-between">
@@ -106,6 +74,7 @@ export function CashFlowOverviewStats() {
     );
   }
 
+  const totals = data?.data?.totals ?? null;
   const inflowAmount = totals?.inflow_amount;
   const outflowAmount = totals?.outflow_amount;
   const netAmount = totals?.net_amount;

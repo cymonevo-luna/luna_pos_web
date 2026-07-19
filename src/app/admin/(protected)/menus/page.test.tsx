@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import { renderWithProviders } from "@/test/render";
 import userEvent from "@testing-library/user-event";
 import AdminMenusPage from "./page";
 import { menusAdminApi } from "@/lib/api/menus";
@@ -115,7 +116,7 @@ describe("AdminMenusPage", () => {
   });
 
   it("renders menus from the API with Rupiah price", async () => {
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
 
     expect(await screen.findByText("Nasi Goreng")).toBeInTheDocument();
     expect(screen.getByRole("cell", { name: "Main" })).toBeInTheDocument();
@@ -134,7 +135,7 @@ describe("AdminMenusPage", () => {
       meta: { page: 1, per_page: 10, total: 0 },
     });
 
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
 
     expect(await screen.findByText("No menus found.")).toBeInTheDocument();
   });
@@ -145,7 +146,7 @@ describe("AdminMenusPage", () => {
       meta: { page: 1, per_page: 100, total: 0 },
     });
 
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
 
     expect(
       await screen.findByText(/Create a category before adding menu items/),
@@ -157,7 +158,7 @@ describe("AdminMenusPage", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
     await screen.findByText("Nasi Goreng");
 
     await user.type(screen.getByPlaceholderText("Search by title"), "Nasi");
@@ -178,7 +179,7 @@ describe("AdminMenusPage", () => {
   it("filters menus by category", async () => {
     const user = userEvent.setup();
 
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
     await screen.findByText("Nasi Goreng");
 
     await user.selectOptions(
@@ -202,7 +203,7 @@ describe("AdminMenusPage", () => {
       data: undefined,
     });
 
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
     await screen.findByText("Nasi Goreng");
 
     await user.click(screen.getByLabelText("Delete menu"));
@@ -227,7 +228,7 @@ describe("AdminMenusPage", () => {
       },
     });
 
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
     await screen.findByText("Nasi Goreng");
 
     await user.click(screen.getByRole("button", { name: "Add Menu" }));
@@ -266,7 +267,7 @@ describe("AdminMenusPage", () => {
       },
     });
 
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
     await screen.findByText("Nasi Goreng");
 
     await user.click(screen.getByLabelText("Edit menu"));
@@ -301,7 +302,7 @@ describe("AdminMenusPage", () => {
       }),
     );
 
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
     await screen.findByText("Nasi Goreng");
 
     await user.click(screen.getByRole("button", { name: "Add Menu" }));
@@ -322,7 +323,7 @@ describe("AdminMenusPage", () => {
   it("does not show COGS fields in the create dialog", async () => {
     const user = userEvent.setup();
 
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
     await screen.findByText("Nasi Goreng");
 
     await user.click(screen.getByRole("button", { name: "Add Menu" }));
@@ -353,7 +354,7 @@ describe("AdminMenusPage", () => {
       meta: { page: 1, per_page: 10, total: 1 },
     });
 
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
     await screen.findByText("Batch Soup");
 
     await user.click(screen.getByRole("button", { name: "Add Menu" }));
@@ -401,7 +402,7 @@ describe("AdminMenusPage", () => {
       },
     });
 
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
     await screen.findByText("Nasi Goreng");
 
     await user.click(screen.getByLabelText("Edit menu"));
@@ -428,7 +429,7 @@ describe("AdminMenusPage", () => {
   it("applies scroll and max-height classes to the create dialog", async () => {
     const user = userEvent.setup();
 
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
     await screen.findByText("Nasi Goreng");
 
     await user.click(screen.getByRole("button", { name: "Add Menu" }));
@@ -442,7 +443,7 @@ describe("AdminMenusPage", () => {
   it("applies scroll and max-height classes to the edit dialog", async () => {
     const user = userEvent.setup();
 
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
     await screen.findByText("Nasi Goreng");
 
     await user.click(screen.getByLabelText("Edit menu"));
@@ -456,7 +457,7 @@ describe("AdminMenusPage", () => {
   it("closes the dialog on cancel without saving", async () => {
     const user = userEvent.setup();
 
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
     await screen.findByText("Nasi Goreng");
 
     await user.click(screen.getByRole("button", { name: "Add Menu" }));
@@ -469,7 +470,7 @@ describe("AdminMenusPage", () => {
   });
 
   it("navigates to ingredients page from manage ingredients action", async () => {
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
     await screen.findByText("Nasi Goreng");
 
     const manageLink = screen.getByLabelText("Manage ingredients");
@@ -482,7 +483,7 @@ describe("AdminMenusPage", () => {
   it("does not show ingredients or stock sections in edit dialog", async () => {
     const user = userEvent.setup();
 
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
     await screen.findByText("Nasi Goreng");
 
     await user.click(screen.getByLabelText("Edit menu"));
@@ -498,7 +499,7 @@ describe("AdminMenusPage", () => {
   it("shows helper text on create instead of ingredients editor", async () => {
     const user = userEvent.setup();
 
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
     await screen.findByText("Nasi Goreng");
 
     await user.click(screen.getByRole("button", { name: "Add Menu" }));
@@ -532,7 +533,7 @@ describe("AdminMenusPage", () => {
       },
     });
 
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
     await screen.findByText("Nasi Goreng");
 
     await user.click(screen.getByLabelText("Edit menu"));
@@ -579,7 +580,7 @@ describe("AdminMenusPage", () => {
       },
     });
 
-    render(<AdminMenusPage />);
+    renderWithProviders(<AdminMenusPage />);
     await screen.findByText("Nasi Goreng");
 
     await user.click(screen.getByLabelText("Edit menu"));

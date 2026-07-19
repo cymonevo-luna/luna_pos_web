@@ -1,15 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  getAdminStoreSettings,
   storeSettingsFormToPayload,
   updateAdminStoreSettings,
 } from "@/lib/api/store-settings";
 import { ApiError } from "@/lib/api/client";
 import type { StoreSettings } from "@/lib/api/types";
+import { useQueryClient } from "@tanstack/react-query";
+import { useStoreSettingsQuery } from "@/lib/query/hooks/use-store-settings";
+import { queryKeys } from "@/lib/query/keys";
 import {
   storeSettingsSchema,
   type StoreSettingsFormValues,
@@ -50,9 +52,17 @@ function FormFieldSkeleton() {
 }
 
 export default function AdminStoreSettingsPage() {
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const {
+    data: settingsResult,
+    isLoading: loading,
+    isError,
+    error,
+    refetch,
+  } = useStoreSettingsQuery();
 
   const {
     register,
@@ -71,28 +81,23 @@ export default function AdminStoreSettingsPage() {
     },
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const result = await getAdminStoreSettings();
-      if (result.data) {
-        reset(settingsToFormValues(result.data));
-      }
-    } catch (err) {
-      setLoadError(
-        err instanceof ApiError
-          ? err.message
-          : "Failed to load receipt settings",
-      );
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (settingsResult?.data) {
+      reset(settingsToFormValues(settingsResult.data));
     }
-  }, [reset]);
+  }, [settingsResult, reset]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (isError) {
+      setLoadError(
+        error instanceof ApiError
+          ? error.message
+          : "Failed to load receipt settings",
+      );
+    } else {
+      setLoadError(null);
+    }
+  }, [isError, error]);
 
   const onSubmit = async (values: StoreSettingsFormValues) => {
     setSaving(true);
@@ -102,6 +107,7 @@ export default function AdminStoreSettingsPage() {
       );
       if (result.data) {
         reset(settingsToFormValues(result.data));
+        void queryClient.setQueryData(queryKeys.storeSettings.detail(), result);
       }
       toast.success("Receipt settings saved");
     } catch (err) {
@@ -162,7 +168,7 @@ export default function AdminStoreSettingsPage() {
           ) : loadError ? (
             <div className="space-y-4">
               <p className="text-sm text-destructive">{loadError}</p>
-              <Button variant="outline" onClick={() => void load()}>
+              <Button variant="outline" onClick={() => void refetch()}>
                 Retry
               </Button>
             </div>

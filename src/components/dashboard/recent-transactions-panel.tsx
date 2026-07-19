@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { transactionsAdminApi } from "@/lib/api/transactions";
 import { ApiError } from "@/lib/api/client";
 import type { Transaction } from "@/lib/api/types";
 import { useRoles } from "@/lib/auth/use-roles";
+import { useTransactionsListQuery } from "@/lib/query/hooks/use-transactions-list";
+import { useInView } from "@/hooks/use-in-view";
 import { formatDateTime, formatRupiah, truncateId } from "@/lib/utils";
 import { toast } from "sonner";
+import { useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
@@ -27,53 +28,33 @@ function transactionTitle(txn: Transaction) {
 export function RecentTransactionsPanel() {
   const { hasRole } = useRoles();
   const isManager = hasRole("manager");
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(isManager);
+  const { ref, inView } = useInView<HTMLDivElement>({ rootMargin: "200px" });
+
+  const { data, isLoading, isError, error } = useTransactionsListQuery(
+    { page: 1, perPage: PER_PAGE },
+    { enabled: isManager && inView },
+  );
 
   useEffect(() => {
-    if (!isManager) return;
-
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const res = await transactionsAdminApi.list({
-          page: 1,
-          perPage: PER_PAGE,
-        });
-        if (!cancelled) {
-          setTransactions(res.data ?? []);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          toast.error(
-            err instanceof ApiError
-              ? err.message
-              : "Failed to load transactions",
-          );
-          setTransactions([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
+    if (isError) {
+      toast.error(
+        error instanceof ApiError
+          ? error.message
+          : "Failed to load transactions",
+      );
     }
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isManager]);
+  }, [isError, error]);
 
   if (!isManager) {
     return null;
   }
 
+  const transactions = data?.data ?? [];
+  const loading = !inView || isLoading;
+
   return (
-    <Card>
+    <div ref={ref}>
+      <Card>
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle className="text-base">Recent transactions</CardTitle>
         <Link
@@ -130,6 +111,7 @@ export function RecentTransactionsPanel() {
           </ul>
         )}
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }

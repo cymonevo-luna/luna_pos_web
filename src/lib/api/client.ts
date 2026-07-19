@@ -45,6 +45,17 @@ export interface ApiResult<T> {
   meta?: PageMeta;
 }
 
+const inFlightGets = new Map<string, Promise<ApiResult<unknown>>>();
+
+function getDedupeKey(path: string): string {
+  return `GET:${path}`;
+}
+
+/** Clears in-flight GET dedupe state between tests. */
+export function resetInFlightGetsForTests() {
+  inFlightGets.clear();
+}
+
 async function request<T>(
   path: string,
   options: RequestOptions = {},
@@ -142,8 +153,20 @@ export async function downloadBlob(
 }
 
 export const api = {
-  get: <T>(path: string, options?: RequestOptions) =>
-    request<T>(path, { ...options, method: "GET" }),
+  get: <T>(path: string, options?: RequestOptions) => {
+    const key = getDedupeKey(path);
+    const existing = inFlightGets.get(key);
+    if (existing) {
+      return existing as Promise<ApiResult<T>>;
+    }
+    const promise = request<T>(path, { ...options, method: "GET" }).finally(
+      () => {
+        inFlightGets.delete(key);
+      },
+    );
+    inFlightGets.set(key, promise as Promise<ApiResult<unknown>>);
+    return promise;
+  },
   post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>(path, { ...options, method: "POST", body }),
   put: <T>(path: string, body?: unknown, options?: RequestOptions) =>

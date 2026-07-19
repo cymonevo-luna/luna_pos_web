@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { api, ApiError } from "./client";
+import { api, ApiError, resetInFlightGetsForTests } from "./client";
 import { tokenStore } from "@/lib/auth/tokens";
 import { refreshTokenPair, resetRefreshInFlightForTests } from "@/lib/auth/refresh";
 
@@ -30,6 +30,7 @@ describe("api client", () => {
   beforeEach(() => {
     tokenStore.clear();
     resetRefreshInFlightForTests();
+    resetInFlightGetsForTests();
     vi.mocked(refreshTokenPair).mockReset();
     mockAdminRoute();
     vi.restoreAllMocks();
@@ -70,6 +71,26 @@ describe("api client", () => {
       auth: false,
     });
     expect(res.data).toBeUndefined();
+  });
+
+  it("deduplicates concurrent identical GET requests", async () => {
+    let resolveFetch!: (value: Response) => void;
+    const fetchPromise = new Promise<Response>((resolve) => {
+      resolveFetch = resolve;
+    });
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockReturnValue(fetchPromise);
+
+    const first = api.get<{ id: string }>("/dedupe-test", { auth: false });
+    const second = api.get<{ id: string }>("/dedupe-test", { auth: false });
+
+    resolveFetch!(jsonResponse({ success: true, data: { id: "1" } }));
+
+    const [firstResult, secondResult] = await Promise.all([first, second]);
+    expect(firstResult.data).toEqual({ id: "1" });
+    expect(secondResult.data).toEqual({ id: "1" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("throws an ApiError with code and message on failure", async () => {

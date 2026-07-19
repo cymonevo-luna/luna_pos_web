@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Search,
   Trash2,
@@ -17,13 +18,15 @@ import {
   menuFullFormToPayload,
   normalizeMenuPhotoFormValue,
 } from "@/lib/api/menus";
-import { categoriesAdminApi } from "@/lib/api/categories";
 import { ApiError } from "@/lib/api/client";
-import type { Category, Menu } from "@/lib/api/types";
+import type { Menu } from "@/lib/api/types";
 import type { MenuBasicFormValues } from "@/lib/validations";
 import { MENU_COGS_DEFAULTS } from "@/lib/menu-cogs";
 import { formatRupiah, menuPhotoUrl } from "@/lib/utils";
 import { toast } from "sonner";
+import { useCategoriesListQuery } from "@/lib/query/hooks/use-categories-list";
+import { useMenusListQuery } from "@/lib/query/hooks/use-menus-list";
+import { queryKeys } from "@/lib/query/keys";
 import { MenuForm, type MenuFormHandle } from "@/components/admin/menu-form";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogTitle } from "@/components/ui/dialog";
@@ -68,15 +71,11 @@ function MenuPhotoThumbnail({ photoUrl }: { photoUrl?: string | null }) {
 }
 
 export default function AdminMenusPage() {
-  const [menus, setMenus] = useState<Menu[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const [total, setTotal] = useState(0);
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Menu | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -84,7 +83,36 @@ export default function AdminMenusPage() {
   const [saving, setSaving] = useState(false);
   const formRef = useRef<MenuFormHandle>(null);
 
+  const categoriesQuery = useCategoriesListQuery({
+    page: 1,
+    perPage: CATEGORY_FETCH_PER_PAGE,
+  });
+  const categories = categoriesQuery.data?.data ?? [];
+  const categoriesLoading = categoriesQuery.isLoading;
+
+  const menusQuery = useMenusListQuery({
+    page,
+    perPage: PER_PAGE,
+    search: debounced,
+    categoryId: categoryFilter,
+  });
+  const menus = menusQuery.data?.data ?? [];
+  const total = menusQuery.data?.meta?.total ?? 0;
+  const loading = menusQuery.isLoading;
+
   const hasCategories = categories.length > 0;
+
+  useEffect(() => {
+    if (menusQuery.isError) {
+      setError(
+        menusQuery.error instanceof ApiError
+          ? menusQuery.error.message
+          : "Failed to load menus",
+      );
+    } else {
+      setError(null);
+    }
+  }, [menusQuery.isError, menusQuery.error]);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -94,53 +122,9 @@ export default function AdminMenusPage() {
     return () => clearTimeout(id);
   }, [search]);
 
-  const loadCategories = useCallback(async () => {
-    setCategoriesLoading(true);
-    try {
-      const res = await categoriesAdminApi.list({
-        page: 1,
-        perPage: CATEGORY_FETCH_PER_PAGE,
-      });
-      setCategories(res.data ?? []);
-    } catch (err) {
-      toast.error(
-        err instanceof ApiError
-          ? err.message
-          : "Failed to load categories",
-      );
-    } finally {
-      setCategoriesLoading(false);
-    }
-  }, []);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await menusAdminApi.list({
-        page,
-        perPage: PER_PAGE,
-        search: debounced,
-        categoryId: categoryFilter,
-      });
-      setMenus(res.data ?? []);
-      setTotal(res.meta?.total ?? 0);
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : "Failed to load menus",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [page, debounced, categoryFilter]);
-
-  useEffect(() => {
-    void loadCategories();
-  }, [loadCategories]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const invalidateMenus = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.menus.lists() });
+  }, [queryClient]);
 
   const handleCategoryFilterChange = (value: string) => {
     setCategoryFilter(value);
@@ -154,7 +138,7 @@ export default function AdminMenusPage() {
       await menusAdminApi.delete(pendingDelete.id);
       toast.success("Menu deleted");
       setPendingDelete(null);
-      void load();
+      invalidateMenus();
     } catch (err) {
       toast.error(
         err instanceof ApiError ? err.message : "Failed to delete menu",
@@ -199,7 +183,7 @@ export default function AdminMenusPage() {
         toast.success("Menu updated");
       }
       setDialog(null);
-      void load();
+      invalidateMenus();
     } catch (err) {
       if (err instanceof ApiError && err.fields) {
         formRef.current?.applyServerErrors(err.fields);

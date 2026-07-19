@@ -103,7 +103,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       stored.user.id === claims.uid &&
       stored.user.merchant_id === claims.merchant_id
     ) {
-      if (!featuresSyncedFromRefresh) {
+      const hasStoredFeatures =
+        Array.isArray(stored.user.features) && stored.user.features.length > 0;
+
+      if (!featuresSyncedFromRefresh && !hasStoredFeatures) {
         try {
           const { data } = await usersApi.get(claims.uid);
           const user = { ...stored.user, features: data.features };
