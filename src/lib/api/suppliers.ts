@@ -84,10 +84,15 @@ function normalizePriceResult(
   };
 }
 
+export type SupplierSortBy = "name";
+export type SupplierSortOrder = "asc" | "desc";
+
 export interface ListSuppliersParams {
   page?: number;
   perPage?: number;
   search?: string;
+  sortBy?: SupplierSortBy;
+  sortOrder?: SupplierSortOrder;
 }
 
 export interface CreateSupplierPayload {
@@ -141,12 +146,16 @@ export const suppliersAdminApi = {
     page = 1,
     perPage = 10,
     search = "",
+    sortBy,
+    sortOrder,
   }: ListSuppliersParams = {}) => {
     const params = new URLSearchParams({
       page: String(page),
       per_page: String(perPage),
     });
     if (search) params.set("search", search);
+    if (sortBy) params.set("sort_by", sortBy);
+    if (sortOrder) params.set("sort_order", sortOrder);
     const result = await api.get<SupplierRaw[]>(
       `/api/admin/suppliers?${params.toString()}`,
     );

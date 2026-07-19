@@ -11,7 +11,12 @@ import {
   Pencil,
   Eye,
 } from "lucide-react";
-import { suppliersAdminApi } from "@/lib/api/suppliers";
+import {
+  suppliersAdminApi,
+  type SupplierSortBy,
+  type SupplierSortOrder,
+} from "@/lib/api/suppliers";
+import { SortableTableHeader } from "@/components/admin/sortable-table-header";
 import { ApiError } from "@/lib/api/client";
 import type { Supplier } from "@/lib/api/types";
 import { toast } from "sonner";
@@ -29,6 +34,8 @@ export default function AdminSuppliersPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
+  const [sortBy, setSortBy] = useState<SupplierSortBy | undefined>();
+  const [sortOrder, setSortOrder] = useState<SupplierSortOrder>("asc");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Supplier | null>(null);
@@ -50,6 +57,7 @@ export default function AdminSuppliersPage() {
         page,
         perPage: PER_PAGE,
         search: debounced,
+        ...(sortBy ? { sortBy, sortOrder } : {}),
       });
       setSuppliers(res.data ?? []);
       setTotal(res.meta?.total ?? 0);
@@ -60,7 +68,17 @@ export default function AdminSuppliersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debounced]);
+  }, [page, debounced, sortBy, sortOrder]);
+
+  const handleSort = (column: SupplierSortBy) => {
+    setPage(1);
+    if (sortBy === column) {
+      setSortOrder((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortBy(column);
+    setSortOrder("asc");
+  };
 
   useEffect(() => {
     void load();
@@ -96,7 +114,7 @@ export default function AdminSuppliersPage() {
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search name, phone, or address"
+              placeholder="Search name, phone, address, or food supply"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
@@ -117,7 +135,15 @@ export default function AdminSuppliersPage() {
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/50 text-left text-muted-foreground">
               <tr>
-                <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">
+                  <SortableTableHeader
+                    label="Name"
+                    sortKey="name"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                </th>
                 <th className="px-4 py-3 font-medium">Contact</th>
                 <th className="px-4 py-3 font-medium">Price quotes</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>

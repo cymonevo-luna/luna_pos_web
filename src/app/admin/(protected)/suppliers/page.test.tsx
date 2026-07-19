@@ -91,7 +91,9 @@ describe("AdminSuppliersPage", () => {
     await screen.findByText("Beras Supplier");
 
     await user.type(
-      screen.getByPlaceholderText("Search name, phone, or address"),
+      screen.getByPlaceholderText(
+        "Search name, phone, address, or food supply",
+      ),
       "beras",
     );
     await vi.advanceTimersByTimeAsync(350);
@@ -155,5 +157,42 @@ describe("AdminSuppliersPage", () => {
       "href",
       "/admin/suppliers/sup-1/edit",
     );
+  });
+
+  it("renders sortable Name header", async () => {
+    render(<AdminSuppliersPage />);
+    await screen.findByText("Beras Supplier");
+
+    expect(
+      screen.getByRole("button", { name: /sort by name/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("sends name sort on Name header click", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminSuppliersPage />);
+    await screen.findByText("Beras Supplier");
+
+    await user.click(screen.getByRole("button", { name: /sort by name/i }));
+
+    await waitFor(() => {
+      expect(suppliersAdminApi.list).toHaveBeenLastCalledWith({
+        page: 1,
+        perPage: 10,
+        search: "",
+        sortBy: "name",
+        sortOrder: "asc",
+      });
+    });
+  });
+
+  it("search placeholder mentions food supply", async () => {
+    render(<AdminSuppliersPage />);
+    await screen.findByText("Beras Supplier");
+
+    expect(
+      screen.getByPlaceholderText(/food supply/i),
+    ).toBeInTheDocument();
   });
 });

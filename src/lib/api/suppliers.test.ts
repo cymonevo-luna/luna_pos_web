@@ -254,6 +254,26 @@ describe("suppliersAdminApi", () => {
     expect(headers.get("Authorization")).toBe("Bearer token-abc");
   });
 
+  it("appends sort_by and sort_order to the list URL", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: [],
+        meta: { page: 1, per_page: 10, total: 0 },
+      }),
+    );
+
+    await suppliersAdminApi.list({
+      sortBy: "name",
+      sortOrder: "desc",
+    });
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/suppliers?page=1&per_page=10&sort_by=name&sort_order=desc",
+    );
+  });
+
   it("unwraps envelope responses for supplier and price endpoints", async () => {
     const supplier = {
       id: "sup-1",
