@@ -1,12 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/render";
+import { createTestQueryClient, TestQueryProvider } from "@/test/query-provider";
 import userEvent from "@testing-library/user-event";
 import AdminTransactionsPage from "./page";
 import { transactionsAdminApi } from "@/lib/api/transactions";
 import { ApiError } from "@/lib/api/client";
 import type { Transaction } from "@/lib/api/types";
 import { toast } from "sonner";
+import { queryKeys } from "@/lib/query/keys";
+import { invalidateTransactionQueries } from "@/lib/query/invalidate-transaction-queries";
 
 const mockPush = vi.fn();
 
@@ -151,6 +154,55 @@ describe("AdminTransactionsPage", () => {
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Server error");
+    });
+  });
+
+  it("refetches list after transaction delete invalidation", async () => {
+    const listParams = {
+      page: 1,
+      perPage: 10,
+      method: "" as const,
+      dateFrom: "",
+      dateTo: "",
+    };
+
+    vi.mocked(transactionsAdminApi.list)
+      .mockResolvedValueOnce({
+        data: [transaction1, transaction2],
+        meta: { page: 1, per_page: 10, total: 2 },
+      })
+      .mockResolvedValueOnce({
+        data: [transaction2],
+        meta: { page: 1, per_page: 10, total: 1 },
+      });
+
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(queryKeys.transactions.list(listParams), {
+      data: [transaction1, transaction2],
+      meta: { page: 1, per_page: 10, total: 2 },
+    });
+
+    render(
+      <TestQueryProvider client={queryClient}>
+        <AdminTransactionsPage />
+      </TestQueryProvider>,
+    );
+
+    expect(await screen.findByText("kasir1")).toBeInTheDocument();
+    expect(screen.getByText("kasir2")).toBeInTheDocument();
+    expect(screen.getByText("2 total")).toBeInTheDocument();
+    expect(transactionsAdminApi.list).toHaveBeenCalledTimes(1);
+
+    await invalidateTransactionQueries(queryClient);
+
+    await waitFor(() => {
+      expect(transactionsAdminApi.list).toHaveBeenCalledTimes(2);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText("kasir1")).not.toBeInTheDocument();
+      expect(screen.getByText("kasir2")).toBeInTheDocument();
+      expect(screen.getByText("1 total")).toBeInTheDocument();
     });
   });
 });

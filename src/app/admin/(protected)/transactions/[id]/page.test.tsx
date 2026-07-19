@@ -7,6 +7,9 @@ import { ApiError } from "@/lib/api/client";
 import { useRoles } from "@/lib/auth/use-roles";
 import type { Transaction } from "@/lib/api/types";
 import { toast } from "sonner";
+import { TestQueryProvider } from "@/test/query-provider";
+import { invalidateTransactionQueries } from "@/lib/query/invalidate-transaction-queries";
+import { invalidateCashierBalanceData } from "@/lib/hooks/use-cashier-balance";
 
 const mockPush = vi.fn();
 
@@ -30,6 +33,14 @@ vi.mock("sonner", () => ({
     success: vi.fn(),
     error: vi.fn(),
   },
+}));
+
+vi.mock("@/lib/query/invalidate-transaction-queries", () => ({
+  invalidateTransactionQueries: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/hooks/use-cashier-balance", () => ({
+  invalidateCashierBalanceData: vi.fn(),
 }));
 
 const transaction: Transaction = {
@@ -69,6 +80,14 @@ function mockManagerRoles() {
   });
 }
 
+function renderDetail(id: string = transaction.id) {
+  return render(
+    <TestQueryProvider>
+      <AdminTransactionDetailContent id={id} />
+    </TestQueryProvider>,
+  );
+}
+
 describe("AdminTransactionDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -77,7 +96,7 @@ describe("AdminTransactionDetailPage", () => {
   });
 
   it("shows Delete transaction button for admin users", async () => {
-    render(<AdminTransactionDetailContent id={transaction.id} />);
+    renderDetail();
 
     expect(
       await screen.findByRole("button", { name: "Delete transaction" }),
@@ -87,7 +106,7 @@ describe("AdminTransactionDetailPage", () => {
   it("does not show Delete transaction button for manager users", async () => {
     mockManagerRoles();
 
-    render(<AdminTransactionDetailContent id={transaction.id} />);
+    renderDetail();
 
     await screen.findByText("kasir1");
 
@@ -96,13 +115,29 @@ describe("AdminTransactionDetailPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("navigates to the transactions list after confirmed delete", async () => {
+  it("invalidates queries before navigating after confirmed delete", async () => {
     const user = userEvent.setup();
-    vi.mocked(transactionsAdminApi.delete).mockResolvedValue({
-      data: undefined,
+    const callOrder: string[] = [];
+
+    vi.mocked(transactionsAdminApi.delete).mockImplementation(async () => {
+      callOrder.push("delete");
+      return { data: undefined };
+    });
+    vi.mocked(invalidateTransactionQueries).mockImplementation(async () => {
+      callOrder.push("invalidateTransactions");
+    });
+    vi.mocked(invalidateCashierBalanceData).mockImplementation(() => {
+      callOrder.push("invalidateCashierBalance");
+    });
+    vi.mocked(toast.success).mockImplementation(() => {
+      callOrder.push("toast");
+      return "toast-id";
+    });
+    vi.mocked(mockPush).mockImplementation(() => {
+      callOrder.push("navigate");
     });
 
-    render(<AdminTransactionDetailContent id={transaction.id} />);
+    renderDetail();
     await screen.findByRole("button", { name: "Delete transaction" });
 
     await user.click(screen.getByRole("button", { name: "Delete transaction" }));
@@ -110,9 +145,19 @@ describe("AdminTransactionDetailPage", () => {
 
     await waitFor(() => {
       expect(transactionsAdminApi.delete).toHaveBeenCalledWith(transaction.id);
+      expect(invalidateTransactionQueries).toHaveBeenCalled();
+      expect(invalidateCashierBalanceData).toHaveBeenCalled();
       expect(toast.success).toHaveBeenCalledWith("Transaction deleted");
       expect(mockPush).toHaveBeenCalledWith("/admin/transactions");
     });
+
+    expect(callOrder).toEqual([
+      "delete",
+      "invalidateTransactions",
+      "invalidateCashierBalance",
+      "toast",
+      "navigate",
+    ]);
   });
 
   it("shows error toast and stays on page when delete returns 403", async () => {
@@ -121,7 +166,7 @@ describe("AdminTransactionDetailPage", () => {
       new ApiError(403, "forbidden", "Forbidden"),
     );
 
-    render(<AdminTransactionDetailContent id={transaction.id} />);
+    renderDetail();
     await screen.findByRole("button", { name: "Delete transaction" });
 
     await user.click(screen.getByRole("button", { name: "Delete transaction" }));
@@ -130,6 +175,8 @@ describe("AdminTransactionDetailPage", () => {
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Forbidden");
     });
+    expect(invalidateTransactionQueries).not.toHaveBeenCalled();
+    expect(invalidateCashierBalanceData).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
     expect(screen.getByText("kasir1")).toBeInTheDocument();
   });
