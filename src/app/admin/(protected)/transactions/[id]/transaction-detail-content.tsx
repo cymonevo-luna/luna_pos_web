@@ -8,6 +8,7 @@ import { transactionsAdminApi } from "@/lib/api/transactions";
 import { ApiError } from "@/lib/api/client";
 import type { Transaction } from "@/lib/api/types";
 import { useRoles } from "@/lib/auth/use-roles";
+import { useDeleteTransaction } from "@/lib/query/hooks/use-delete-transaction";
 import { formatDateTime, formatRupiah } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -27,7 +28,8 @@ export function AdminTransactionDetailContent({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const { mutateAsync: deleteTransaction, isPending: deleting } =
+    useDeleteTransaction();
 
   useEffect(() => {
     transactionsAdminApi
@@ -43,17 +45,14 @@ export function AdminTransactionDetailContent({ id }: { id: string }) {
   }, [id]);
 
   const handleDelete = async () => {
-    setDeleting(true);
     try {
-      await transactionsAdminApi.delete(id);
+      await deleteTransaction(id);
       toast.success("Transaction deleted");
       router.push("/admin/transactions");
     } catch (err) {
       toast.error(
         err instanceof ApiError ? err.message : "Failed to delete transaction",
       );
-    } finally {
-      setDeleting(false);
     }
   };
 
