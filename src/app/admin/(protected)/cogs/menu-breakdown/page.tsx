@@ -7,7 +7,12 @@ import {
   ChevronRight,
   Download,
 } from "lucide-react";
-import { cogsAdminApi, downloadCogsCsv } from "@/lib/api/cogs";
+import {
+  cogsAdminApi,
+  downloadCogsCsv,
+  type CogsSortBy,
+  type CogsSortOrder,
+} from "@/lib/api/cogs";
 import { categoriesAdminApi } from "@/lib/api/categories";
 import { ApiError } from "@/lib/api/client";
 import type { Category, CogsMenuSummary } from "@/lib/api/types";
@@ -19,6 +24,7 @@ import {
 import { formatRupiah } from "@/lib/utils";
 import { toast } from "sonner";
 import { CogsDetailDialog } from "@/components/admin/cogs-detail-dialog";
+import { SortableTableHeader } from "@/components/admin/sortable-table-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -46,6 +52,8 @@ export default function AdminCogsPage() {
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [sortBy, setSortBy] = useState<CogsSortBy | undefined>();
+  const [sortOrder, setSortOrder] = useState<CogsSortOrder>("asc");
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [selectedMenuId, setSelectedMenuId] = useState<string | null>(null);
@@ -80,6 +88,7 @@ export default function AdminCogsPage() {
         perPage: PER_PAGE,
         search: debounced,
         categoryId: categoryFilter,
+        ...(sortBy ? { sortBy, sortOrder } : {}),
       });
       setItems(res.data ?? []);
       setTotal(res.meta?.total ?? 0);
@@ -92,7 +101,17 @@ export default function AdminCogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debounced, categoryFilter]);
+  }, [page, debounced, categoryFilter, sortBy, sortOrder]);
+
+  const handleSort = (column: CogsSortBy) => {
+    setPage(1);
+    if (sortBy === column) {
+      setSortOrder((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortBy(column);
+    setSortOrder("asc");
+  };
 
   useEffect(() => {
     void loadCategories();
@@ -173,17 +192,49 @@ export default function AdminCogsPage() {
           <table className="w-full min-w-[960px] text-sm">
             <thead className="border-b border-border bg-muted/50 text-left text-muted-foreground">
               <tr>
-                <th className="px-4 py-3 font-medium">Menu</th>
+                <th className="px-4 py-3 font-medium">
+                  <SortableTableHeader
+                    label="Menu"
+                    sortKey="menu_title"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                </th>
                 <th className="px-4 py-3 font-medium">Category</th>
                 <th className="px-4 py-3 font-medium">COGS/piece</th>
-                <th className="px-4 py-3 font-medium">Margin %</th>
+                <th className="px-4 py-3 font-medium">
+                  <SortableTableHeader
+                    label="Margin %"
+                    sortKey="margin"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                </th>
                 <th className="px-4 py-3 font-medium">VAT %</th>
                 <th className="px-4 py-3 font-medium">Price after margin</th>
                 <th className="px-4 py-3 font-medium">Price after VAT</th>
                 <th className="px-4 py-3 font-medium">Recommended offline</th>
                 <th className="px-4 py-3 font-medium">Recommended online</th>
-                <th className="px-4 py-3 font-medium">Current sell price</th>
-                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">
+                  <SortableTableHeader
+                    label="Current sell price"
+                    sortKey="current_sell_price"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                </th>
+                <th className="px-4 py-3 font-medium">
+                  <SortableTableHeader
+                    label="Status"
+                    sortKey="status"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                </th>
               </tr>
             </thead>
             <tbody>

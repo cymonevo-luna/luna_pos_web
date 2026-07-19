@@ -3,28 +3,23 @@
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type {
-  FoodSupplySortBy,
-  FoodSupplySortOrder,
-} from "@/lib/api/food-supplies";
-
-interface SortableTableHeaderProps {
+interface SortableTableHeaderProps<T extends string> {
   label: string;
-  sortKey: FoodSupplySortBy;
-  activeSortBy?: FoodSupplySortBy;
-  activeSortOrder?: FoodSupplySortOrder;
-  onSort: (sortKey: FoodSupplySortBy) => void;
+  sortKey: T;
+  activeSortBy?: T;
+  activeSortOrder?: "asc" | "desc";
+  onSort: (sortKey: T) => void;
   className?: string;
 }
 
-export function SortableTableHeader({
+export function SortableTableHeader<T extends string>({
   label,
   sortKey,
   activeSortBy,
   activeSortOrder,
   onSort,
   className,
-}: SortableTableHeaderProps) {
+}: SortableTableHeaderProps<T>) {
   const isActive = activeSortBy === sortKey;
   const Icon = !isActive
     ? ArrowUpDown
