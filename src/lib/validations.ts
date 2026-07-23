@@ -503,12 +503,53 @@ export const storeSettingsSchema = z.object({
 
 export type StoreSettingsFormValues = z.infer<typeof storeSettingsSchema>;
 
-export const purchaseRequestLineItemSchema = z.object({
-  food_supply_id: z.string().min(1, "Food supply is required"),
-  quantity: z
-    .number({ error: "Quantity is required" })
-    .positive("Quantity must be greater than 0"),
+const purchaseRequestSupplierPriceUpdateSchema = z.object({
+  price_amount: z
+    .number({ error: "Price amount is required" })
+    .int("Price amount must be a whole number")
+    .positive("Price amount must be greater than 0"),
+  price_quantity: z
+    .number({ error: "Price quantity is required" })
+    .positive("Price quantity must be greater than 0"),
 });
+
+export const purchaseRequestLineItemSchema = z
+  .object({
+    food_supply_id: z.string().min(1, "Food supply is required"),
+    quantity: z
+      .number({ error: "Quantity is required" })
+      .positive("Quantity must be greater than 0"),
+    line_actual_amount: z.number().optional(),
+    update_supplier_price: z.boolean().optional(),
+    supplier_price_update: purchaseRequestSupplierPriceUpdateSchema.optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.line_actual_amount != null) {
+      if (!Number.isInteger(data.line_actual_amount)) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Actual price must be a whole number",
+          path: ["line_actual_amount"],
+        });
+      } else if (data.line_actual_amount <= 0) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Actual price must be greater than 0",
+          path: ["line_actual_amount"],
+        });
+      }
+    }
+
+    if (!data.update_supplier_price) return;
+
+    if (!data.supplier_price_update) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Catalog price is required when saving a new price",
+        path: ["supplier_price_update"],
+      });
+    }
+  });
 
 export const purchaseRequestSchema = z.object({
   supplier_id: z.string().min(1, "Supplier is required"),

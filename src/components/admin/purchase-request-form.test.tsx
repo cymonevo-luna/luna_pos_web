@@ -179,4 +179,98 @@ describe("PurchaseRequestForm", () => {
     await user.click(submitButton);
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it("renders actual price and catalog update fields per line", async () => {
+    const user = userEvent.setup();
+    render(<PurchaseRequestForm onSubmit={() => {}} onCancel={() => {}} />);
+
+    await selectSupplier(user, "sup-a");
+    await addLineItem(user);
+
+    expect(screen.getByLabelText("Actual price (optional)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Save new catalog price")).toBeInTheDocument();
+  });
+
+  it("shows actual total in summary when actual price is entered", async () => {
+    const user = userEvent.setup();
+    render(<PurchaseRequestForm onSubmit={() => {}} onCancel={() => {}} />);
+
+    await selectSupplier(user, "sup-a");
+    await addLineItem(user);
+
+    const itemSelect = await screen.findByLabelText("Item 1");
+    await user.selectOptions(itemSelect, "fs-meat");
+    await user.type(screen.getByLabelText("Quantity"), "1000");
+    await user.type(screen.getByLabelText("Actual price (optional)"), "135000");
+
+    expect(screen.getByText("Actual total")).toBeInTheDocument();
+    expect(screen.getAllByText("Rp 135.000").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("blocks submit when actual price is zero", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<PurchaseRequestForm onSubmit={onSubmit} onCancel={() => {}} />);
+
+    await selectSupplier(user, "sup-a");
+    await addLineItem(user);
+
+    const itemSelect = await screen.findByLabelText("Item 1");
+    await user.selectOptions(itemSelect, "fs-meat");
+    await user.type(screen.getByLabelText("Quantity"), "1000");
+    await user.type(screen.getByLabelText("Actual price (optional)"), "0");
+
+    await user.click(
+      screen.getByRole("button", { name: "Create purchase request" }),
+    );
+
+    expect(
+      await screen.findByText("Actual price must be greater than 0"),
+    ).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("submits actual price and supplier price update in form values", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<PurchaseRequestForm onSubmit={onSubmit} onCancel={() => {}} />);
+
+    await selectSupplier(user, "sup-a");
+    await addLineItem(user);
+
+    const itemSelect = await screen.findByLabelText("Item 1");
+    await user.selectOptions(itemSelect, "fs-meat");
+    await user.type(screen.getByLabelText("Quantity"), "1000");
+    await user.type(screen.getByLabelText("Actual price (optional)"), "135000");
+    await user.click(screen.getByLabelText("Save new catalog price"));
+    const priceAmountInput = screen.getByLabelText("Catalog price (Rp)");
+    await user.clear(priceAmountInput);
+    await user.type(priceAmountInput, "135000");
+
+    await user.click(
+      screen.getByRole("button", { name: "Create purchase request" }),
+    );
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalled();
+    });
+
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
+      supplier_id: "sup-a",
+      items: [
+        {
+          food_supply_id: "fs-meat",
+          quantity: 1000,
+          line_actual_amount: 135000,
+          update_supplier_price: true,
+          supplier_price_update: {
+            price_amount: 135000,
+            price_quantity: 1000,
+          },
+        },
+      ],
+    });
+  });
 });

@@ -21,28 +21,36 @@ import type { BatchPurchaseRequestsPayload } from "./smart-purchase-utils";
 interface PurchaseRequestItemRaw
   extends Omit<
     PurchaseRequestItem,
-    "quantity" | "price_quantity" | "unit_price" | "price_amount" | "line_estimated_amount"
+    | "quantity"
+    | "price_quantity"
+    | "unit_price"
+    | "price_amount"
+    | "line_estimated_amount"
+    | "line_actual_amount"
   > {
   quantity: number | string;
   price_quantity: number | string;
   unit_price: number | string;
   price_amount: number | string;
   line_estimated_amount: number | string;
+  line_actual_amount?: number | string | null;
 }
 
 interface PurchaseRequestRaw
   extends Omit<
     PurchaseRequest,
-    "items" | "total_estimated_amount" | "status_history"
+    "items" | "total_estimated_amount" | "total_actual_amount" | "status_history"
   > {
   items: PurchaseRequestItemRaw[];
   total_estimated_amount: number | string;
+  total_actual_amount?: number | string | null;
   status_history?: PurchaseRequestStatusHistoryEntry[];
 }
 
 interface PurchaseRequestSummaryRaw
-  extends Omit<PurchaseRequestSummary, "total_estimated_amount"> {
+  extends Omit<PurchaseRequestSummary, "total_estimated_amount" | "total_actual_amount"> {
   total_estimated_amount: number | string;
+  total_actual_amount?: number | string | null;
 }
 
 interface PurchaseRequestSupplierQuoteRaw
@@ -98,6 +106,10 @@ export function normalizePurchaseRequestItem(
     unit_price: parseNumeric(raw.unit_price),
     price_amount: parseNumeric(raw.price_amount),
     line_estimated_amount: parseNumeric(raw.line_estimated_amount),
+    line_actual_amount:
+      raw.line_actual_amount == null
+        ? raw.line_actual_amount
+        : parseNumeric(raw.line_actual_amount),
   };
 }
 
@@ -107,6 +119,10 @@ export function normalizePurchaseRequest(
   return {
     ...raw,
     total_estimated_amount: parseNumeric(raw.total_estimated_amount),
+    total_actual_amount:
+      raw.total_actual_amount == null
+        ? raw.total_actual_amount
+        : parseNumeric(raw.total_actual_amount),
     items: (raw.items ?? []).map(normalizePurchaseRequestItem),
     status_history: raw.status_history ?? [],
   };
@@ -118,6 +134,10 @@ function normalizePurchaseRequestSummary(
   return {
     ...raw,
     total_estimated_amount: parseNumeric(raw.total_estimated_amount),
+    total_actual_amount:
+      raw.total_actual_amount == null
+        ? raw.total_actual_amount
+        : parseNumeric(raw.total_actual_amount),
   };
 }
 
@@ -204,6 +224,11 @@ export interface ListPurchaseRequestsParams {
 export interface CreatePurchaseRequestItemPayload {
   food_supply_id: string;
   quantity: string;
+  line_actual_amount?: number;
+  supplier_price_update?: {
+    price_amount: number;
+    price_quantity: number;
+  };
 }
 
 export interface CreatePurchaseRequestPayload {
@@ -234,10 +259,25 @@ export function purchaseRequestFormToPayload(
 ): CreatePurchaseRequestPayload {
   const payload: CreatePurchaseRequestPayload = {
     supplier_id: values.supplier_id,
-    items: values.items.map((item) => ({
-      food_supply_id: item.food_supply_id,
-      quantity: String(item.quantity),
-    })),
+    items: values.items.map((item) => {
+      const line: CreatePurchaseRequestItemPayload = {
+        food_supply_id: item.food_supply_id,
+        quantity: String(item.quantity),
+      };
+
+      if (item.line_actual_amount != null) {
+        line.line_actual_amount = item.line_actual_amount;
+      }
+
+      if (item.update_supplier_price && item.supplier_price_update) {
+        line.supplier_price_update = {
+          price_amount: item.supplier_price_update.price_amount,
+          price_quantity: item.supplier_price_update.price_quantity,
+        };
+      }
+
+      return line;
+    }),
   };
 
   const notes = values.notes?.trim();

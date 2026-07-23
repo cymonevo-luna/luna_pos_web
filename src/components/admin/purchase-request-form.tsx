@@ -44,6 +44,28 @@ function formatCatalogOptionLabel(price: SupplierPrice) {
   return `${title} · ${unitPrice}`;
 }
 
+function blockDecimalInput(event: React.KeyboardEvent<HTMLInputElement>) {
+  if (event.key === "." || event.key === "," || event.key === "e" || event.key === "E") {
+    event.preventDefault();
+  }
+}
+
+function optionalIntegerInput(value: unknown) {
+  if (value === "" || value === null || value === undefined) {
+    return undefined;
+  }
+  const num = Number(value);
+  return Number.isNaN(num) ? Number.NaN : num;
+}
+
+function createEmptyLineItem(): PurchaseRequestFormValues["items"][number] {
+  return {
+    food_supply_id: "",
+    quantity: Number.NaN,
+    update_supplier_price: false,
+  };
+}
+
 function findDuplicateItemIndexes(items: PurchaseRequestFormValues["items"]) {
   const seen = new Map<string, number>();
   const duplicates = new Set<number>();
@@ -176,7 +198,13 @@ export const PurchaseRequestForm = React.forwardRef<
         if (itemMatch) {
           const index = Number(itemMatch[1] ?? "0");
           const property = itemMatch[2];
-          if (property === "food_supply_id" || property === "quantity") {
+          if (
+            property === "food_supply_id" ||
+            property === "quantity" ||
+            property === "line_actual_amount" ||
+            property === "supplier_price_update" ||
+            property.startsWith("supplier_price_update.")
+          ) {
             setError(`items.${index}.${property}` as keyof PurchaseRequestFormValues, {
               message,
             });
@@ -221,7 +249,12 @@ export const PurchaseRequestForm = React.forwardRef<
       price && Number.isFinite(quantity)
         ? estimateLineAmount(price.price_amount, price.price_quantity, quantity)
         : 0;
-    return { index, price, quantity, estimated };
+    const actual =
+      item.line_actual_amount != null && !Number.isNaN(item.line_actual_amount)
+        ? item.line_actual_amount
+        : undefined;
+    const displayTotal = actual ?? estimated;
+    return { index, price, quantity, estimated, actual, displayTotal };
   });
 
   const totalEstimate = lineSummaries.reduce(
@@ -229,10 +262,17 @@ export const PurchaseRequestForm = React.forwardRef<
     0,
   );
 
+  const hasAnyActual = lineSummaries.some((line) => line.actual != null);
+
+  const totalActual = lineSummaries.reduce(
+    (sum, line) => sum + line.displayTotal,
+    0,
+  );
+
   const canAddItems = Boolean(supplierId) && !catalogLoading && !isLoading;
 
   const handleAddRow = () => {
-    append({ food_supply_id: "", quantity: Number.NaN });
+    append(createEmptyLineItem());
   };
 
   const handleFormSubmit = (values: PurchaseRequestFormValues) => {
@@ -309,92 +349,243 @@ export const PurchaseRequestForm = React.forwardRef<
                     : undefined;
                   const itemErrors = errors.items?.[index];
                   const isDuplicate = duplicateIndexes.has(index);
+                  const quantity = item?.quantity;
+                  const estimatedAmount =
+                    price && itemHasValidQuantity(quantity)
+                      ? estimateLineAmount(
+                          price.price_amount,
+                          price.price_quantity,
+                          quantity,
+                        )
+                      : null;
+                  const updateSupplierPrice = item?.update_supplier_price ?? false;
 
                   return (
                     <div
                       key={field.id}
-                      className="grid gap-3 rounded-xl border border-border p-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_auto]"
+                      className="space-y-3 rounded-xl border border-border p-3"
                     >
-                      <div className="space-y-1.5">
-                        <Label htmlFor={`purchase-item-${field.id}`}>
-                          Item {index + 1}
-                        </Label>
-                        <select
-                          id={`purchase-item-${field.id}`}
-                          className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/40 flex h-11 w-full rounded-xl border px-3.5 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                          value={item?.food_supply_id ?? ""}
-                          disabled={isLoading}
-                          onChange={(event) => {
-                            const nextId = event.target.value;
-                            setValue(`items.${index}.food_supply_id`, nextId, {
-                              shouldValidate: true,
-                            });
-                            clearErrors(`items.${index}.food_supply_id`);
-                          }}
-                        >
-                          <option value="">Select an item</option>
-                          {catalog.map((catalogPrice) => {
-                            const isSelectedElsewhere =
-                              selectedSupplyIds.includes(catalogPrice.food_supply_id) &&
-                              catalogPrice.food_supply_id !== item?.food_supply_id;
-                            return (
-                              <option
-                                key={catalogPrice.id}
-                                value={catalogPrice.food_supply_id}
-                                disabled={isSelectedElsewhere}
-                              >
-                                {formatCatalogOptionLabel(catalogPrice)}
-                              </option>
-                            );
-                          })}
-                        </select>
-                        {(itemErrors?.food_supply_id?.message || isDuplicate) && (
-                          <p className="text-destructive text-sm">
-                            {itemErrors?.food_supply_id?.message ??
-                              "This food supply is already selected"}
-                          </p>
-                        )}
+                      <div className="grid gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_auto]">
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`purchase-item-${field.id}`}>
+                            Item {index + 1}
+                          </Label>
+                          <select
+                            id={`purchase-item-${field.id}`}
+                            className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/40 flex h-11 w-full rounded-xl border px-3.5 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                            value={item?.food_supply_id ?? ""}
+                            disabled={isLoading}
+                            onChange={(event) => {
+                              const nextId = event.target.value;
+                              setValue(`items.${index}.food_supply_id`, nextId, {
+                                shouldValidate: true,
+                              });
+                              clearErrors(`items.${index}.food_supply_id`);
+                              setValue(`items.${index}.line_actual_amount`, undefined);
+                              const nextPrice = catalogBySupplyId.get(nextId);
+                              if (item?.update_supplier_price && nextPrice) {
+                                setValue(`items.${index}.supplier_price_update`, {
+                                  price_amount: nextPrice.price_amount,
+                                  price_quantity: nextPrice.price_quantity,
+                                });
+                              }
+                            }}
+                          >
+                            <option value="">Select an item</option>
+                            {catalog.map((catalogPrice) => {
+                              const isSelectedElsewhere =
+                                selectedSupplyIds.includes(catalogPrice.food_supply_id) &&
+                                catalogPrice.food_supply_id !== item?.food_supply_id;
+                              return (
+                                <option
+                                  key={catalogPrice.id}
+                                  value={catalogPrice.food_supply_id}
+                                  disabled={isSelectedElsewhere}
+                                >
+                                  {formatCatalogOptionLabel(catalogPrice)}
+                                </option>
+                              );
+                            })}
+                          </select>
+                          {(itemErrors?.food_supply_id?.message || isDuplicate) && (
+                            <p className="text-destructive text-sm">
+                              {itemErrors?.food_supply_id?.message ??
+                                "This food supply is already selected"}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`purchase-quantity-${field.id}`}>
+                            Quantity
+                          </Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              id={`purchase-quantity-${field.id}`}
+                              type="number"
+                              step="any"
+                              min="0"
+                              inputMode="decimal"
+                              disabled={isLoading}
+                              {...register(`items.${index}.quantity`, {
+                                valueAsNumber: true,
+                              })}
+                            />
+                            <span className="text-muted-foreground min-w-12 text-sm">
+                              {price?.unit ?? "—"}
+                            </span>
+                          </div>
+                          {itemErrors?.quantity?.message && (
+                            <p className="text-destructive text-sm">
+                              {itemErrors.quantity.message}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-end justify-end">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive h-11 w-11"
+                            aria-label={`Remove item ${index + 1}`}
+                            disabled={isLoading}
+                            onClick={() => remove(index)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
 
-                      <div className="space-y-1.5">
-                        <Label htmlFor={`purchase-quantity-${field.id}`}>
-                          Quantity
-                        </Label>
-                        <div className="flex items-center gap-2">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`purchase-actual-${field.id}`}>
+                            Actual price (optional)
+                          </Label>
                           <Input
-                            id={`purchase-quantity-${field.id}`}
+                            id={`purchase-actual-${field.id}`}
                             type="number"
-                            step="any"
-                            min="0"
-                            inputMode="decimal"
+                            min="1"
+                            step="1"
+                            inputMode="numeric"
                             disabled={isLoading}
-                            {...register(`items.${index}.quantity`, {
-                              valueAsNumber: true,
+                            placeholder={
+                              estimatedAmount != null
+                                ? `Est. ${formatRupiah(estimatedAmount)}`
+                                : "Optional"
+                            }
+                            onKeyDown={blockDecimalInput}
+                            {...register(`items.${index}.line_actual_amount`, {
+                              setValueAs: optionalIntegerInput,
                             })}
                           />
-                          <span className="text-muted-foreground min-w-12 text-sm">
-                            {price?.unit ?? "—"}
-                          </span>
+                          {itemErrors?.line_actual_amount?.message && (
+                            <p className="text-destructive text-sm">
+                              {itemErrors.line_actual_amount.message}
+                            </p>
+                          )}
                         </div>
-                        {itemErrors?.quantity?.message && (
-                          <p className="text-destructive text-sm">
-                            {itemErrors.quantity.message}
-                          </p>
-                        )}
-                      </div>
 
-                      <div className="flex items-end justify-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive h-11 w-11"
-                          aria-label={`Remove item ${index + 1}`}
-                          disabled={isLoading}
-                          onClick={() => remove(index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              id={`purchase-update-price-${field.id}`}
+                              type="checkbox"
+                              className="border-input h-4 w-4 rounded border"
+                              disabled={isLoading || !price}
+                              checked={updateSupplierPrice}
+                              onChange={(event) => {
+                                const checked = event.target.checked;
+                                setValue(
+                                  `items.${index}.update_supplier_price`,
+                                  checked,
+                                  { shouldValidate: true },
+                                );
+                                if (checked && price) {
+                                  setValue(`items.${index}.supplier_price_update`, {
+                                    price_amount: price.price_amount,
+                                    price_quantity: price.price_quantity,
+                                  });
+                                } else {
+                                  setValue(
+                                    `items.${index}.supplier_price_update`,
+                                    undefined,
+                                  );
+                                  clearErrors(`items.${index}.supplier_price_update`);
+                                }
+                              }}
+                            />
+                            <Label htmlFor={`purchase-update-price-${field.id}`}>
+                              Save new catalog price
+                            </Label>
+                          </div>
+
+                          {updateSupplierPrice && price ? (
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <div className="space-y-1.5">
+                                <Label htmlFor={`purchase-price-amount-${field.id}`}>
+                                  Catalog price (Rp)
+                                </Label>
+                                <Input
+                                  id={`purchase-price-amount-${field.id}`}
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  inputMode="numeric"
+                                  disabled={isLoading}
+                                  onKeyDown={blockDecimalInput}
+                                  {...register(
+                                    `items.${index}.supplier_price_update.price_amount`,
+                                    { valueAsNumber: true },
+                                  )}
+                                />
+                                {itemErrors?.supplier_price_update?.price_amount
+                                  ?.message && (
+                                  <p className="text-destructive text-sm">
+                                    {
+                                      itemErrors.supplier_price_update.price_amount
+                                        .message
+                                    }
+                                  </p>
+                                )}
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label
+                                  htmlFor={`purchase-price-quantity-${field.id}`}
+                                >
+                                  Per quantity ({price.unit})
+                                </Label>
+                                <Input
+                                  id={`purchase-price-quantity-${field.id}`}
+                                  type="number"
+                                  min="0"
+                                  step="any"
+                                  inputMode="decimal"
+                                  disabled={isLoading}
+                                  {...register(
+                                    `items.${index}.supplier_price_update.price_quantity`,
+                                    { valueAsNumber: true },
+                                  )}
+                                />
+                                {itemErrors?.supplier_price_update?.price_quantity
+                                  ?.message && (
+                                  <p className="text-destructive text-sm">
+                                    {
+                                      itemErrors.supplier_price_update.price_quantity
+                                        .message
+                                    }
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ) : null}
+                          {typeof itemErrors?.supplier_price_update?.message ===
+                            "string" && (
+                            <p className="text-destructive text-sm">
+                              {itemErrors.supplier_price_update.message}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -430,7 +621,7 @@ export const PurchaseRequestForm = React.forwardRef<
           </p>
         ) : (
           <ul className="space-y-2 text-sm">
-            {lineSummaries.map(({ index, price, quantity, estimated }) => {
+            {lineSummaries.map(({ index, price, quantity, displayTotal, actual }) => {
               if (!price || !itemHasValidQuantity(quantity)) return null;
               const title = price.food_supply_title ?? "Unknown supply";
               return (
@@ -440,18 +631,29 @@ export const PurchaseRequestForm = React.forwardRef<
                 >
                   <span className="text-muted-foreground truncate">
                     {title} · {quantity} {price.unit}
+                    {actual != null ? " · actual" : ""}
                   </span>
-                  <span className="font-medium">{formatRupiah(estimated)}</span>
+                  <span className="font-medium">{formatRupiah(displayTotal)}</span>
                 </li>
               );
             })}
           </ul>
         )}
-        <div className="border-border flex items-center justify-between border-t pt-3">
-          <span className="font-semibold">Total estimate</span>
-          <span className="text-lg font-semibold">
-            {formatRupiah(totalEstimate)}
-          </span>
+        <div className="border-border space-y-2 border-t pt-3">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold">Estimated total</span>
+            <span className="text-lg font-semibold">
+              {formatRupiah(totalEstimate)}
+            </span>
+          </div>
+          {hasAnyActual ? (
+            <div className="flex items-center justify-between">
+              <span className="font-semibold">Actual total</span>
+              <span className="text-lg font-semibold">
+                {formatRupiah(totalActual)}
+              </span>
+            </div>
+          ) : null}
         </div>
       </section>
 
