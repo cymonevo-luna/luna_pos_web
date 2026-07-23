@@ -408,6 +408,18 @@ export const supplierPriceSchema = z.object({
 
 export type SupplierPriceFormValues = z.infer<typeof supplierPriceSchema>;
 
+export const purchaseLineActualAmountSchema = z
+  .number({ error: "Actual price is required" })
+  .int("Actual price must be a whole number")
+  .positive("Actual price must be greater than 0");
+
+export const supplierPriceUpdateSchema = supplierPriceSchema.pick({
+  price_amount: true,
+  price_quantity: true,
+});
+
+export type SupplierPriceUpdateValues = z.infer<typeof supplierPriceUpdateSchema>;
+
 export const categorySchema = z.object({
   name: z
     .string()

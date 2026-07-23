@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   applySupplierQuoteToItem,
   buildBatchPurchasePayload,
+  effectiveLineAmount,
   findSupplierQuote,
   groupWizardItemsBySupplier,
   supplierOptionsForItem,
@@ -78,6 +79,33 @@ describe("applySupplierQuoteToItem", () => {
     expect(updated.selected_supplier_id).toBe("sup-expensive");
     expect(updated.line_estimated_amount).toBe(300);
   });
+
+  it("resets catalog update fields to the newly selected quote defaults", () => {
+    const itemWithCatalogEdits: SmartPurchaseWizardItem = {
+      ...baseItem,
+      update_catalog_price: true,
+      catalog_price_amount: 99999,
+      catalog_price_quantity: 500,
+    };
+    const quote = baseItem.all_supplier_quotes[1]!;
+    const updated = applySupplierQuoteToItem(itemWithCatalogEdits, quote);
+
+    expect(updated.update_catalog_price).toBe(false);
+    expect(updated.catalog_price_amount).toBe(quote.price_amount);
+    expect(updated.catalog_price_quantity).toBe(quote.price_quantity);
+  });
+});
+
+describe("effectiveLineAmount", () => {
+  it("uses actual price when provided", () => {
+    expect(
+      effectiveLineAmount({ ...baseItem, line_actual_amount: 175 }),
+    ).toBe(175);
+  });
+
+  it("falls back to estimate when actual price is not set", () => {
+    expect(effectiveLineAmount(baseItem)).toBe(200);
+  });
 });
 
 describe("groupWizardItemsBySupplier", () => {
@@ -116,6 +144,16 @@ describe("groupWizardItemsBySupplier", () => {
     expect(groups[0]?.supplier_id).toBe("sup-expensive");
     expect(groups[0]?.group_total_estimated_amount).toBe(300);
   });
+
+  it("uses actual prices in group totals when provided", () => {
+    const itemWithActual: SmartPurchaseWizardItem = {
+      ...baseItem,
+      line_actual_amount: 175,
+    };
+    const groups = groupWizardItemsBySupplier([itemWithActual]);
+
+    expect(groups[0]?.group_total_estimated_amount).toBe(175);
+  });
 });
 
 describe("buildBatchPurchasePayload", () => {
@@ -141,6 +179,44 @@ describe("buildBatchPurchasePayload", () => {
           ],
         },
       ],
+    });
+  });
+
+  it("includes optional actual and catalog fields only when filled", () => {
+    const itemWithActual: SmartPurchaseWizardItem = {
+      ...baseItem,
+      line_actual_amount: 175,
+      update_catalog_price: true,
+      catalog_price_amount: 110000,
+      catalog_price_quantity: 1000,
+    };
+
+    const payload = buildBatchPurchasePayload([itemWithActual]);
+
+    expect(payload.groups[0]?.items[0]).toEqual({
+      food_supply_id: "fs-rice",
+      quantity: "2",
+      line_actual_amount: "175",
+      supplier_price_update: {
+        price_amount: "110000",
+        price_quantity: "1000",
+      },
+    });
+  });
+
+  it("omits supplier_price_update when catalog update is disabled", () => {
+    const itemWithActualOnly: SmartPurchaseWizardItem = {
+      ...baseItem,
+      line_actual_amount: 180,
+      update_catalog_price: false,
+    };
+
+    const payload = buildBatchPurchasePayload([itemWithActualOnly]);
+
+    expect(payload.groups[0]?.items[0]).toEqual({
+      food_supply_id: "fs-rice",
+      quantity: "2",
+      line_actual_amount: "180",
     });
   });
 });

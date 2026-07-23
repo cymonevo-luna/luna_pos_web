@@ -20,6 +20,7 @@ import {
   allItemsHaveSupplier,
   applySupplierQuoteToItem,
   buildBatchPurchasePayload,
+  effectiveLineAmount,
   findSupplierQuote,
   groupWizardItemsBySupplier,
   supplierOptionsForItem,
@@ -39,6 +40,12 @@ import {
 } from "@/lib/utils";
 
 type WizardStep = "ingredients" | "review";
+
+function blockDecimalInput(event: React.KeyboardEvent<HTMLInputElement>) {
+  if (event.key === "." || event.key === "," || event.key === "e" || event.key === "E") {
+    event.preventDefault();
+  }
+}
 
 function buildDefaultValues(): SmartPurchaseIngredientsFormValues {
   return { items: [] };
@@ -107,6 +114,20 @@ export function SmartPurchaseRequestWizard({
 
   const watchedItems = watch("items");
   const duplicateIndexes = findDuplicateItemIndexes(watchedItems);
+
+  const updateWizardItem = useCallback(
+    (
+      foodSupplyId: string,
+      patch: Partial<SmartPurchaseWizardItem>,
+    ) => {
+      setWizardItems((current) =>
+        current.map((item) =>
+          item.food_supply_id === foodSupplyId ? { ...item, ...patch } : item,
+        ),
+      );
+    },
+    [],
+  );
 
   const loadManualPrices = useCallback(async (items: SmartPurchaseWizardItem[]) => {
     const unmatched = items.filter((item) => !item.has_supplier_price);
@@ -182,11 +203,42 @@ export function SmartPurchaseRequestWizard({
     );
   };
 
+  const handleActualAmountChange = (foodSupplyId: string, raw: string) => {
+    if (raw.trim() === "") {
+      updateWizardItem(foodSupplyId, { line_actual_amount: undefined });
+      return;
+    }
+    const parsed = Number(raw);
+    updateWizardItem(foodSupplyId, {
+      line_actual_amount: Number.isFinite(parsed) ? parsed : undefined,
+    });
+  };
+
+  const handleCatalogUpdateToggle = (foodSupplyId: string, enabled: boolean) => {
+    updateWizardItem(foodSupplyId, { update_catalog_price: enabled });
+  };
+
+  const handleCatalogPriceChange = (
+    foodSupplyId: string,
+    field: "catalog_price_amount" | "catalog_price_quantity",
+    raw: string,
+  ) => {
+    if (raw.trim() === "") {
+      updateWizardItem(foodSupplyId, { [field]: undefined });
+      return;
+    }
+    const parsed = Number(raw);
+    updateWizardItem(foodSupplyId, {
+      [field]: Number.isFinite(parsed) ? parsed : undefined,
+    });
+  };
+
   const groupedItems = groupWizardItemsBySupplier(wizardItems);
   const canConfirm =
     allItemsHaveSupplier(wizardItems) && !submitting && !manualPricesLoading;
-  const totalEstimate = wizardItems.reduce(
-    (sum, item) => sum + item.line_estimated_amount,
+  const totalAmount = wizardItems.reduce(
+    (sum, item) =>
+      item.selected_supplier_id ? sum + effectiveLineAmount(item) : sum,
     0,
   );
 
@@ -433,7 +485,10 @@ export function SmartPurchaseRequestWizard({
                   >
                     <div className="flex items-center justify-between gap-3">
                       <h5 className="font-semibold">{group.supplier_name}</h5>
-                      <span className="text-sm font-medium">
+                      <span
+                        className="text-sm font-medium"
+                        data-testid={`group-total-${group.supplier_id}`}
+                      >
                         {formatRupiah(group.group_total_estimated_amount ?? 0)}
                       </span>
                     </div>
@@ -444,6 +499,9 @@ export function SmartPurchaseRequestWizard({
                           key={item.food_supply_id}
                           item={item}
                           onSupplierChange={handleSupplierChange}
+                          onActualAmountChange={handleActualAmountChange}
+                          onCatalogUpdateToggle={handleCatalogUpdateToggle}
+                          onCatalogPriceChange={handleCatalogPriceChange}
                         />
                       ))}
                     </div>
@@ -460,6 +518,9 @@ export function SmartPurchaseRequestWizard({
                       <ReviewItemRow
                         item={item}
                         onSupplierChange={handleSupplierChange}
+                        onActualAmountChange={handleActualAmountChange}
+                        onCatalogUpdateToggle={handleCatalogUpdateToggle}
+                        onCatalogPriceChange={handleCatalogPriceChange}
                       />
                     </div>
                   ))}
@@ -487,8 +548,11 @@ export function SmartPurchaseRequestWizard({
           >
             <div className="flex items-center justify-between">
               <span className="font-semibold">Total estimate</span>
-              <span className="text-lg font-semibold">
-                {formatRupiah(totalEstimate)}
+              <span
+                className="text-lg font-semibold"
+                data-testid="smart-purchase-grand-total"
+              >
+                {formatRupiah(totalAmount)}
               </span>
             </div>
             <p className="text-muted-foreground mt-1 text-sm">
@@ -580,74 +644,202 @@ function StepIndicator({
 function ReviewItemRow({
   item,
   onSupplierChange,
+  onActualAmountChange,
+  onCatalogUpdateToggle,
+  onCatalogPriceChange,
 }: {
   item: SmartPurchaseWizardItem;
   onSupplierChange: (foodSupplyId: string, supplierId: string) => void;
+  onActualAmountChange: (foodSupplyId: string, value: string) => void;
+  onCatalogUpdateToggle: (foodSupplyId: string, enabled: boolean) => void;
+  onCatalogPriceChange: (
+    foodSupplyId: string,
+    field: "catalog_price_amount" | "catalog_price_quantity",
+    value: string,
+  ) => void;
 }) {
   const options = supplierOptionsForItem(item);
   const needsSupplier = !item.selected_supplier_id;
+  const lineTotal = needsSupplier ? null : effectiveLineAmount(item);
+  const catalogAmount =
+    item.catalog_price_amount ?? item.price_amount ?? Number.NaN;
+  const catalogQuantity =
+    item.catalog_price_quantity ?? item.price_quantity ?? Number.NaN;
+  const canShowCatalogUpdate =
+    item.selected_supplier_id != null &&
+    (options.length > 0 ||
+      (Number.isFinite(catalogAmount) &&
+        catalogAmount > 0 &&
+        Number.isFinite(catalogQuantity) &&
+        catalogQuantity > 0));
 
   return (
     <div
-      className="grid gap-3 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto]"
+      className="space-y-3 rounded-lg border border-border/60 p-3"
       data-testid={`review-item-${item.food_supply_id}`}
     >
-      <div className="space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">{item.food_supply_title}</span>
-          {!item.has_supplier_price && (
-            <Badge variant="warning" data-testid="unmatched-supplier-badge">
-              <AlertTriangle className="mr-1 h-3 w-3" />
-              No supplier price
-            </Badge>
-          )}
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto]">
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium">{item.food_supply_title}</span>
+            {!item.has_supplier_price && (
+              <Badge variant="warning" data-testid="unmatched-supplier-badge">
+                <AlertTriangle className="mr-1 h-3 w-3" />
+                No supplier price
+              </Badge>
+            )}
+          </div>
+          <p className="text-muted-foreground text-sm">
+            {item.quantity} {item.unit}
+          </p>
         </div>
-        <p className="text-muted-foreground text-sm">
-          {item.quantity} {item.unit}
-        </p>
+
+        <div className="space-y-1.5">
+          <Label htmlFor={`supplier-${item.food_supply_id}`}>Supplier</Label>
+          <select
+            id={`supplier-${item.food_supply_id}`}
+            className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/40 flex h-11 w-full rounded-xl border px-3.5 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            value={item.selected_supplier_id ?? ""}
+            onChange={(event) =>
+              onSupplierChange(item.food_supply_id, event.target.value)
+            }
+            data-testid={`supplier-select-${item.food_supply_id}`}
+          >
+            <option value="">Select supplier</option>
+            {options.map((quote) => (
+              <option key={quote.supplier_id} value={quote.supplier_id}>
+                {quote.supplier_name} ·{" "}
+                {formatSupplierUnitPrice(
+                  quote.price_amount,
+                  quote.price_quantity,
+                  item.unit,
+                )}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1 text-right sm:pt-7">
+          <p className="text-muted-foreground text-sm">
+            {item.selected_supplier_id
+              ? formatSupplierUnitPrice(
+                  item.price_amount,
+                  item.price_quantity,
+                  item.unit,
+                )
+              : "—"}
+          </p>
+          <p
+            className="font-medium"
+            data-testid={`line-total-${item.food_supply_id}`}
+          >
+            {lineTotal == null ? "—" : formatRupiah(lineTotal)}
+          </p>
+        </div>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor={`supplier-${item.food_supply_id}`}>Supplier</Label>
-        <select
-          id={`supplier-${item.food_supply_id}`}
-          className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/40 flex h-11 w-full rounded-xl border px-3.5 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-          value={item.selected_supplier_id ?? ""}
-          onChange={(event) =>
-            onSupplierChange(item.food_supply_id, event.target.value)
-          }
-          data-testid={`supplier-select-${item.food_supply_id}`}
-        >
-          <option value="">Select supplier</option>
-          {options.map((quote) => (
-            <option key={quote.supplier_id} value={quote.supplier_id}>
-              {quote.supplier_name} ·{" "}
-              {formatSupplierUnitPrice(
-                quote.price_amount,
-                quote.price_quantity,
-                item.unit,
-              )}
-            </option>
-          ))}
-        </select>
-      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor={`actual-price-${item.food_supply_id}`}>
+            Actual price (Rp)
+          </Label>
+          <Input
+            id={`actual-price-${item.food_supply_id}`}
+            type="number"
+            min="1"
+            step="1"
+            inputMode="numeric"
+            placeholder="Optional"
+            disabled={needsSupplier}
+            value={
+              item.line_actual_amount != null &&
+              Number.isFinite(item.line_actual_amount)
+                ? String(item.line_actual_amount)
+                : ""
+            }
+            onKeyDown={blockDecimalInput}
+            onChange={(event) =>
+              onActualAmountChange(item.food_supply_id, event.target.value)
+            }
+            data-testid={`actual-price-${item.food_supply_id}`}
+          />
+        </div>
 
-      <div className="space-y-1 text-right sm:pt-7">
-        <p className="text-muted-foreground text-sm">
-          {item.selected_supplier_id
-            ? formatSupplierUnitPrice(
-                item.price_amount,
-                item.price_quantity,
-                item.unit,
-              )
-            : "—"}
-        </p>
-        <p
-          className="font-medium"
-          data-testid={`line-total-${item.food_supply_id}`}
-        >
-          {needsSupplier ? "—" : formatRupiah(item.line_estimated_amount)}
-        </p>
+        {canShowCatalogUpdate && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                id={`catalog-update-${item.food_supply_id}`}
+                type="checkbox"
+                className="border-input h-4 w-4 rounded border"
+                checked={Boolean(item.update_catalog_price)}
+                onChange={(event) =>
+                  onCatalogUpdateToggle(item.food_supply_id, event.target.checked)
+                }
+                data-testid={`catalog-update-${item.food_supply_id}`}
+              />
+              <Label htmlFor={`catalog-update-${item.food_supply_id}`}>
+                Update catalog price
+              </Label>
+            </div>
+
+            {item.update_catalog_price && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor={`catalog-price-amount-${item.food_supply_id}`}>
+                    Price amount (Rp)
+                  </Label>
+                  <Input
+                    id={`catalog-price-amount-${item.food_supply_id}`}
+                    type="number"
+                    min="1"
+                    step="1"
+                    inputMode="numeric"
+                    value={
+                      Number.isFinite(catalogAmount) ? String(catalogAmount) : ""
+                    }
+                    onKeyDown={blockDecimalInput}
+                    onChange={(event) =>
+                      onCatalogPriceChange(
+                        item.food_supply_id,
+                        "catalog_price_amount",
+                        event.target.value,
+                      )
+                    }
+                    data-testid={`catalog-price-amount-${item.food_supply_id}`}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor={`catalog-price-quantity-${item.food_supply_id}`}
+                  >
+                    Price quantity
+                  </Label>
+                  <Input
+                    id={`catalog-price-quantity-${item.food_supply_id}`}
+                    type="number"
+                    step="any"
+                    min="0"
+                    inputMode="decimal"
+                    value={
+                      Number.isFinite(catalogQuantity)
+                        ? String(catalogQuantity)
+                        : ""
+                    }
+                    onChange={(event) =>
+                      onCatalogPriceChange(
+                        item.food_supply_id,
+                        "catalog_price_quantity",
+                        event.target.value,
+                      )
+                    }
+                    data-testid={`catalog-price-quantity-${item.food_supply_id}`}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
