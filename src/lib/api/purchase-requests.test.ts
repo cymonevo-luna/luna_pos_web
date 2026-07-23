@@ -73,6 +73,21 @@ describe("normalizePurchaseRequestItem", () => {
     expect(normalized.line_estimated_amount).toBe(78000);
     expect(normalized.line_estimated_amount).not.toBe(normalized.price_amount);
   });
+
+  it("coerces line_actual_amount from string", () => {
+    const normalized = normalizePurchaseRequestItem({
+      id: "item-1",
+      food_supply_id: "fs-1",
+      quantity: 2,
+      price_quantity: 1000,
+      unit_price: 140,
+      price_amount: 140000,
+      line_estimated_amount: 280000,
+      line_actual_amount: "275000",
+    });
+
+    expect(normalized.line_actual_amount).toBe(275000);
+  });
 });
 
 describe("purchaseRequestSchema", () => {
@@ -102,6 +117,34 @@ describe("purchaseRequestSchema", () => {
         items: [{ food_supply_id: "x", quantity: 0 }],
       }),
     ).toThrow();
+  });
+
+  it("rejects zero line_actual_amount", () => {
+    expect(() =>
+      purchaseRequestSchema.parse({
+        ...base,
+        items: [{ food_supply_id: "fs-1", quantity: 2, line_actual_amount: 0 }],
+      }),
+    ).toThrow();
+  });
+
+  it("accepts optional line_actual_amount and supplier price update", () => {
+    const result = purchaseRequestSchema.safeParse({
+      ...base,
+      items: [
+        {
+          food_supply_id: "fs-1",
+          quantity: 2,
+          line_actual_amount: 150000,
+          update_supplier_price: true,
+          supplier_price_update: {
+            price_amount: 145000,
+            price_quantity: 1000,
+          },
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
   });
 });
 
@@ -136,6 +179,71 @@ describe("purchaseRequestFormToPayload", () => {
     ).toEqual({
       supplier_id: "sup-1",
       items: [{ food_supply_id: "fs-1", quantity: "1" }],
+    });
+  });
+
+  it("includes line_actual_amount when provided", () => {
+    expect(
+      purchaseRequestFormToPayload({
+        supplier_id: "sup-1",
+        items: [
+          {
+            food_supply_id: "fs-1",
+            quantity: 2,
+            line_actual_amount: 150000,
+          },
+        ],
+      }),
+    ).toEqual({
+      supplier_id: "sup-1",
+      items: [
+        {
+          food_supply_id: "fs-1",
+          quantity: "2",
+          line_actual_amount: 150000,
+        },
+      ],
+    });
+  });
+
+  it("includes supplier_price_update only when update flag is set", () => {
+    expect(
+      purchaseRequestFormToPayload({
+        supplier_id: "sup-1",
+        items: [
+          {
+            food_supply_id: "fs-1",
+            quantity: 2,
+            update_supplier_price: true,
+            supplier_price_update: {
+              price_amount: 145000,
+              price_quantity: 1000,
+            },
+          },
+          {
+            food_supply_id: "fs-2",
+            quantity: 1,
+            update_supplier_price: false,
+            supplier_price_update: {
+              price_amount: 5000,
+              price_quantity: 1000,
+            },
+          },
+        ],
+      }),
+    ).toEqual({
+      supplier_id: "sup-1",
+      items: [
+        {
+          food_supply_id: "fs-1",
+          quantity: "2",
+          supplier_price_update: {
+            price_amount: 145000,
+            price_quantity: 1000,
+          },
+        },
+        { food_supply_id: "fs-2", quantity: "1" },
+      ],
     });
   });
 });
