@@ -140,15 +140,17 @@ describe("AdminPurchaseDetailContent", () => {
     expect(within(createdByCard).getByText("admin")).toBeInTheDocument();
 
     const totalEstimateLabels = screen.getAllByText("Total estimate");
-    expect(totalEstimateLabels).toHaveLength(1);
+    expect(totalEstimateLabels).toHaveLength(2);
 
-    const summaryCard = screen.getByText("Estimated total").closest(
-      ".rounded-2xl",
-    ) as HTMLElement | null;
+    const summaryCard = screen
+      .getByText("Rp 118.000", { selector: "h3" })
+      .closest(".rounded-2xl") as HTMLElement | null;
     expect(summaryCard).not.toBeNull();
-    expect(within(summaryCard as HTMLElement).getByText("Rp 118.000")).toBeInTheDocument();
+    expect(within(summaryCard as HTMLElement).getByText("Total estimate")).toBeInTheDocument();
 
     const lineItemsTable = screen.getAllByRole("table")[0] as HTMLTableElement;
+    expect(within(lineItemsTable).queryByText("Line actual")).not.toBeInTheDocument();
+    expect(within(lineItemsTable).queryByText("Actual total")).not.toBeInTheDocument();
     expect(within(lineItemsTable).getByText("Rp 78.000")).toBeInTheDocument();
     expect(within(lineItemsTable).getByText("Rp 40.000")).toBeInTheDocument();
     expect(within(lineItemsTable).getByText("Rp 118.000")).toBeInTheDocument();
@@ -733,35 +735,104 @@ describe("AdminPurchaseDetailContent", () => {
     renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
 
     expect(await screen.findByText("Beras Supplier")).toBeInTheDocument();
-    expect(screen.getByText("Estimated total")).toBeInTheDocument();
-    expect(screen.getByTestId("purchase-actual-total-card")).toBeInTheDocument();
-    expect(screen.getByText("Actual total")).toBeInTheDocument();
 
-    const summaryEstimatedCard = screen.getByText("Estimated total").closest(
-      ".rounded-2xl",
-    ) as HTMLElement;
-    expect(within(summaryEstimatedCard).getByText("Rp 118.000")).toBeInTheDocument();
+    const summaryEstimateCard = screen
+      .getByText("Rp 118.000", { selector: "h3" })
+      .closest(".rounded-2xl") as HTMLElement;
+    expect(
+      within(summaryEstimateCard).getByText("Total estimate"),
+    ).toBeInTheDocument();
 
     const summaryActualCard = screen.getByTestId("purchase-actual-total-card");
+    expect(within(summaryActualCard).getByText("Actual total")).toBeInTheDocument();
     expect(within(summaryActualCard).getByText("Rp 125.000")).toBeInTheDocument();
 
     const lineItemsTable = screen.getAllByRole("table")[0] as HTMLTableElement;
-    expect(within(lineItemsTable).getByText("Actual")).toBeInTheDocument();
+    expect(within(lineItemsTable).getByText("Line actual")).toBeInTheDocument();
     expect(within(lineItemsTable).getByText("Rp 80.000")).toBeInTheDocument();
     expect(within(lineItemsTable).getByText("Rp 45.000")).toBeInTheDocument();
-    expect(within(lineItemsTable).getAllByText("Rp 125.000")).toHaveLength(1);
+    expect(within(lineItemsTable).getAllByText("Total estimate")).toHaveLength(1);
+    expect(within(lineItemsTable).getByText("Actual total")).toBeInTheDocument();
+    expect(within(lineItemsTable).getByText("Rp 125.000")).toBeInTheDocument();
+  });
+
+  it("shows QA create-with-actual totals on detail page", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        id: "pr-130-4-test",
+        total_estimated_amount: 140000,
+        total_actual_amount: 135000,
+        items: [
+          {
+            ...purchase.items[0],
+            food_supply_title: "Test supply",
+            line_estimated_amount: 140000,
+            line_actual_amount: 135000,
+          },
+        ],
+      },
+    });
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-130-4-test" />);
+
+    expect(await screen.findByText("Beras Supplier")).toBeInTheDocument();
+
+    const summaryEstimateCard = screen
+      .getByText("Rp 140.000", { selector: "h3" })
+      .closest(".rounded-2xl") as HTMLElement;
+    expect(within(summaryEstimateCard).getByText("Total estimate")).toBeInTheDocument();
+
+    const summaryActualCard = screen.getByTestId("purchase-actual-total-card");
+    expect(within(summaryActualCard).getByText("Rp 135.000")).toBeInTheDocument();
+
+    const lineItemsTable = screen.getAllByRole("table")[0] as HTMLTableElement;
+    expect(within(lineItemsTable).getByText("Line estimate")).toBeInTheDocument();
+    expect(within(lineItemsTable).getByText("Line actual")).toBeInTheDocument();
+    expect(within(lineItemsTable).getAllByText("Rp 140.000")).toHaveLength(2);
+    expect(within(lineItemsTable).getAllByText("Rp 135.000")).toHaveLength(2);
+    expect(within(lineItemsTable).getByText("Actual total")).toBeInTheDocument();
+  });
+
+  it("renders em dash for mixed lines without line actual amount", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        total_actual_amount: 155000,
+        items: [
+          {
+            ...purchase.items[0],
+            line_actual_amount: 80000,
+          },
+          {
+            ...purchase.items[1],
+            line_actual_amount: null,
+          },
+        ],
+      },
+    });
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+
+    expect(await screen.findByText("Beras Supplier")).toBeInTheDocument();
+
+    const lineItemsTable = screen.getAllByRole("table")[0] as HTMLTableElement;
+    expect(within(lineItemsTable).getByText("Line actual")).toBeInTheDocument();
+    expect(within(lineItemsTable).getByText("Rp 80.000")).toBeInTheDocument();
+    expect(within(lineItemsTable).getByText("—")).toBeInTheDocument();
+    expect(within(lineItemsTable).getByText("Rp 155.000")).toBeInTheDocument();
   });
 
   it("renders legacy purchase without actual amounts and no layout break", async () => {
     renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
 
     expect(await screen.findByText("Beras Supplier")).toBeInTheDocument();
-    expect(screen.getByText("Estimated total")).toBeInTheDocument();
+    expect(screen.getAllByText("Total estimate")).toHaveLength(2);
     expect(screen.queryByText("Actual total")).not.toBeInTheDocument();
     expect(screen.queryByTestId("purchase-actual-total-card")).not.toBeInTheDocument();
 
     const lineItemsTable = screen.getAllByRole("table")[0] as HTMLTableElement;
-    expect(within(lineItemsTable).queryByText("Actual")).not.toBeInTheDocument();
+    expect(within(lineItemsTable).queryByText("Line actual")).not.toBeInTheDocument();
     expect(within(lineItemsTable).getByText("Rp 118.000")).toBeInTheDocument();
   });
 

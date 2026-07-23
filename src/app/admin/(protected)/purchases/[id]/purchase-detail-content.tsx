@@ -110,10 +110,6 @@ function displayItemUnitPrice(item: PurchaseRequestItem) {
   );
 }
 
-function hasLineActualAmounts(items: PurchaseRequestItem[]): boolean {
-  return items.some((item) => item.line_actual_amount != null);
-}
-
 function displayLineActualAmount(item: PurchaseRequestItem): string {
   if (item.line_actual_amount == null) {
     return "—";
@@ -340,9 +336,7 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
     ? STATUS_ACTION_LABELS[purchase.status]
     : "";
   const photoPrompt = pendingStatus ? PHOTO_PROMPTS[pendingStatus] : null;
-  const showLineActualColumn = purchase
-    ? hasLineActualAmounts(purchase.items)
-    : false;
+  const showActualTotals = purchase?.total_actual_amount != null;
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -421,18 +415,18 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Estimated total</CardDescription>
+                <CardDescription>Total estimate</CardDescription>
                 <CardTitle className="text-xl">
                   {formatRupiah(purchase.total_estimated_amount)}
                 </CardTitle>
               </CardHeader>
             </Card>
-            {purchase.total_actual_amount != null ? (
+            {showActualTotals ? (
               <Card data-testid="purchase-actual-total-card">
                 <CardHeader className="pb-2">
                   <CardDescription>Actual total</CardDescription>
                   <CardTitle className="text-xl">
-                    {formatRupiah(purchase.total_actual_amount)}
+                    {formatRupiah(purchase.total_actual_amount as number)}
                   </CardTitle>
                 </CardHeader>
               </Card>
@@ -577,8 +571,8 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                     <th className="px-4 py-3 font-medium">Quantity</th>
                     <th className="px-4 py-3 font-medium">Unit price</th>
                     <th className="px-4 py-3 font-medium">Line estimate</th>
-                    {showLineActualColumn ? (
-                      <th className="px-4 py-3 font-medium">Actual</th>
+                    {showActualTotals ? (
+                      <th className="px-4 py-3 font-medium">Line actual</th>
                     ) : null}
                   </tr>
                 </thead>
@@ -598,7 +592,7 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                       <td className="px-4 py-3">
                         {formatRupiah(item.line_estimated_amount)}
                       </td>
-                      {showLineActualColumn ? (
+                      {showActualTotals ? (
                         <td className="px-4 py-3">
                           {displayLineActualAmount(item)}
                         </td>
@@ -617,14 +611,22 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                     <td className="px-4 py-3 font-semibold">
                       {formatRupiah(purchase.total_estimated_amount)}
                     </td>
-                    {showLineActualColumn ? (
-                      <td className="px-4 py-3 font-semibold">
-                        {purchase.total_actual_amount != null
-                          ? formatRupiah(purchase.total_actual_amount)
-                          : "—"}
-                      </td>
-                    ) : null}
+                    {showActualTotals ? <td className="px-4 py-3" /> : null}
                   </tr>
+                  {showActualTotals ? (
+                    <tr>
+                      <td
+                        colSpan={3}
+                        className="px-4 py-3 text-right font-medium"
+                      >
+                        Actual total
+                      </td>
+                      <td className="px-4 py-3" />
+                      <td className="px-4 py-3 font-semibold">
+                        {formatRupiah(purchase.total_actual_amount as number)}
+                      </td>
+                    </tr>
+                  ) : null}
                 </tfoot>
               </table>
             </div>
