@@ -140,9 +140,9 @@ describe("AdminPurchaseDetailContent", () => {
     expect(within(createdByCard).getByText("admin")).toBeInTheDocument();
 
     const totalEstimateLabels = screen.getAllByText("Total estimate");
-    expect(totalEstimateLabels).toHaveLength(2);
+    expect(totalEstimateLabels).toHaveLength(1);
 
-    const summaryCard = totalEstimateLabels[0].closest(
+    const summaryCard = screen.getByText("Estimated total").closest(
       ".rounded-2xl",
     ) as HTMLElement | null;
     expect(summaryCard).not.toBeNull();
@@ -710,5 +710,87 @@ describe("AdminPurchaseDetailContent", () => {
     });
     expect(mockPush).not.toHaveBeenCalled();
     expect(screen.getByText("Beras Supplier")).toBeInTheDocument();
+  });
+
+  it("shows estimated and actual totals when actual amounts differ", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        total_actual_amount: 125000,
+        items: [
+          {
+            ...purchase.items[0],
+            line_actual_amount: 80000,
+          },
+          {
+            ...purchase.items[1],
+            line_actual_amount: 45000,
+          },
+        ],
+      },
+    });
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+
+    expect(await screen.findByText("Beras Supplier")).toBeInTheDocument();
+    expect(screen.getByText("Estimated total")).toBeInTheDocument();
+    expect(screen.getByTestId("purchase-actual-total-card")).toBeInTheDocument();
+    expect(screen.getByText("Actual total")).toBeInTheDocument();
+
+    const summaryEstimatedCard = screen.getByText("Estimated total").closest(
+      ".rounded-2xl",
+    ) as HTMLElement;
+    expect(within(summaryEstimatedCard).getByText("Rp 118.000")).toBeInTheDocument();
+
+    const summaryActualCard = screen.getByTestId("purchase-actual-total-card");
+    expect(within(summaryActualCard).getByText("Rp 125.000")).toBeInTheDocument();
+
+    const lineItemsTable = screen.getAllByRole("table")[0] as HTMLTableElement;
+    expect(within(lineItemsTable).getByText("Actual")).toBeInTheDocument();
+    expect(within(lineItemsTable).getByText("Rp 80.000")).toBeInTheDocument();
+    expect(within(lineItemsTable).getByText("Rp 45.000")).toBeInTheDocument();
+    expect(within(lineItemsTable).getAllByText("Rp 125.000")).toHaveLength(1);
+  });
+
+  it("renders legacy purchase without actual amounts and no layout break", async () => {
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+
+    expect(await screen.findByText("Beras Supplier")).toBeInTheDocument();
+    expect(screen.getByText("Estimated total")).toBeInTheDocument();
+    expect(screen.queryByText("Actual total")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("purchase-actual-total-card")).not.toBeInTheDocument();
+
+    const lineItemsTable = screen.getAllByRole("table")[0] as HTMLTableElement;
+    expect(within(lineItemsTable).queryByText("Actual")).not.toBeInTheDocument();
+    expect(within(lineItemsTable).getByText("Rp 118.000")).toBeInTheDocument();
+  });
+
+  it("includes actual total in WhatsApp message when available", async () => {
+    const user = userEvent.setup();
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        total_actual_amount: 125000,
+        items: purchase.items.map((item) => ({
+          ...item,
+          line_actual_amount: item.line_estimated_amount + 3500,
+        })),
+      },
+    });
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+    await screen.findByText("Beras Supplier");
+
+    await user.click(screen.getByRole("button", { name: "Contact supplier" }));
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    const [url] = openSpy.mock.calls[0];
+    const decoded = decodeURIComponent(String(url).split("text=")[1] ?? "");
+    expect(decoded).toContain("Total: Rp 125.000");
+    expect(decoded).toContain("estimasi: Rp 118.000");
+
+    openSpy.mockRestore();
   });
 });

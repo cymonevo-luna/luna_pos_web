@@ -13,6 +13,7 @@ import {
   estimateLineAmount,
   extractWhatsAppPhone,
   buildPurchaseWhatsAppMessage,
+  formatPurchaseSummaryTotal,
 } from "./utils";
 import { config } from "./config";
 
@@ -191,6 +192,90 @@ describe("buildPurchaseWhatsAppMessage", () => {
 
     expect(message).toContain("1. 2 kg Beras");
     expect(message).not.toContain("2000 gr");
+  });
+
+  it("prefers actual total when total_actual_amount is set", () => {
+    const message = buildPurchaseWhatsAppMessage({
+      id: "pr-3",
+      supplier_id: "sup-1",
+      supplier_name: "Beras Supplier",
+      supplier_contact_info: "08123456789",
+      status: "PENDING",
+      items: [
+        {
+          id: "item-1",
+          food_supply_id: "fs-1",
+          food_supply_title: "Beras",
+          unit: "piece",
+          quantity: 3,
+          price_quantity: 1,
+          unit_price: 26000,
+          price_amount: 26000,
+          line_estimated_amount: 78000,
+          line_actual_amount: 80000,
+        },
+      ],
+      total_estimated_amount: 118000,
+      total_actual_amount: 125000,
+      status_history: [],
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+
+    expect(message).toContain("Total: Rp 125.000 (estimasi: Rp 118.000)");
+    expect(message).not.toContain("Estimasi total:");
+  });
+
+  it("shows only total when actual equals estimate", () => {
+    const message = buildPurchaseWhatsAppMessage({
+      id: "pr-4",
+      supplier_id: "sup-1",
+      supplier_name: "Beras Supplier",
+      supplier_contact_info: "08123456789",
+      status: "PENDING",
+      items: [
+        {
+          id: "item-1",
+          food_supply_id: "fs-1",
+          food_supply_title: "Beras",
+          unit: "piece",
+          quantity: 3,
+          price_quantity: 1,
+          unit_price: 26000,
+          price_amount: 26000,
+          line_estimated_amount: 78000,
+          line_actual_amount: 78000,
+        },
+      ],
+      total_estimated_amount: 118000,
+      total_actual_amount: 118000,
+      status_history: [],
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+
+    expect(message).toContain("Total: Rp 118.000");
+    expect(message).not.toContain("estimasi:");
+  });
+});
+
+describe("formatPurchaseSummaryTotal", () => {
+  it("returns actual total when present", () => {
+    expect(
+      formatPurchaseSummaryTotal({
+        total_estimated_amount: 118000,
+        total_actual_amount: 125000,
+      }),
+    ).toBe("Rp 125.000");
+  });
+
+  it("returns estimated total when actual is null", () => {
+    expect(
+      formatPurchaseSummaryTotal({
+        total_estimated_amount: 118000,
+        total_actual_amount: null,
+      }),
+    ).toBe("Rp 118.000");
   });
 });
 

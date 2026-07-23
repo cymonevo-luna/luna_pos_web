@@ -1,7 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { config } from "@/lib/config";
-import type { PurchaseRequest } from "@/lib/api/types";
+import type { PurchaseRequest, PurchaseRequestSummary } from "@/lib/api/types";
 import { formatMeasurementQuantity } from "@/lib/units";
 
 /** Merge conditional class names and resolve Tailwind conflicts. */
@@ -176,16 +176,41 @@ export function buildPurchaseWhatsAppMessage(purchase: PurchaseRequest): string 
     return `${index + 1}. ${quantityLabel} ${title}`.trim();
   });
 
+  const totalLines: string[] = [];
+  if (purchase.total_actual_amount != null) {
+    if (purchase.total_actual_amount !== purchase.total_estimated_amount) {
+      totalLines.push(
+        `Total: ${formatRupiah(purchase.total_actual_amount)} (estimasi: ${formatRupiah(purchase.total_estimated_amount)})`,
+      );
+    } else {
+      totalLines.push(`Total: ${formatRupiah(purchase.total_actual_amount)}`);
+    }
+  } else {
+    totalLines.push(
+      `Estimasi total: ${formatRupiah(purchase.total_estimated_amount)}`,
+    );
+  }
+
   return [
     `Halo ${purchase.supplier_name},`,
     "",
     "Kami ingin memesan bahan berikut:",
     ...lines,
     "",
-    `Estimasi total: ${formatRupiah(purchase.total_estimated_amount)}`,
+    ...totalLines,
     "",
     "Terima kasih.",
   ].join("\n");
+}
+
+/** Prefer actual purchase total for list display when present. */
+export function formatPurchaseSummaryTotal(
+  purchase: Pick<PurchaseRequestSummary, "total_estimated_amount" | "total_actual_amount">,
+): string {
+  if (purchase.total_actual_amount != null) {
+    return formatRupiah(purchase.total_actual_amount);
+  }
+  return formatRupiah(purchase.total_estimated_amount);
 }
 
 /** Produce up-to-two-character initials from a name for avatars. */

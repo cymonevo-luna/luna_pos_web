@@ -10,7 +10,7 @@ import type {
   PurchaseRequestStatus,
   PurchaseRequestSummary,
 } from "@/lib/api/types";
-import { formatDate, formatRupiah } from "@/lib/utils";
+import { formatDate, formatPurchaseSummaryTotal, formatRupiah } from "@/lib/utils";
 import { toast } from "sonner";
 import { buttonVariants } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
@@ -127,7 +127,7 @@ export default function AdminPurchasesPage() {
                 <th className="px-4 py-3 font-medium">Supplier</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Items</th>
-                <th className="px-4 py-3 font-medium">Total estimate</th>
+                <th className="px-4 py-3 font-medium">Total</th>
                 <th className="px-4 py-3 font-medium">Created by</th>
               </tr>
             </thead>
@@ -173,7 +173,7 @@ export default function AdminPurchasesPage() {
                     </td>
                     <td className="px-4 py-3">{purchase.item_count}</td>
                     <td className="px-4 py-3 font-medium">
-                      {formatRupiah(purchase.total_estimated_amount)}
+                      {formatPurchaseSummaryTotal(purchase)}
                     </td>
                     <td className="px-4 py-3">
                       {purchase.created_by_username ?? "—"}
