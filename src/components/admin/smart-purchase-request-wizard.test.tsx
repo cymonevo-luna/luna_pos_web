@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SmartPurchaseRequestWizard } from "./smart-purchase-request-wizard";
 import { purchaseRequestsAdminApi } from "@/lib/api/purchase-requests";
@@ -237,6 +237,138 @@ describe("SmartPurchaseRequestWizard", () => {
 
     expect(screen.getByTestId("line-total-fs-rice")).toHaveTextContent("Rp 300");
     expect(screen.getByTestId("supplier-group-sup-expensive")).toBeInTheDocument();
+  });
+
+  it("shows actual price input and catalog update toggle on review step", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SmartPurchaseRequestWizard onCancel={vi.fn()} onSuccess={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /add ingredient/i }));
+    await addIngredient(user, "Ingredient 1", "fs-rice", "2");
+    await user.click(screen.getByTestId("smart-purchase-continue"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("review-item-fs-rice")).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("actual-price-fs-rice")).toBeInTheDocument();
+    expect(screen.getByTestId("catalog-update-fs-rice")).toBeInTheDocument();
+  });
+
+  it("submits batch payload with line_actual_amount when filled", async () => {
+    vi.mocked(purchaseRequestsAdminApi.suggest).mockResolvedValue({
+      data: {
+        items: [suggestResponse.items[0]!],
+        grouped_by_supplier: [],
+      },
+    });
+
+    const user = userEvent.setup();
+    const onSuccess = vi.fn();
+
+    render(
+      <SmartPurchaseRequestWizard onCancel={vi.fn()} onSuccess={onSuccess} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /add ingredient/i }));
+    await addIngredient(user, "Ingredient 1", "fs-rice", "2");
+    await user.click(screen.getByTestId("smart-purchase-continue"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("actual-price-fs-rice")).toBeInTheDocument();
+    });
+
+    await user.clear(screen.getByTestId("actual-price-fs-rice"));
+    await user.type(screen.getByTestId("actual-price-fs-rice"), "175");
+    await user.click(screen.getByTestId("smart-purchase-confirm"));
+
+    await waitFor(() => {
+      expect(purchaseRequestsAdminApi.batch).toHaveBeenCalledWith({
+        groups: [
+          {
+            supplier_id: "sup-cheap",
+            items: [
+              {
+                food_supply_id: "fs-rice",
+                quantity: "2",
+                line_actual_amount: "175",
+              },
+            ],
+          },
+        ],
+      });
+      expect(onSuccess).toHaveBeenCalled();
+    });
+  });
+
+  it("resets catalog price fields when supplier changes", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SmartPurchaseRequestWizard onCancel={vi.fn()} onSuccess={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /add ingredient/i }));
+    await addIngredient(user, "Ingredient 1", "fs-rice", "2");
+    await user.click(screen.getByTestId("smart-purchase-continue"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("catalog-update-fs-rice")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId("catalog-update-fs-rice"));
+    await user.clear(screen.getByTestId("catalog-price-amount-fs-rice"));
+    await user.type(screen.getByTestId("catalog-price-amount-fs-rice"), "99999");
+    await user.clear(screen.getByTestId("catalog-price-quantity-fs-rice"));
+    await user.type(screen.getByTestId("catalog-price-quantity-fs-rice"), "500");
+
+    await user.selectOptions(
+      screen.getByTestId("supplier-select-fs-rice"),
+      "sup-expensive",
+    );
+
+    expect(screen.getByTestId("catalog-update-fs-rice")).not.toBeChecked();
+    await user.click(screen.getByTestId("catalog-update-fs-rice"));
+    expect(screen.getByTestId("catalog-price-amount-fs-rice")).toHaveValue(150000);
+    expect(screen.getByTestId("catalog-price-quantity-fs-rice")).toHaveValue(1000);
+  });
+
+  it("updates displayed totals when actual price is entered", async () => {
+    vi.mocked(purchaseRequestsAdminApi.suggest).mockResolvedValue({
+      data: {
+        items: [suggestResponse.items[0]!],
+        grouped_by_supplier: [],
+      },
+    });
+
+    const user = userEvent.setup();
+
+    render(
+      <SmartPurchaseRequestWizard onCancel={vi.fn()} onSuccess={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /add ingredient/i }));
+    await addIngredient(user, "Ingredient 1", "fs-rice", "2");
+    await user.click(screen.getByTestId("smart-purchase-continue"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("line-total-fs-rice")).toHaveTextContent("Rp 200");
+    });
+
+    fireEvent.change(screen.getByTestId("actual-price-fs-rice"), {
+      target: { value: "175" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("line-total-fs-rice")).toHaveTextContent("Rp 175");
+      expect(screen.getByTestId("group-total-sup-cheap")).toHaveTextContent("Rp 175");
+      expect(screen.getByTestId("smart-purchase-grand-total")).toHaveTextContent(
+        "Rp 175",
+      );
+    });
   });
 
   it("submits batch payload on confirm", async () => {

@@ -5,19 +5,101 @@ import type {
   FoodSupplySupplierPrice,
 } from "./types";
 import { estimateLineAmount } from "@/lib/utils";
+import {
+  purchaseLineActualAmountSchema,
+  supplierPriceUpdateSchema,
+} from "@/lib/validations";
+
+export interface SupplierPriceUpdateDraft {
+  price_amount: number;
+  price_quantity: number;
+}
 
 export interface SmartPurchaseWizardItem extends PurchaseRequestSuggestItem {
   manual_supplier_prices?: FoodSupplySupplierPrice[];
+  line_actual_amount?: number;
+  update_catalog_price?: boolean;
+  catalog_price_amount?: number;
+  catalog_price_quantity?: number;
+}
+
+export interface BatchPurchaseLineItemPayload {
+  food_supply_id: string;
+  quantity: string;
+  line_actual_amount?: string;
+  supplier_price_update?: SupplierPriceUpdateDraftPayload;
+}
+
+export interface SupplierPriceUpdateDraftPayload {
+  price_amount: string;
+  price_quantity: string;
 }
 
 export interface BatchPurchaseGroupPayload {
   supplier_id: string;
-  items: { food_supply_id: string; quantity: string }[];
+  items: BatchPurchaseLineItemPayload[];
 }
 
 export interface BatchPurchaseRequestsPayload {
   groups: BatchPurchaseGroupPayload[];
   notes?: string;
+}
+
+/** Line total for display and grouping: actual when provided, else estimate. */
+export function effectiveLineAmount(item: SmartPurchaseWizardItem): number {
+  if (hasValidLineActualAmount(item.line_actual_amount)) {
+    return item.line_actual_amount!;
+  }
+  return item.line_estimated_amount;
+}
+
+function hasValidLineActualAmount(value: number | undefined): value is number {
+  return purchaseLineActualAmountSchema.safeParse(value).success;
+}
+
+function defaultCatalogPriceDraft(
+  item: SmartPurchaseWizardItem,
+): SupplierPriceUpdateDraft {
+  return {
+    price_amount: item.catalog_price_amount ?? item.price_amount,
+    price_quantity: item.catalog_price_quantity ?? item.price_quantity,
+  };
+}
+
+/** Build optional supplier_price_update payload when catalog update is enabled. */
+export function buildSupplierPriceUpdatePayload(
+  item: SmartPurchaseWizardItem,
+): SupplierPriceUpdateDraftPayload | undefined {
+  if (!item.update_catalog_price) return undefined;
+
+  const draft = defaultCatalogPriceDraft(item);
+  const parsed = supplierPriceUpdateSchema.safeParse(draft);
+  if (!parsed.success) return undefined;
+
+  return {
+    price_amount: String(parsed.data.price_amount),
+    price_quantity: String(parsed.data.price_quantity),
+  };
+}
+
+function buildBatchLineItem(
+  item: SmartPurchaseWizardItem,
+): BatchPurchaseLineItemPayload {
+  const lineItem: BatchPurchaseLineItemPayload = {
+    food_supply_id: item.food_supply_id,
+    quantity: String(item.quantity),
+  };
+
+  if (hasValidLineActualAmount(item.line_actual_amount)) {
+    lineItem.line_actual_amount = String(item.line_actual_amount);
+  }
+
+  const supplierPriceUpdate = buildSupplierPriceUpdatePayload(item);
+  if (supplierPriceUpdate) {
+    lineItem.supplier_price_update = supplierPriceUpdate;
+  }
+
+  return lineItem;
 }
 
 /** Find a supplier quote from suggest quotes or manually loaded prices. */
@@ -70,6 +152,9 @@ export function applySupplierQuoteToItem(
     price_quantity: quote.price_quantity,
     unit_price: quote.unit_price,
     line_estimated_amount: lineEstimated,
+    update_catalog_price: false,
+    catalog_price_amount: quote.price_amount,
+    catalog_price_quantity: quote.price_quantity,
   };
 }
 
@@ -89,17 +174,18 @@ export function groupWizardItemsBySupplier(
         ?.supplier_name ??
       "Unknown supplier";
 
+    const lineAmount = effectiveLineAmount(item);
     const existing = groups.get(supplierId);
     if (existing) {
       existing.items.push(item);
       existing.group_total_estimated_amount =
-        (existing.group_total_estimated_amount ?? 0) + item.line_estimated_amount;
+        (existing.group_total_estimated_amount ?? 0) + lineAmount;
     } else {
       groups.set(supplierId, {
         supplier_id: supplierId,
         supplier_name: supplierName,
         items: [item],
-        group_total_estimated_amount: item.line_estimated_amount,
+        group_total_estimated_amount: lineAmount,
       });
     }
   }
@@ -118,10 +204,7 @@ export function buildBatchPurchasePayload(
     if (!item.selected_supplier_id) continue;
 
     const existing = groups.get(item.selected_supplier_id);
-    const lineItem = {
-      food_supply_id: item.food_supply_id,
-      quantity: String(item.quantity),
-    };
+    const lineItem = buildBatchLineItem(item);
 
     if (existing) {
       existing.items.push(lineItem);
@@ -148,7 +231,12 @@ export function buildBatchPurchasePayload(
 export function wizardItemsFromSuggest(
   items: PurchaseRequestSuggestItem[],
 ): SmartPurchaseWizardItem[] {
-  return items.map((item) => ({ ...item }));
+  return items.map((item) => ({
+    ...item,
+    update_catalog_price: false,
+    catalog_price_amount: item.price_amount,
+    catalog_price_quantity: item.price_quantity,
+  }));
 }
 
 export function allItemsHaveSupplier(items: SmartPurchaseWizardItem[]): boolean {
