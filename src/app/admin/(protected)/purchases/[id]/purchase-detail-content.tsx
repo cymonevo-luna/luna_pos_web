@@ -110,6 +110,17 @@ function displayItemUnitPrice(item: PurchaseRequestItem) {
   );
 }
 
+function hasLineActualAmounts(items: PurchaseRequestItem[]): boolean {
+  return items.some((item) => item.line_actual_amount != null);
+}
+
+function displayLineActualAmount(item: PurchaseRequestItem): string {
+  if (item.line_actual_amount == null) {
+    return "—";
+  }
+  return formatRupiah(item.line_actual_amount);
+}
+
 function getNextStatus(
   status: PurchaseRequestStatus,
 ): PurchaseRequestStatus | null {
@@ -329,6 +340,9 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
     ? STATUS_ACTION_LABELS[purchase.status]
     : "";
   const photoPrompt = pendingStatus ? PHOTO_PROMPTS[pendingStatus] : null;
+  const showLineActualColumn = purchase
+    ? hasLineActualAmounts(purchase.items)
+    : false;
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -394,7 +408,7 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <Card data-testid="purchase-status-card">
               <CardHeader className="pb-2">
                 <CardDescription>Status</CardDescription>
@@ -407,12 +421,22 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Total estimate</CardDescription>
+                <CardDescription>Estimated total</CardDescription>
                 <CardTitle className="text-xl">
                   {formatRupiah(purchase.total_estimated_amount)}
                 </CardTitle>
               </CardHeader>
             </Card>
+            {purchase.total_actual_amount != null ? (
+              <Card data-testid="purchase-actual-total-card">
+                <CardHeader className="pb-2">
+                  <CardDescription>Actual total</CardDescription>
+                  <CardTitle className="text-xl">
+                    {formatRupiah(purchase.total_actual_amount)}
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+            ) : null}
             <Card>
               <CardHeader className="pb-2">
                 <CardDescription>Created at</CardDescription>
@@ -553,6 +577,9 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                     <th className="px-4 py-3 font-medium">Quantity</th>
                     <th className="px-4 py-3 font-medium">Unit price</th>
                     <th className="px-4 py-3 font-medium">Line estimate</th>
+                    {showLineActualColumn ? (
+                      <th className="px-4 py-3 font-medium">Actual</th>
+                    ) : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -571,6 +598,11 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                       <td className="px-4 py-3">
                         {formatRupiah(item.line_estimated_amount)}
                       </td>
+                      {showLineActualColumn ? (
+                        <td className="px-4 py-3">
+                          {displayLineActualAmount(item)}
+                        </td>
+                      ) : null}
                     </tr>
                   ))}
                 </tbody>
@@ -585,6 +617,13 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                     <td className="px-4 py-3 font-semibold">
                       {formatRupiah(purchase.total_estimated_amount)}
                     </td>
+                    {showLineActualColumn ? (
+                      <td className="px-4 py-3 font-semibold">
+                        {purchase.total_actual_amount != null
+                          ? formatRupiah(purchase.total_actual_amount)
+                          : "—"}
+                      </td>
+                    ) : null}
                   </tr>
                 </tfoot>
               </table>

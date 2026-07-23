@@ -68,7 +68,7 @@ describe("AdminPurchasesPage", () => {
       screen.getByRole("columnheader", { name: "Items" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("columnheader", { name: "Total estimate" }),
+      screen.getByRole("columnheader", { name: "Total" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("columnheader", { name: "Created by" }),
@@ -212,5 +212,27 @@ describe("AdminPurchasesPage", () => {
     });
     expect(screen.queryByText("Beras Supplier")).not.toBeInTheDocument();
     expect(screen.getByText("0 total")).toBeInTheDocument();
+  });
+
+  it("shows actual total when present, otherwise estimated", async () => {
+    vi.mocked(purchaseRequestsAdminApi.list).mockResolvedValue({
+      data: [
+        { ...purchase, total_actual_amount: 300000 },
+        {
+          ...purchase,
+          id: "pr-legacy",
+          supplier_name: "Legacy Supplier",
+          total_estimated_amount: 50000,
+        },
+      ],
+      meta: { page: 1, per_page: 10, total: 2 },
+    });
+
+    render(<AdminPurchasesPage />);
+
+    expect(await screen.findByText("Beras Supplier")).toBeInTheDocument();
+    expect(screen.getByText("Rp 300.000")).toBeInTheDocument();
+    expect(screen.getByText("Legacy Supplier")).toBeInTheDocument();
+    expect(screen.getByText("Rp 50.000")).toBeInTheDocument();
   });
 });
