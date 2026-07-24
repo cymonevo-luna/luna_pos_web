@@ -32,6 +32,7 @@ function emptyRoleFeatureState(): RoleFeatureState {
     manager: [],
     cashier: [],
     operational: [],
+    cook: [],
   };
 }
 

@@ -622,7 +622,7 @@ export type ProductionRequestFormValues = z.infer<
 >;
 
 const assignableRoleSchema = z.enum(
-  ["admin", "manager", "cashier", "operational"],
+  ["admin", "manager", "cashier", "operational", "cook"],
   { error: "Select a valid role" },
 );
 

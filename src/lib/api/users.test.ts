@@ -48,6 +48,17 @@ describe("adminUserCreateSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("accepts cook as a valid MerchantRole", () => {
+    const roles: MerchantRole[] = ["cook"];
+    const result = adminUserCreateSchema.parse({
+      email: "cook@example.com",
+      name: "Cook User",
+      password: "password123",
+      roles,
+    });
+    expect(result.roles).toEqual(["cook"]);
+  });
 });
 
 describe("adminUserRolesSchema", () => {

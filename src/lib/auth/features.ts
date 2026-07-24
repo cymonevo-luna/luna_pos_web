@@ -45,6 +45,7 @@ export const DEFAULT_ROLE_FEATURES: Record<MerchantRole, readonly string[]> = {
     "production_requests.view",
   ],
   cashier: [],
+  cook: [],
 };
 
 function warnLegacyFallback() {

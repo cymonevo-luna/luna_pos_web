@@ -27,4 +27,13 @@ describe("resolveUserFeatures", () => {
       }),
     ).toContain("menus.manage");
   });
+
+  it("returns empty legacy fallback for cook role", () => {
+    expect(
+      resolveUserFeatures({
+        roles: ["cook"],
+        features: undefined,
+      }),
+    ).toEqual([]);
+  });
 });
