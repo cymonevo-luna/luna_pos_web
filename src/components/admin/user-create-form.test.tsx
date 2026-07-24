@@ -8,36 +8,38 @@ import {
 } from "./user-create-form";
 
 describe("AdminUserCreateForm", () => {
-  it("shows Cook as an assignable role checkbox", () => {
-    render(<AdminUserCreateForm onSubmit={() => {}} onCancel={() => {}} />);
+  describe("Cook", () => {
+    it("shows Cook as an assignable role checkbox", () => {
+      render(<AdminUserCreateForm onSubmit={() => {}} onCancel={() => {}} />);
 
-    expect(screen.getByLabelText("Cook")).toBeInTheDocument();
-  });
+      expect(screen.getByLabelText("Cook")).toBeInTheDocument();
+    });
 
-  it("submits cook role when Cook checkbox is selected", async () => {
-    const user = userEvent.setup();
-    const onSubmit = vi.fn();
+    it("submits cook role when Cook checkbox is selected", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
 
-    render(
-      <AdminUserCreateForm
-        onSubmit={onSubmit}
-        onCancel={() => {}}
-        submitLabel="Create user"
-      />,
-    );
+      render(
+        <AdminUserCreateForm
+          onSubmit={onSubmit}
+          onCancel={() => {}}
+          submitLabel="Create user"
+        />,
+      );
 
-    await user.type(screen.getByLabelText("Email"), "cook@example.com");
-    await user.type(screen.getByLabelText("Name"), "Cook User");
-    await user.type(screen.getByLabelText("Password"), "password123");
-    await user.click(screen.getByLabelText("Cook"));
-    await user.click(screen.getByRole("button", { name: "Create user" }));
+      await user.type(screen.getByLabelText("Email"), "cook@example.com");
+      await user.type(screen.getByLabelText("Name"), "Cook User");
+      await user.type(screen.getByLabelText("Password"), "password123");
+      await user.click(screen.getByLabelText("Cook"));
+      await user.click(screen.getByRole("button", { name: "Create user" }));
 
-    await waitFor(() => {
-      expect(onSubmit.mock.calls[0]?.[0]).toEqual({
-        email: "cook@example.com",
-        name: "Cook User",
-        password: "password123",
-        roles: ["cook"],
+      await waitFor(() => {
+        expect(onSubmit.mock.calls[0]?.[0]).toEqual({
+          email: "cook@example.com",
+          name: "Cook User",
+          password: "password123",
+          roles: ["cook"],
+        });
       });
     });
   });
