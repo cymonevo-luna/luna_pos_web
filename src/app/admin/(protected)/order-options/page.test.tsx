@@ -17,6 +17,7 @@ vi.mock("@/lib/api/order-options", () => ({
   },
   orderOptionFormToPayload: vi.fn((values) => ({
     name: values.name.trim(),
+    additional_price: values.additional_price ?? 0,
   })),
 }));
 
@@ -30,6 +31,7 @@ vi.mock("sonner", () => ({
 const dineIn: OrderOption = {
   id: "opt-1",
   name: "Dine-In",
+  additional_price: 0,
   priority: 10,
   ingredient_count: 2,
   created_at: "2026-01-01T00:00:00Z",
@@ -39,6 +41,7 @@ const dineIn: OrderOption = {
 const takeAway: OrderOption = {
   id: "opt-2",
   name: "Take Away",
+  additional_price: 0,
   priority: 5,
   ingredient_count: 0,
   created_at: "2026-01-02T00:00:00Z",
@@ -48,6 +51,7 @@ const takeAway: OrderOption = {
 const box: OrderOption = {
   id: "opt-3",
   name: "Box",
+  additional_price: 3000,
   priority: 3,
   ingredient_count: 1,
   created_at: "2026-01-03T00:00:00Z",
@@ -154,6 +158,105 @@ describe("AdminOrderOptionsPage", () => {
     expect(screen.getByRole("cell", { name: "Dine-In" })).toBeInTheDocument();
   });
 
+  it("creates an order option with surcharge from the dialog", async () => {
+    const user = userEvent.setup();
+    vi.mocked(orderOptionsAdminApi.create).mockResolvedValue({
+      data: {
+        ...box,
+      },
+    });
+
+    render(<AdminOrderOptionsPage />);
+    await screen.findByText("Dine-In");
+
+    await user.click(screen.getByRole("button", { name: "Add Order Option" }));
+    const dialog = screen.getByRole("dialog");
+
+    await user.type(within(dialog).getByLabelText("Name"), "Box");
+    await user.clear(within(dialog).getByLabelText("Additional Price (IDR)"));
+    await user.type(
+      within(dialog).getByLabelText("Additional Price (IDR)"),
+      "3000",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add Order Option" }),
+    );
+
+    await waitFor(() => {
+      expect(orderOptionsAdminApi.create).toHaveBeenCalledWith({
+        name: "Box",
+        additional_price: 3000,
+      });
+    });
+    expect(toast.success).toHaveBeenCalledWith("Order option created");
+  });
+
+  it("edits an order option surcharge from the dialog", async () => {
+    const user = userEvent.setup();
+    vi.mocked(orderOptionsAdminApi.update).mockResolvedValue({
+      data: {
+        ...dineIn,
+        additional_price: 5000,
+      },
+    });
+
+    render(<AdminOrderOptionsPage />);
+    await screen.findByText("Dine-In");
+
+    await user.click(screen.getByLabelText("Edit order option"));
+
+    const priceInput = screen.getByLabelText("Additional Price (IDR)");
+    await user.clear(priceInput);
+    await user.type(priceInput, "5000");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(orderOptionsAdminApi.update).toHaveBeenCalledWith("opt-1", {
+        name: "Dine-In",
+        additional_price: 5000,
+      });
+    });
+    expect(toast.success).toHaveBeenCalledWith("Order option updated");
+  });
+
+  it("rejects negative additional price in the dialog", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminOrderOptionsPage />);
+    await screen.findByText("Dine-In");
+
+    await user.click(screen.getByRole("button", { name: "Add Order Option" }));
+    const dialog = screen.getByRole("dialog");
+
+    await user.type(within(dialog).getByLabelText("Name"), "Box");
+    await user.clear(within(dialog).getByLabelText("Additional Price (IDR)"));
+    await user.type(
+      within(dialog).getByLabelText("Additional Price (IDR)"),
+      "-100",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add Order Option" }),
+    );
+
+    expect(
+      await screen.findByText("Additional price cannot be negative"),
+    ).toBeInTheDocument();
+    expect(orderOptionsAdminApi.create).not.toHaveBeenCalled();
+  });
+
+  it("shows formatted additional price in the list", async () => {
+    vi.mocked(orderOptionsAdminApi.list).mockResolvedValue({
+      data: [dineIn, box],
+      meta: { page: 1, per_page: 100, total: 2 },
+    });
+
+    render(<AdminOrderOptionsPage />);
+
+    await screen.findByText("Box");
+    expect(screen.getByText("Rp 0")).toBeInTheDocument();
+    expect(screen.getByText("Rp 3.000")).toBeInTheDocument();
+  });
+
   it("creates an order option from the dialog", async () => {
     const user = userEvent.setup();
     vi.mocked(orderOptionsAdminApi.create).mockResolvedValue({
@@ -178,6 +281,7 @@ describe("AdminOrderOptionsPage", () => {
     await waitFor(() => {
       expect(orderOptionsAdminApi.create).toHaveBeenCalledWith({
         name: "Take Away",
+        additional_price: 0,
       });
     });
     expect(toast.success).toHaveBeenCalledWith("Order option created");
@@ -207,6 +311,7 @@ describe("AdminOrderOptionsPage", () => {
     await waitFor(() => {
       expect(orderOptionsAdminApi.update).toHaveBeenCalledWith("opt-1", {
         name: "Dine In",
+        additional_price: 0,
       });
     });
     expect(toast.success).toHaveBeenCalledWith("Order option updated");

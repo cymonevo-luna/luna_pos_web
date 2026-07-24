@@ -14,13 +14,61 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 describe("orderOptionSchema", () => {
-  it("accepts a valid name", () => {
-    const result = orderOptionSchema.safeParse({ name: "Dine-In" });
+  it("accepts a valid name with zero additional price", () => {
+    const result = orderOptionSchema.safeParse({
+      name: "Dine-In",
+      additional_price: 0,
+    });
     expect(result.success).toBe(true);
   });
 
+  it("accepts a non-negative additional price", () => {
+    const result = orderOptionSchema.safeParse({
+      name: "Box",
+      additional_price: 3000,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.additional_price).toBe(3000);
+    }
+  });
+
+  it("requires additional_price when parsing schema input", () => {
+    const result = orderOptionSchema.safeParse({ name: "Dine-In" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a negative additional price", () => {
+    const result = orderOptionSchema.safeParse({
+      name: "Box",
+      additional_price: -100,
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe(
+        "Additional price cannot be negative",
+      );
+    }
+  });
+
+  it("rejects a non-integer additional price", () => {
+    const result = orderOptionSchema.safeParse({
+      name: "Box",
+      additional_price: 12.5,
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe(
+        "Additional price must be a whole number",
+      );
+    }
+  });
+
   it("trims whitespace from name", () => {
-    const result = orderOptionSchema.safeParse({ name: "  Dine-In  " });
+    const result = orderOptionSchema.safeParse({
+      name: "  Dine-In  ",
+      additional_price: 0,
+    });
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.name).toBe("Dine-In");
@@ -28,7 +76,7 @@ describe("orderOptionSchema", () => {
   });
 
   it("rejects a name shorter than 2 characters", () => {
-    const result = orderOptionSchema.safeParse({ name: "A" });
+    const result = orderOptionSchema.safeParse({ name: "A", additional_price: 0 });
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues[0]?.message).toBe(
@@ -38,12 +86,15 @@ describe("orderOptionSchema", () => {
   });
 
   it("rejects whitespace-only name", () => {
-    const result = orderOptionSchema.safeParse({ name: "   " });
+    const result = orderOptionSchema.safeParse({ name: "   ", additional_price: 0 });
     expect(result.success).toBe(false);
   });
 
   it("rejects a name longer than 100 characters", () => {
-    const result = orderOptionSchema.safeParse({ name: "a".repeat(101) });
+    const result = orderOptionSchema.safeParse({
+      name: "a".repeat(101),
+      additional_price: 0,
+    });
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues.some((i) => i.message.length > 0)).toBe(true);
@@ -53,8 +104,20 @@ describe("orderOptionSchema", () => {
 
 describe("orderOptionFormToPayload", () => {
   it("trims the name before submit", () => {
-    expect(orderOptionFormToPayload({ name: "  Dine-In  " })).toEqual({
+    expect(
+      orderOptionFormToPayload({ name: "  Dine-In  ", additional_price: 0 }),
+    ).toEqual({
       name: "Dine-In",
+      additional_price: 0,
+    });
+  });
+
+  it("includes additional_price in the payload", () => {
+    expect(
+      orderOptionFormToPayload({ name: "Box", additional_price: 3000 }),
+    ).toEqual({
+      name: "Box",
+      additional_price: 3000,
     });
   });
 });
@@ -99,6 +162,7 @@ describe("orderOptionsAdminApi", () => {
     const orderOption = {
       id: "opt-1",
       name: "Dine-In",
+      additional_price: 0,
       priority: 10,
       ingredient_count: 2,
       created_at: "2026-01-01T00:00:00Z",
@@ -132,11 +196,15 @@ describe("orderOptionsAdminApi", () => {
     const got = await orderOptionsAdminApi.get("opt-1");
     expect(got.data).toEqual(orderOption);
 
-    const created = await orderOptionsAdminApi.create({ name: "Dine-In" });
+    const created = await orderOptionsAdminApi.create({
+      name: "Dine-In",
+      additional_price: 0,
+    });
     expect(created.data).toEqual(orderOption);
 
     const updated = await orderOptionsAdminApi.update("opt-1", {
       name: "Dine-In",
+      additional_price: 5000,
     });
     expect(updated.data).toEqual(orderOption);
 
@@ -149,6 +217,7 @@ describe("orderOptionsAdminApi", () => {
       {
         id: "id-2",
         name: "Box",
+        additional_price: 3000,
         priority: 10,
         ingredient_count: 0,
         created_at: "2026-01-01T00:00:00Z",
@@ -157,6 +226,7 @@ describe("orderOptionsAdminApi", () => {
       {
         id: "id-1",
         name: "Take Away",
+        additional_price: 0,
         priority: 5,
         ingredient_count: 1,
         created_at: "2026-01-01T00:00:00Z",

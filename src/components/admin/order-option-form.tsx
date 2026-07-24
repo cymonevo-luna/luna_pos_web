@@ -12,11 +12,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+function blockDecimalInput(event: React.KeyboardEvent<HTMLInputElement>) {
+  if (event.key === "." || event.key === "," || event.key === "e" || event.key === "E") {
+    event.preventDefault();
+  }
+}
+
 function buildDefaultValues(
   defaultValues?: Partial<OrderOptionFormValues>,
 ): OrderOptionFormValues {
   return {
     name: defaultValues?.name ?? "",
+    additional_price: defaultValues?.additional_price ?? 0,
   };
 }
 
@@ -68,7 +75,7 @@ export const OrderOptionForm = React.forwardRef<
   useImperativeHandle(ref, () => ({
     applyServerErrors(fields: Record<string, string>) {
       for (const [field, message] of Object.entries(fields)) {
-        if (field === "name") {
+        if (field === "name" || field === "additional_price") {
           setError(field, { message });
         }
       }
@@ -90,6 +97,29 @@ export const OrderOptionForm = React.forwardRef<
         />
         {errors.name && (
           <p className="text-sm text-destructive">{errors.name.message}</p>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="order-option-additional-price">
+          Additional Price (IDR)
+        </Label>
+        <Input
+          id="order-option-additional-price"
+          type="number"
+          inputMode="numeric"
+          step={1}
+          autoComplete="off"
+          onKeyDown={blockDecimalInput}
+          {...register("additional_price", { valueAsNumber: true })}
+        />
+        <p className="text-sm text-muted-foreground">
+          Optional; leave 0 for no surcharge
+        </p>
+        {errors.additional_price && (
+          <p className="text-sm text-destructive">
+            {errors.additional_price.message}
+          </p>
         )}
       </div>
 
