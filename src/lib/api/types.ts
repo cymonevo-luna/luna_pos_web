@@ -825,6 +825,22 @@ export interface Expense {
   updated_at: string;
 }
 
+/** Menu disposal record from GET /api/admin/menu-disposals. */
+export interface MenuDisposal {
+  id: string;
+  menu_id: string;
+  menu_title: string;
+  quantity: number;
+  unit_loss_amount: number;
+  loss_amount: number;
+  disposed_by_user_id?: string | null;
+  disposed_by_username?: string | null;
+  note?: string | null;
+  disposed_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
 /** Wire `data` payload from GET /api/admin/branch-assets/summary. */
 export interface BranchAssetsSummary {
   total_asset_value: number;

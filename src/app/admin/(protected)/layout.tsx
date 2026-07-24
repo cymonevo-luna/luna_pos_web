@@ -19,6 +19,7 @@ import {
   Repeat,
   ListOrdered,
   Wallet,
+  Trash2,
   Building2,
   KeyRound,
 } from "lucide-react";
@@ -69,6 +70,12 @@ export const allNavItems: NavEntry[] = [
         label: "User Transactions",
         icon: Receipt,
         feature: "transactions.view",
+      },
+      {
+        href: "/admin/menu-disposals",
+        label: "Menu Disposals",
+        icon: Trash2,
+        feature: "menu_disposals.view",
       },
     ],
   },

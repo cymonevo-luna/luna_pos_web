@@ -174,6 +174,7 @@ describe("AdminProtectedLayout", () => {
       "Menu",
       "Cook Request",
       "User Transactions",
+      "Menu Disposals",
     ]);
   });
 

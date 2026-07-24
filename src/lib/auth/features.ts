@@ -26,6 +26,7 @@ export const DEFAULT_ROLE_FEATURES: Record<MerchantRole, readonly string[]> = {
     "menus.manage",
     "cogs.view",
     "transactions.view",
+    "menu_disposals.view",
     "insights.cash_flow",
     "expenses.manage",
     "recurring_expenses.manage",
