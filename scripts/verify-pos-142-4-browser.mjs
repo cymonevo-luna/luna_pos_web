@@ -26,6 +26,14 @@ const MOCK_API = !["0", "false", "no"].includes(
 const ROLE_COLUMNS = ["Admin", "Manager", "Cashier", "Operational", "Cook"];
 const COOK_EMAIL = `cook-e2e-${Date.now()}@integration.test`;
 
+/** @type {[string, "PASS" | "FAIL", string][]} */
+const results = [];
+
+function record(name, pass, note) {
+  results.push([name, pass ? "PASS" : "FAIL", note]);
+  console.log(`${pass ? "PASS" : "FAIL"}: ${name}${note ? ` — ${note}` : ""}`);
+}
+
 function makeJwt(claims = {}) {
   const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString(
     "base64url",
@@ -83,7 +91,7 @@ function defaultMappings() {
     { role: "manager", features: [] },
     { role: "cashier", features: [] },
     { role: "operational", features: [] },
-    { role: "cook", features: [] },
+    { role: "cook", features: null },
   ];
 }
 
@@ -202,6 +210,25 @@ async function installApiMocks(page, state) {
   });
 }
 
+async function assertApiHealth() {
+  const paths = ["/healthz", "/health"];
+  for (const path of paths) {
+    try {
+      const res = await fetch(`${API_BASE}${path}`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        record("API health", true, `GET ${API_BASE}${path} responded OK`);
+        return;
+      }
+    } catch {
+      // try next path
+    }
+  }
+  record("API health", false, `GET ${API_BASE}/health(z) unreachable`);
+  throw new Error("API health check failed");
+}
+
 async function cleanupCookTestUsers(page) {
   if (MOCK_API) return;
 
@@ -242,7 +269,23 @@ async function expectRoleFeatureColumns(page) {
     await page.getByRole("columnheader", { name: column }).waitFor();
   }
 
-  console.log("PASS: Cook column visible alongside existing role columns");
+  const cookCheckbox = page.getByRole("checkbox", {
+    name: "Production Requests for Cook",
+    exact: true,
+  });
+  await cookCheckbox.waitFor();
+  const checkboxCount = await page
+    .locator('input[type="checkbox"][id^="cook-"]')
+    .count();
+  if (checkboxCount === 0) {
+    throw new Error("Expected cook privilege checkboxes to render");
+  }
+
+  record(
+    "Cook column visible",
+    true,
+    "Cook column and privilege checkboxes render alongside existing roles",
+  );
 }
 
 async function expectCookPrivilegesPersist(page) {
@@ -274,7 +317,11 @@ async function expectCookPrivilegesPersist(page) {
     throw new Error("Cook privilege did not persist after reload");
   }
 
-  console.log("PASS: Cook privileges save and persist after reload");
+  record(
+    "Cook privileges save and persist",
+    true,
+    "Production Requests toggled, saved, and still checked after reload",
+  );
 
   await checkbox.click();
   const restoreResponse = page.waitForResponse(
@@ -308,19 +355,52 @@ async function expectCookUserFlow(page) {
   const response = await createResponse;
   const body = await response.json();
   const userId = body?.data?.id;
+  const createdRoles = body?.data?.roles;
 
   const row = page.locator("tr", { hasText: COOK_EMAIL });
   await row.waitFor();
   await row.locator("span", { hasText: "Cook" }).waitFor();
-  console.log("PASS: Created cook-only user with Cook badge");
 
-  if (userId) {
-    await page.goto(`${WEB_BASE}/admin/users/${userId}`, {
-      waitUntil: "networkidle",
-    });
-    await page.locator("span", { hasText: "Cook" }).first().waitFor();
-    console.log("PASS: Cook user detail shows Cook role badge");
+  if (!userId) {
+    throw new Error("Create user response missing user id");
   }
+
+  if (JSON.stringify(createdRoles) !== JSON.stringify(["cook"])) {
+    throw new Error(
+      `Expected roles ["cook"] in create response, got ${JSON.stringify(createdRoles)}`,
+    );
+  }
+
+  await page.goto(`${WEB_BASE}/admin/users/${userId}`, {
+    waitUntil: "networkidle",
+  });
+  await page.locator("span", { hasText: "Cook" }).first().waitFor();
+
+  const rolesRow = page.locator("dt", { hasText: "Roles" }).locator("..");
+  await rolesRow.getByText("Cook", { exact: true }).waitFor();
+
+  const detailRoles = await page.evaluate(
+    async ({ apiBase, userId }) => {
+      const token = localStorage.getItem("nt_access_token");
+      const res = await fetch(`${apiBase}/api/admin/users/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const body = await res.json();
+      return body?.data?.roles ?? null;
+    },
+    { apiBase: API_BASE, userId },
+  );
+  if (JSON.stringify(detailRoles) !== JSON.stringify(["cook"])) {
+    throw new Error(
+      `Expected roles ["cook"] in user detail, got ${JSON.stringify(detailRoles)}`,
+    );
+  }
+
+  record(
+    "Create cook-only user",
+    true,
+    `${COOK_EMAIL} has Cook badge and roles: ["cook"] in detail`,
+  );
 
   await page.goto(`${WEB_BASE}/admin/users`, { waitUntil: "networkidle" });
   const cookRow = page.locator("tr", { hasText: COOK_EMAIL });
@@ -330,10 +410,16 @@ async function expectCookUserFlow(page) {
     .getByRole("button", { name: "Remove", exact: true })
     .click();
   await cookRow.waitFor({ state: "hidden" });
-  console.log("PASS: Cleaned up cook test user");
 }
 
 async function expectExistingRoleBadges(page) {
+  await page.goto(`${WEB_BASE}/admin/role-features`, {
+    waitUntil: "networkidle",
+  });
+  for (const column of ROLE_COLUMNS) {
+    await page.getByRole("columnheader", { name: column }).waitFor();
+  }
+
   await page.goto(`${WEB_BASE}/admin/users`, { waitUntil: "networkidle" });
   for (const role of ["Admin", "Manager", "Cashier", "Operational"]) {
     const badge = page.getByText(role, { exact: true });
@@ -341,13 +427,21 @@ async function expectExistingRoleBadges(page) {
       throw new Error(`Expected existing role badge "${role}" in users list`);
     }
   }
-  console.log("PASS: Existing role badges still render on users page");
+  record(
+    "Existing roles regression",
+    true,
+    "All five role columns visible; Admin/Manager/Cashier/Operational badges render",
+  );
 }
 
 async function main() {
   console.log(
     `POS-142-4 browser verification (MOCK_API=${MOCK_API}, WEB_BASE=${WEB_BASE})`,
   );
+
+  if (!MOCK_API) {
+    await assertApiHealth();
+  }
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
@@ -395,18 +489,36 @@ async function main() {
     createdUserId: null,
   };
 
-  if (MOCK_API) {
-    await installApiMocks(page, state);
+  try {
+    if (MOCK_API) {
+      await installApiMocks(page, state);
+    }
+
+    await login(page);
+    await cleanupCookTestUsers(page);
+    await expectRoleFeatureColumns(page);
+    await expectCookPrivilegesPersist(page);
+    await expectCookUserFlow(page);
+    await expectExistingRoleBadges(page);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!results.some(([, status]) => status === "FAIL")) {
+      record("Browser verification", false, message);
+    }
+    throw error;
+  } finally {
+    await browser.close();
   }
 
-  await login(page);
-  await cleanupCookTestUsers(page);
-  await expectRoleFeatureColumns(page);
-  await expectCookPrivilegesPersist(page);
-  await expectCookUserFlow(page);
-  await expectExistingRoleBadges(page);
+  console.log("\n== Browser summary ==");
+  for (const [name, status, note] of results) {
+    console.log(`${status}: ${name} — ${note}`);
+  }
 
-  await browser.close();
+  if (results.some(([, status]) => status === "FAIL")) {
+    process.exit(1);
+  }
+
   console.log("\nAll POS-142-4 browser checks passed.");
 }
 
