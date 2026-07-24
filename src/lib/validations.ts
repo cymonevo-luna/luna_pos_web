@@ -260,6 +260,12 @@ export const expenseSourceOfFundSchema = z.enum(["CASHIER", "PERSONAL_MONEY"], {
   error: "Select source of fund",
 });
 
+const expenseRecordDateSchema = z.coerce
+  .date({ error: "Reporting date is required" })
+  .refine((date) => date.getTime() <= Date.now(), {
+    message: "Reporting date cannot be in the future",
+  });
+
 export const expenseSchema = z.object({
   title: z
     .string()
@@ -277,6 +283,11 @@ export const expenseSchema = z.object({
     .min(1, "Amount must be at least 1"),
   source_of_fund: expenseSourceOfFundSchema,
   receipt_url: z.string().optional().or(z.literal("")),
+  recordDate: expenseRecordDateSchema.optional(),
+});
+
+export const expenseEditWithRecordDateSchema = expenseSchema.extend({
+  recordDate: expenseRecordDateSchema,
 });
 
 export type ExpenseFormValues = z.infer<typeof expenseSchema>;

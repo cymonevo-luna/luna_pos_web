@@ -2,12 +2,20 @@
 
 import * as React from "react";
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiError } from "@/lib/api/client";
 import { uploadExpenseReceipt, validateMenuPhotoFile } from "@/lib/api/uploads";
-import { expenseSchema, type ExpenseFormValues } from "@/lib/validations";
-import { menuPhotoUrl, formatRupiah } from "@/lib/utils";
+import {
+  expenseEditWithRecordDateSchema,
+  expenseSchema,
+  type ExpenseFormValues,
+} from "@/lib/validations";
+import {
+  dateToDatetimeLocalInput,
+  menuPhotoUrl,
+  formatRupiah,
+} from "@/lib/utils";
 import { withTitleCaseOnBlur } from "@/lib/withTitleCaseOnBlur";
 import { useCashierBalance } from "@/lib/hooks/use-cashier-balance";
 import { Button } from "@/components/ui/button";
@@ -54,6 +62,7 @@ function buildDefaultValues(
     amount: defaultValues?.amount ?? Number.NaN,
     source_of_fund: defaultValues?.source_of_fund ?? "PERSONAL_MONEY",
     receipt_url: defaultValues?.receipt_url ?? "",
+    recordDate: defaultValues?.recordDate,
   };
 }
 
@@ -84,6 +93,7 @@ export interface ExpenseFormProps {
   onCancel: () => void;
   isLoading?: boolean;
   submitLabel?: string;
+  showRecordDate?: boolean;
 }
 
 export interface ExpenseFormHandle {
@@ -99,6 +109,7 @@ export const ExpenseForm = React.forwardRef<ExpenseFormHandle, ExpenseFormProps>
       onCancel,
       isLoading = false,
       submitLabel = "Save",
+      showRecordDate = false,
     },
     ref,
   ) {
@@ -115,9 +126,12 @@ export const ExpenseForm = React.forwardRef<ExpenseFormHandle, ExpenseFormProps>
       setValue,
       clearErrors,
       watch,
+      control,
       formState: { errors },
     } = useForm<ExpenseFormValues>({
-      resolver: zodResolver(expenseSchema),
+      resolver: zodResolver(
+        showRecordDate ? expenseEditWithRecordDateSchema : expenseSchema,
+      ) as Resolver<ExpenseFormValues>,
       defaultValues: initialValuesRef.current,
     });
 
@@ -133,14 +147,18 @@ export const ExpenseForm = React.forwardRef<ExpenseFormHandle, ExpenseFormProps>
     useImperativeHandle(ref, () => ({
       applyServerErrors(fields: Record<string, string>) {
         for (const [field, message] of Object.entries(fields)) {
-          if (
-            field === "title" ||
-            field === "description" ||
-            field === "amount" ||
-            field === "source_of_fund" ||
-            field === "receipt_url"
-          ) {
-            setError(field, { message });
+          const mappedField =
+            field === "record_date"
+              ? "recordDate"
+              : field === "title" ||
+                  field === "description" ||
+                  field === "amount" ||
+                  field === "source_of_fund" ||
+                  field === "receipt_url"
+                ? field
+                : null;
+          if (mappedField) {
+            setError(mappedField, { message });
           }
         }
       },
@@ -216,6 +234,45 @@ export const ExpenseForm = React.forwardRef<ExpenseFormHandle, ExpenseFormProps>
             </p>
           )}
         </div>
+
+        {showRecordDate ? (
+          <div className="space-y-1.5" data-testid="expense-record-date-section">
+            <Label htmlFor="expense-record-date">Reporting date</Label>
+            <Controller
+              name="recordDate"
+              control={control}
+              render={({ field }) => (
+                <Input
+                  id="expense-record-date"
+                  type="datetime-local"
+                  data-testid="expense-record-date-input"
+                  value={
+                    field.value instanceof Date && !Number.isNaN(field.value.getTime())
+                      ? dateToDatetimeLocalInput(field.value)
+                      : ""
+                  }
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    field.onChange(value ? new Date(value) : undefined);
+                  }}
+                  onBlur={field.onBlur}
+                  ref={field.ref}
+                />
+              )}
+            />
+            <p className="text-xs text-muted-foreground">
+              Reporting date used for cash-flow calculations.
+            </p>
+            {errors.recordDate && (
+              <p
+                className="text-sm text-destructive"
+                data-testid="expense-record-date-error"
+              >
+                {errors.recordDate.message}
+              </p>
+            )}
+          </div>
+        ) : null}
 
         <div className="space-y-1.5">
           <Label htmlFor="expense-amount">Amount (Rp)</Label>

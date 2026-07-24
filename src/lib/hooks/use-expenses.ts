@@ -8,6 +8,7 @@ import {
   getExpense,
   listExpenses,
   updateExpense,
+  updateRecordDate,
   uploadExpenseReceipt,
   type CreateExpensePayload,
   type ListExpensesParams,
@@ -198,6 +199,12 @@ export function useCreateExpense() {
 export function useUpdateExpense() {
   return useExpenseMutation((id: string, payload: UpdateExpensePayload) =>
     updateExpense(id, payload),
+  );
+}
+
+export function useUpdateExpenseRecordDate() {
+  return useExpenseMutation((id: string, recordDate: Date) =>
+    updateRecordDate(id, recordDate),
   );
 }
 

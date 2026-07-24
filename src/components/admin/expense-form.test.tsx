@@ -228,4 +228,81 @@ describe("ExpenseForm", () => {
 
     expect(titleInput).toHaveValue("Office Supplies");
   });
+
+  it("shows reporting date field when showRecordDate is true", () => {
+    render(
+      <ExpenseForm
+        onSubmit={() => {}}
+        onCancel={() => {}}
+        showRecordDate
+        defaultValues={{
+          recordDate: new Date("2026-01-15T10:30:00"),
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("expense-record-date-section")).toBeInTheDocument();
+    expect(screen.getByTestId("expense-record-date-input")).toBeInTheDocument();
+    expect(
+      screen.getByText("Reporting date used for cash-flow calculations."),
+    ).toBeInTheDocument();
+  });
+
+  it("hides reporting date field by default", () => {
+    render(<ExpenseForm onSubmit={() => {}} onCancel={() => {}} />);
+
+    expect(
+      screen.queryByTestId("expense-record-date-section"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("blocks submit when reporting date is in the future", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(12, 0, 0, 0);
+
+    render(
+      <ExpenseForm
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+        showRecordDate
+        defaultValues={{
+          title: "Office supplies",
+          amount: 150_000,
+          recordDate: tomorrow,
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByTestId("expense-record-date-error"),
+    ).toHaveTextContent(/cannot be in the future/i);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("applies server errors for record_date", async () => {
+    const ref = React.createRef<import("./expense-form").ExpenseFormHandle>();
+
+    render(
+      <ExpenseForm
+        ref={ref}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+        showRecordDate
+        defaultValues={{ recordDate: new Date("2026-01-01T00:00:00Z") }}
+      />,
+    );
+
+    ref.current?.applyServerErrors({
+      record_date: "Invalid reporting date",
+    });
+
+    expect(
+      await screen.findByTestId("expense-record-date-error"),
+    ).toHaveTextContent("Invalid reporting date");
+  });
 });
