@@ -409,7 +409,8 @@ export interface CashFlowInflowByMethodNormalized
 export type CashFlowOutflowSource =
   | "purchases"
   | "expenses"
-  | "staff_payouts";
+  | "staff_payouts"
+  | "menu_disposals";
 
 /** Wire format from cash-flow summary API (`outflow_by_source` rows). */
 export interface CashFlowOutflowBySource {

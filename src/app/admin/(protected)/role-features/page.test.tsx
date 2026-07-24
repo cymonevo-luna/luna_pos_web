@@ -99,7 +99,7 @@ describe("AdminRoleFeaturesPage", () => {
     it("renders when cook has null features without load error", async () => {
       vi.mocked(getRoleFeatures).mockResolvedValue({
         data: [
-          ...sampleMappings.slice(0, 4),
+          ...sampleMappings.filter((mapping) => mapping.role !== "cook"),
           { role: "cook", features: null },
         ],
       });

@@ -91,6 +91,7 @@ describe("insights API", () => {
         { source: "purchases", total_amount: 250_000, count: 2 },
         { source: "expenses", total_amount: 100_000, count: 1 },
         { source: "staff_payouts", total_amount: 100_000, count: 1 },
+        { source: "menu_disposals", total_amount: 25_000, count: 1 },
       ],
       production_cost: {
         total_estimated_cost: 120_000,
@@ -113,6 +114,7 @@ describe("insights API", () => {
       { source: "purchases", amount: 250_000, count: 2 },
       { source: "expenses", amount: 100_000, count: 1 },
       { source: "staff_payouts", amount: 100_000, count: 1 },
+      { source: "menu_disposals", amount: 25_000, count: 1 },
     ]);
     expect(got.data.production_cost).toEqual({
       total_estimated_cost: 120_000,
@@ -140,6 +142,18 @@ describe("insights API", () => {
   });
 
   it("coerces invalid numeric values in outflow and production cost normalizers", () => {
+    expect(
+      normalizeCashFlowOutflowBySource({
+        source: "menu_disposals",
+        total_amount: 12_500,
+        count: 3,
+      }),
+    ).toEqual({
+      source: "menu_disposals",
+      amount: 12_500,
+      count: 3,
+    });
+
     expect(
       normalizeCashFlowOutflowBySource({
         source: "expenses",
