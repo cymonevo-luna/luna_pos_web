@@ -21,6 +21,19 @@ export interface SummaryTransactionsParams {
   dateTo?: string;
 }
 
+/** Format an ISO8601 timestamp for `<input type="datetime-local" />`. */
+export function isoToDatetimeLocal(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** Parse a `datetime-local` value to ISO8601 for the API. */
+export function datetimeLocalToIso(value: string): string {
+  return new Date(value).toISOString();
+}
+
 /** Serialize a date input value (YYYY-MM-DD) to ISO8601 for the API. */
 export function dateInputToIso(value: string, endOfDay = false): string {
   const [year, month, day] = value.split("-").map(Number);
@@ -62,6 +75,11 @@ export const transactionsAdminApi = {
 
   delete: (id: string) =>
     api.delete<void>(`/api/admin/transactions/${id}`),
+
+  updateRecordDate: (id: string, transactionDate: string) =>
+    api.patch<Transaction>(`/api/admin/transactions/${id}/record-date`, {
+      transaction_date: transactionDate,
+    }),
 
   summary: ({ period, dateFrom = "", dateTo = "" }: SummaryTransactionsParams) => {
     const params = new URLSearchParams({ period });

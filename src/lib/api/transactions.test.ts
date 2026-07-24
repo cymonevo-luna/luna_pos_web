@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   transactionsAdminApi,
   dateInputToIso,
+  datetimeLocalToIso,
+  isoToDatetimeLocal,
 } from "./transactions";
 import { tokenStore } from "@/lib/auth/tokens";
 
@@ -23,6 +25,23 @@ describe("dateInputToIso", () => {
     expect(dateInputToIso("2026-03-15", true)).toBe(
       "2026-03-15T23:59:59.999Z",
     );
+  });
+});
+
+describe("isoToDatetimeLocal", () => {
+  it("formats ISO timestamps for datetime-local inputs", () => {
+    const local = isoToDatetimeLocal("2026-01-15T10:30:00Z");
+    const date = new Date("2026-01-15T10:30:00Z");
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const expected = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    expect(local).toBe(expected);
+  });
+});
+
+describe("datetimeLocalToIso", () => {
+  it("serializes datetime-local values to ISO8601", () => {
+    const iso = datetimeLocalToIso("2026-03-15T14:30");
+    expect(new Date(iso).toISOString()).toBe(iso);
   });
 });
 
@@ -135,5 +154,37 @@ describe("transactionsAdminApi", () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("http://localhost:8080/api/admin/transactions/txn-1");
     expect(init?.method).toBe("DELETE");
+  });
+
+  it("issues PATCH to /api/admin/transactions/{id}/record-date", async () => {
+    const updated = {
+      id: "txn-1",
+      method: "CASH",
+      amount: 50000,
+      cashier_user_id: "user-1",
+      cashier_username: "kasir1",
+      items: [],
+      transaction_date: "2026-01-08T10:30:00.000Z",
+      created_at: "2026-01-15T10:30:00Z",
+    };
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, data: updated }),
+    );
+
+    const got = await transactionsAdminApi.updateRecordDate(
+      "txn-1",
+      "2026-01-08T10:30:00.000Z",
+    );
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/transactions/txn-1/record-date",
+    );
+    expect(init?.method).toBe("PATCH");
+    expect(JSON.parse(String(init?.body))).toEqual({
+      transaction_date: "2026-01-08T10:30:00.000Z",
+    });
+    expect(got.data).toEqual(updated);
   });
 });
