@@ -348,6 +348,11 @@ export interface Transaction {
   id: string;
   method: TransactionMethod;
   amount: number;
+  subtotal_amount?: number;
+  discount_amount?: number;
+  order_option_id?: string;
+  order_option_name?: string;
+  order_option_additional_price?: number;
   cash_tendered?: number;
   change_amount?: number;
   cashier_user_id: string;

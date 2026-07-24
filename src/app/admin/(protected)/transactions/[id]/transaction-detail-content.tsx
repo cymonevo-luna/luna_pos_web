@@ -103,7 +103,7 @@ export function AdminTransactionDetailContent({ id }: { id: string }) {
             )}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardDescription>Amount</CardDescription>
@@ -126,7 +126,65 @@ export function AdminTransactionDetailContent({ id }: { id: string }) {
                 </CardTitle>
               </CardHeader>
             </Card>
+            {transaction.order_option_name ? (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription>Order option</CardDescription>
+                  <CardTitle className="text-xl">
+                    {transaction.order_option_name}
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+            ) : null}
           </div>
+
+          {(transaction.subtotal_amount != null ||
+            (transaction.discount_amount ?? 0) > 0 ||
+            (transaction.order_option_additional_price ?? 0) > 0) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Amount breakdown</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <dl className="space-y-3 text-sm">
+                  {transaction.subtotal_amount != null ? (
+                    <div className="flex items-center justify-between gap-4">
+                      <dt className="text-muted-foreground">Subtotal</dt>
+                      <dd className="font-medium">
+                        {formatRupiah(transaction.subtotal_amount)}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {(transaction.discount_amount ?? 0) > 0 ? (
+                    <div className="flex items-center justify-between gap-4">
+                      <dt className="text-muted-foreground">Discount</dt>
+                      <dd className="font-medium">
+                        -{formatRupiah(transaction.discount_amount ?? 0)}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {(transaction.order_option_additional_price ?? 0) > 0 ? (
+                    <div className="flex items-center justify-between gap-4">
+                      <dt className="text-muted-foreground">
+                        Order option surcharge
+                      </dt>
+                      <dd className="font-medium">
+                        {formatRupiah(
+                          transaction.order_option_additional_price ?? 0,
+                        )}
+                      </dd>
+                    </div>
+                  ) : null}
+                  <div className="flex items-center justify-between gap-4 border-t border-border pt-3">
+                    <dt className="font-medium">Total</dt>
+                    <dd className="font-semibold">
+                      {formatRupiah(transaction.amount)}
+                    </dd>
+                  </div>
+                </dl>
+              </CardContent>
+            </Card>
+          )}
 
           {transaction.method === "CASH" && (
             <Card>
