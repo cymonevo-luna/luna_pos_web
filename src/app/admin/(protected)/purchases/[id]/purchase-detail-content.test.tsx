@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api/client";
 import type { PurchaseRequest } from "@/lib/api/types";
 import { config } from "@/lib/config";
 import { useRoles } from "@/lib/auth/use-roles";
+import { useFeatures } from "@/lib/auth/use-features";
 import { toast } from "sonner";
 import { renderWithProviders } from "@/test/render";
 import { invalidatePurchaseRequestQueries } from "@/lib/query/invalidate-purchase-request-queries";
@@ -22,10 +23,15 @@ vi.mock("@/lib/auth/use-roles", () => ({
   useRoles: vi.fn(),
 }));
 
+vi.mock("@/lib/auth/use-features", () => ({
+  useFeatures: vi.fn(),
+}));
+
 vi.mock("@/lib/api/purchase-requests", () => ({
   purchaseRequestsAdminApi: {
     get: vi.fn(),
     updateStatus: vi.fn(),
+    updatePaidDate: vi.fn(),
     delete: vi.fn(),
   },
 }));
@@ -110,6 +116,14 @@ function mockAdminRoles() {
   });
 }
 
+function mockFeatures(features: string[] = []) {
+  vi.mocked(useFeatures).mockReturnValue({
+    features,
+    hasFeature: (key) => features.includes(key),
+    hasAnyFeature: (keys) => keys.some((key) => features.includes(key)),
+  });
+}
+
 function mockOperationalRoles() {
   vi.mocked(useRoles).mockReturnValue({
     roles: ["operational"],
@@ -122,6 +136,7 @@ describe("AdminPurchaseDetailContent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockAdminRoles();
+    mockFeatures();
     vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({ data: purchase });
   });
 
@@ -863,5 +878,169 @@ describe("AdminPurchaseDetailContent", () => {
     expect(decoded).toContain("estimasi: Rp 118.000");
 
     openSpy.mockRestore();
+  });
+
+  function createDeliveredPurchaseWithPaidHistory(
+    paidCreatedAt = "2026-01-03T10:00:00Z",
+  ): PurchaseRequest {
+    return {
+      ...purchase,
+      status: "DELIVERED",
+      status_history: [
+        ...purchase.status_history,
+        {
+          id: "hist-paid",
+          from_status: "REQUESTED",
+          to_status: "PAID",
+          changed_by_username: "admin",
+          photo_url: "https://cdn.example.com/receipt.jpg",
+          created_at: paidCreatedAt,
+        },
+        {
+          id: "hist-delivered",
+          from_status: "PAID",
+          to_status: "DELIVERED",
+          changed_by_username: "admin",
+          photo_url: "https://cdn.example.com/package.jpg",
+          created_at: "2026-01-04T11:00:00Z",
+        },
+      ],
+    };
+  }
+
+  it("allows admin with records.edit_date to edit paid date on delivered purchase", async () => {
+    const user = userEvent.setup();
+    mockFeatures(["records.edit_date"]);
+    const initialPurchase = createDeliveredPurchaseWithPaidHistory();
+    const updatedPaidAt = "2026-01-05T14:30:00Z";
+    const updatedPurchase = {
+      ...initialPurchase,
+      status_history: initialPurchase.status_history.map((entry) =>
+        entry.to_status === "PAID"
+          ? { ...entry, created_at: updatedPaidAt }
+          : entry,
+      ),
+    };
+    let currentPurchase = initialPurchase;
+
+    vi.mocked(purchaseRequestsAdminApi.get).mockImplementation(async () => ({
+      data: currentPurchase,
+    }));
+    vi.mocked(purchaseRequestsAdminApi.updatePaidDate).mockImplementation(
+      async () => {
+        currentPurchase = updatedPurchase;
+        return { data: updatedPurchase };
+      },
+    );
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+    await screen.findByText("Beras Supplier");
+
+    const paidDateInput = screen.getByTestId("purchase-paid-date-input");
+    await user.clear(paidDateInput);
+    await user.type(paidDateInput, "2026-01-05T14:30");
+    await user.click(screen.getByTestId("purchase-paid-date-save"));
+
+    await waitFor(() => {
+      expect(purchaseRequestsAdminApi.updatePaidDate).toHaveBeenCalledWith(
+        "pr-1",
+        expect.stringMatching(/2026-01-05T\d{2}:30:00/),
+      );
+      expect(purchaseRequestsAdminApi.get).toHaveBeenCalledTimes(2);
+      expect(invalidatePurchaseRequestQueries).toHaveBeenCalled();
+      expect(toast.success).toHaveBeenCalledWith("Paid date updated");
+    });
+
+    const statusHistoryHeading = screen.getByRole("heading", {
+      name: "Status History",
+    });
+    const statusHistorySection = statusHistoryHeading.closest(
+      ".rounded-2xl",
+    ) as HTMLElement;
+    expect(
+      within(statusHistorySection).getByText("Jan 5, 2026, 02:30 PM"),
+    ).toBeInTheDocument();
+  });
+
+  it("hides paid date edit control for requested purchases", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: { ...purchase, status: "REQUESTED" },
+    });
+    mockFeatures(["records.edit_date"]);
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+    await screen.findByText("Beras Supplier");
+
+    expect(
+      screen.queryByTestId("purchase-paid-date-section"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("purchase-paid-date-input"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps header created_at unchanged after paid date edit", async () => {
+    const user = userEvent.setup();
+    mockFeatures(["records.edit_date"]);
+    const initialPurchase = createDeliveredPurchaseWithPaidHistory();
+    const updatedPurchase = {
+      ...initialPurchase,
+      status_history: initialPurchase.status_history.map((entry) =>
+        entry.to_status === "PAID"
+          ? { ...entry, created_at: "2026-01-05T14:30:00Z" }
+          : entry,
+      ),
+    };
+    let currentPurchase = initialPurchase;
+
+    vi.mocked(purchaseRequestsAdminApi.get).mockImplementation(async () => ({
+      data: currentPurchase,
+    }));
+    vi.mocked(purchaseRequestsAdminApi.updatePaidDate).mockImplementation(
+      async () => {
+        currentPurchase = updatedPurchase;
+        return { data: updatedPurchase };
+      },
+    );
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+    await screen.findByText("Beras Supplier");
+
+    const createdAtCard = screen.getByText("Created at").closest(
+      ".rounded-2xl",
+    ) as HTMLElement;
+    const createdAtHeading = within(createdAtCard).getByRole("heading", {
+      level: 3,
+    });
+    const originalCreatedAt = createdAtHeading.textContent;
+    expect(originalCreatedAt).toBeTruthy();
+
+    const paidDateInput = screen.getByTestId("purchase-paid-date-input");
+    await user.clear(paidDateInput);
+    await user.type(paidDateInput, "2026-01-05T14:30");
+    await user.click(screen.getByTestId("purchase-paid-date-save"));
+
+    await waitFor(() => {
+      expect(purchaseRequestsAdminApi.updatePaidDate).toHaveBeenCalled();
+    });
+
+    expect(createdAtHeading).toHaveTextContent(originalCreatedAt ?? "");
+  });
+
+  it("shows read-only paid date without records.edit_date on delivered purchase", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: createDeliveredPurchaseWithPaidHistory(),
+    });
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+    await screen.findByText("Beras Supplier");
+
+    expect(screen.getByTestId("purchase-paid-date-section")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("purchase-paid-date-readonly"),
+    ).toHaveTextContent("Jan 3, 2026, 10:00 AM");
+    expect(
+      screen.queryByTestId("purchase-paid-date-input"),
+    ).not.toBeInTheDocument();
   });
 });
