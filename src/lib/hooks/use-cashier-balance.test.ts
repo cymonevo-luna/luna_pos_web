@@ -6,6 +6,7 @@ import {
   useCashierBalanceEntries,
   useCreateCashierBalanceAdjustment,
   useDeleteCashierBalanceEntry,
+  useUpdateCashierBalanceEntryRecordDate,
 } from "@/lib/hooks/use-cashier-balance";
 import { tokenStore } from "@/lib/auth/tokens";
 
@@ -252,6 +253,88 @@ describe("useDeleteCashierBalanceEntry", () => {
 
     await waitFor(() => {
       expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBeforeDelete);
+    });
+  });
+});
+
+describe("useUpdateCashierBalanceEntryRecordDate", () => {
+  beforeEach(() => {
+    tokenStore.clear();
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("invalidates entries after record date update", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async (input, init) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+
+        if (method === "GET" && url.endsWith("/api/admin/cashier-balance")) {
+          return jsonResponse({ success: true, data: { balance: 100_000 } });
+        }
+        if (
+          method === "GET" &&
+          url.includes("/api/admin/cashier-balance/entries")
+        ) {
+          return jsonResponse({
+            success: true,
+            data: [
+              {
+                id: "cb-entry-1",
+                type: "ADD",
+                source: "MANUAL",
+                amount: 10_000,
+                purpose: "Opening float",
+                created_at: "2026-01-01T00:00:00Z",
+              },
+            ],
+            meta: { page: 1, per_page: 10, total: 1 },
+          });
+        }
+        if (
+          method === "PATCH" &&
+          url.endsWith(
+            "/api/admin/cashier-balance/entries/cb-entry-1/record-date",
+          )
+        ) {
+          return jsonResponse({
+            success: true,
+            data: {
+              id: "cb-entry-1",
+              type: "ADD",
+              source: "MANUAL",
+              amount: 10_000,
+              purpose: "Opening float",
+              created_at: "2026-02-15T10:00:00Z",
+            },
+          });
+        }
+        return jsonResponse({ success: false }, 404);
+      },
+    );
+
+    const entriesHook = renderHook(() => useCashierBalanceEntries());
+    const updateHook = renderHook(() => useUpdateCashierBalanceEntryRecordDate());
+
+    await waitFor(() => {
+      expect(entriesHook.result.current.loading).toBe(false);
+    });
+
+    const callsBeforeUpdate = fetchMock.mock.calls.length;
+
+    await act(async () => {
+      await updateHook.result.current.mutateAsync(
+        "cb-entry-1",
+        new Date("2026-02-15T10:00:00Z"),
+      );
+    });
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBeforeUpdate);
     });
   });
 });

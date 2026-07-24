@@ -83,6 +83,12 @@ export function isCashierBalanceEntryDeletable(
   return DELETABLE_ENTRY_SOURCES.has(entry.source);
 }
 
+export function isCashierBalanceEntryDateEditable(
+  entry: Pick<CashierBalanceEntry, "transaction_id" | "expense_id">,
+): boolean {
+  return !entry.transaction_id && !entry.expense_id;
+}
+
 export async function getBalance() {
   const result = await api.get<CashierBalanceRaw>("/api/admin/cashier-balance");
   return normalizeBalanceResult(result);
@@ -122,9 +128,21 @@ export async function deleteEntry(id: string) {
   return normalizeBalanceResult(result);
 }
 
+export async function updateEntryRecordDate(entryId: string, recordDate: Date) {
+  const result = await api.patch<CashierBalanceEntryRaw>(
+    `/api/admin/cashier-balance/entries/${entryId}/record-date`,
+    { record_date: recordDate.toISOString() },
+  );
+  return {
+    ...result,
+    data: normalizeCashierBalanceEntry(result.data),
+  };
+}
+
 export const cashierBalanceAdminApi = {
   getBalance,
   listEntries,
   createAdjustment,
   deleteEntry,
+  updateEntryRecordDate,
 };

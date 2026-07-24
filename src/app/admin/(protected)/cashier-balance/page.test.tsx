@@ -7,6 +7,7 @@ import {
   deleteEntry,
   getBalance,
   listEntries,
+  updateEntryRecordDate,
 } from "@/lib/api/cashier-balance";
 import { ApiError } from "@/lib/api/client";
 import type { CashierBalanceEntry } from "@/lib/api/types";
@@ -23,6 +24,7 @@ vi.mock("@/lib/api/cashier-balance", async (importOriginal) => {
     listEntries: vi.fn(),
     createAdjustment: vi.fn(),
     deleteEntry: vi.fn(),
+    updateEntryRecordDate: vi.fn(),
   };
 });
 
@@ -45,6 +47,7 @@ const manualEntry: CashierBalanceEntry = {
   purpose: "Opening float",
   created_at: "2026-01-01T00:00:00Z",
   transaction_id: null,
+  expense_id: null,
   requested_by_username: "manager",
 };
 
@@ -76,6 +79,19 @@ function mockAdminDeleteFeatures() {
       keys.some(
         (key) =>
           key === "cashier_balance.manage" || key === "cashier_balance.delete_entry",
+      ),
+  });
+}
+
+function mockAdminEditDateFeatures() {
+  vi.mocked(useFeatures).mockReturnValue({
+    features: ["cashier_balance.manage", "records.edit_date"],
+    hasFeature: (key) =>
+      key === "cashier_balance.manage" || key === "records.edit_date",
+    hasAnyFeature: (keys) =>
+      keys.some(
+        (key) =>
+          key === "cashier_balance.manage" || key === "records.edit_date",
       ),
   });
 }
@@ -329,6 +345,104 @@ describe("AdminCashierBalancePage", () => {
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
         "Removing this entry would overdraw the cashier balance.",
+      );
+    });
+  });
+
+  it("shows edit date on manual history row for admin", async () => {
+    mockAdminEditDateFeatures();
+    render(<AdminCashierBalancePage />);
+
+    expect(
+      await screen.findByTestId("cashier-balance-edit-date-cb-entry-1"),
+    ).toBeInTheDocument();
+  });
+
+  it("hides edit date controls for manager", async () => {
+    mockManagerFeatures();
+    render(<AdminCashierBalancePage />);
+
+    await screen.findByTestId("cashier-balance-amount");
+    expect(
+      screen.queryByTestId("cashier-balance-edit-date-cb-entry-1"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not show edit date for transaction-linked rows", async () => {
+    mockAdminEditDateFeatures();
+    vi.mocked(listEntries).mockResolvedValue({
+      data: [cashPaymentEntry],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminCashierBalancePage />);
+    await screen.findByText("Cash sale");
+
+    expect(
+      screen.queryByTestId("cashier-balance-edit-date-cb-entry-cash"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("edits a manual entry date and refreshes data", async () => {
+    const user = userEvent.setup();
+    mockAdminEditDateFeatures();
+    vi.mocked(updateEntryRecordDate).mockResolvedValue({
+      data: {
+        ...manualEntry,
+        created_at: "2026-02-15T10:00:00Z",
+      },
+    });
+    vi.mocked(listEntries)
+      .mockResolvedValueOnce({
+        data: [manualEntry],
+        meta: { page: 1, per_page: 10, total: 1 },
+      })
+      .mockResolvedValue({
+        data: [{ ...manualEntry, created_at: "2026-02-15T10:00:00Z" }],
+        meta: { page: 1, per_page: 10, total: 1 },
+      });
+
+    render(<AdminCashierBalancePage />);
+    await screen.findByTestId("cashier-balance-edit-date-cb-entry-1");
+
+    await user.click(screen.getByTestId("cashier-balance-edit-date-cb-entry-1"));
+
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByRole("heading", { name: "Edit date" }),
+    ).toBeInTheDocument();
+
+    const dateInput = screen.getByTestId("cashier-balance-edit-date-input");
+    await user.clear(dateInput);
+    await user.type(dateInput, "2026-02-15T10:00");
+    await user.click(screen.getByTestId("cashier-balance-edit-date-confirm"));
+
+    await waitFor(() => {
+      expect(updateEntryRecordDate).toHaveBeenCalledWith(
+        "cb-entry-1",
+        new Date("2026-02-15T10:00"),
+      );
+    });
+    expect(toast.success).toHaveBeenCalledWith("Entry date updated");
+    expect(listEntries).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows API error when edit date fails", async () => {
+    const user = userEvent.setup();
+    mockAdminEditDateFeatures();
+    vi.mocked(updateEntryRecordDate).mockRejectedValue(
+      new ApiError(422, "entry_not_editable", "Linked entries cannot be edited."),
+    );
+
+    render(<AdminCashierBalancePage />);
+    await screen.findByTestId("cashier-balance-edit-date-cb-entry-1");
+
+    await user.click(screen.getByTestId("cashier-balance-edit-date-cb-entry-1"));
+    await user.click(screen.getByTestId("cashier-balance-edit-date-confirm"));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "Linked entries cannot be edited.",
       );
     });
   });

@@ -7,6 +7,7 @@ import {
   deleteEntry,
   getBalance,
   listEntries,
+  updateEntryRecordDate,
   type CreateCashierBalanceAdjustmentPayload,
   type ListCashierBalanceEntriesParams,
 } from "@/lib/api/cashier-balance";
@@ -185,4 +186,10 @@ export function useCreateCashierBalanceAdjustment() {
 
 export function useDeleteCashierBalanceEntry() {
   return useCashierBalanceMutation((id: string) => deleteEntry(id));
+}
+
+export function useUpdateCashierBalanceEntryRecordDate() {
+  return useCashierBalanceMutation((entryId: string, recordDate: Date) =>
+    updateEntryRecordDate(entryId, recordDate),
+  );
 }

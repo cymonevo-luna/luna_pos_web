@@ -4,10 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronLeft, ChevronRight, Minus, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, Minus, Plus, Trash2 } from "lucide-react";
 import { ApiError } from "@/lib/api/client";
 import {
   cashierBalanceAdjustmentFormToPayload,
+  isCashierBalanceEntryDateEditable,
   isCashierBalanceEntryDeletable,
 } from "@/lib/api/cashier-balance";
 import type { CashierBalanceAdjustmentType, CashierBalanceEntry } from "@/lib/api/types";
@@ -17,12 +18,13 @@ import {
   useCashierBalanceEntries,
   useCreateCashierBalanceAdjustment,
   useDeleteCashierBalanceEntry,
+  useUpdateCashierBalanceEntryRecordDate,
 } from "@/lib/hooks/use-cashier-balance";
 import {
   cashierBalanceAdjustmentSchema,
   type CashierBalanceAdjustmentFormValues,
 } from "@/lib/validations";
-import { cn, formatDateTime, formatRupiah } from "@/lib/utils";
+import { cn, dateToDatetimeLocalInput, datetimeLocalInputToIso, formatDateTime, formatRupiah } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -75,14 +77,25 @@ function getDeleteEntryErrorMessage(err: unknown): string {
   return "Failed to remove history item";
 }
 
+function getEditDateErrorMessage(err: unknown): string {
+  if (err instanceof ApiError) {
+    return err.message;
+  }
+  return "Failed to update entry date";
+}
+
 export default function AdminCashierBalancePage() {
   const [page, setPage] = useState(1);
   const [dialog, setDialog] = useState<AdjustmentDialogState>(null);
   const [pendingDelete, setPendingDelete] = useState<CashierBalanceEntry | null>(
     null,
   );
+  const [pendingEditDate, setPendingEditDate] =
+    useState<CashierBalanceEntry | null>(null);
+  const [editDateValue, setEditDateValue] = useState("");
   const { hasFeature } = useFeatures();
   const canDeleteEntry = hasFeature("cashier_balance.delete_entry");
+  const canEditDate = hasFeature("records.edit_date");
 
   const {
     balance,
@@ -99,6 +112,8 @@ export default function AdminCashierBalancePage() {
     useCreateCashierBalanceAdjustment();
   const { mutateAsync: deleteEntry, isPending: deleting } =
     useDeleteCashierBalanceEntry();
+  const { mutateAsync: updateEntryDate, isPending: savingDate } =
+    useUpdateCashierBalanceEntryRecordDate();
 
   const {
     register,
@@ -119,7 +134,8 @@ export default function AdminCashierBalancePage() {
   const total = meta?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
   const loading = balanceLoading || entriesLoading;
-  const columnCount = canDeleteEntry ? 6 : 5;
+  const showActionsColumn = canDeleteEntry || canEditDate;
+  const columnCount = showActionsColumn ? 6 : 5;
 
   const openDialog = (type: CashierBalanceAdjustmentType) => {
     reset({
@@ -173,6 +189,31 @@ export default function AdminCashierBalancePage() {
       setPendingDelete(null);
     } catch (err) {
       toast.error(getDeleteEntryErrorMessage(err));
+    }
+  };
+
+  const openEditDateDialog = (entry: CashierBalanceEntry) => {
+    setEditDateValue(dateToDatetimeLocalInput(entry.created_at));
+    setPendingEditDate(entry);
+  };
+
+  const closeEditDateDialog = () => {
+    if (savingDate) return;
+    setPendingEditDate(null);
+  };
+
+  const confirmEditDate = async () => {
+    if (!pendingEditDate || !editDateValue) return;
+
+    try {
+      await updateEntryDate(
+        pendingEditDate.id,
+        new Date(datetimeLocalInputToIso(editDateValue)),
+      );
+      toast.success("Entry date updated");
+      setPendingEditDate(null);
+    } catch (err) {
+      toast.error(getEditDateErrorMessage(err));
     }
   };
 
@@ -233,7 +274,7 @@ export default function AdminCashierBalancePage() {
                 <th className="px-4 py-3 font-medium">Amount</th>
                 <th className="px-4 py-3 font-medium">Purpose</th>
                 <th className="px-4 py-3 font-medium">Requested By</th>
-                {canDeleteEntry ? (
+                {showActionsColumn ? (
                   <th className="px-4 py-3 font-medium text-right">Actions</th>
                 ) : null}
               </tr>
@@ -272,6 +313,8 @@ export default function AdminCashierBalancePage() {
                 entries.map((entry) => {
                   const showDelete =
                     canDeleteEntry && isCashierBalanceEntryDeletable(entry);
+                  const showEditDate =
+                    canEditDate && isCashierBalanceEntryDateEditable(entry);
 
                   return (
                   <tr
@@ -309,20 +352,34 @@ export default function AdminCashierBalancePage() {
                     <td className="px-4 py-3 text-muted-foreground">
                       {entry.requested_by_username ?? "—"}
                     </td>
-                    {canDeleteEntry ? (
+                    {showActionsColumn ? (
                       <td className="px-4 py-3">
-                        {showDelete ? (
-                          <div className="flex justify-end">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive"
-                              aria-label="Remove history item"
-                              data-testid={`cashier-balance-delete-${entry.id}`}
-                              onClick={() => setPendingDelete(entry)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                        {showEditDate || showDelete ? (
+                          <div className="flex justify-end gap-1">
+                            {showEditDate ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                aria-label="Edit date"
+                                data-testid={`cashier-balance-edit-date-${entry.id}`}
+                                onClick={() => openEditDateDialog(entry)}
+                              >
+                                <Calendar className="h-4 w-4" />
+                              </Button>
+                            ) : null}
+                            {showDelete ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive"
+                                aria-label="Remove history item"
+                                data-testid={`cashier-balance-delete-${entry.id}`}
+                                onClick={() => setPendingDelete(entry)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            ) : null}
                           </div>
                         ) : null}
                       </td>
@@ -430,6 +487,45 @@ export default function AdminCashierBalancePage() {
             </Button>
           </DialogFooter>
         </form>
+      </Dialog>
+
+      <Dialog
+        open={pendingEditDate !== null}
+        onClose={closeEditDateDialog}
+        className="max-w-md"
+      >
+        <DialogTitle>Edit date</DialogTitle>
+        <DialogDescription>
+          Update the reporting date for this manual adjustment.
+        </DialogDescription>
+        <div className="mt-4 space-y-2">
+          <Label htmlFor="cashier-balance-edit-date">Date</Label>
+          <Input
+            id="cashier-balance-edit-date"
+            type="datetime-local"
+            value={editDateValue}
+            data-testid="cashier-balance-edit-date-input"
+            onChange={(event) => setEditDateValue(event.target.value)}
+          />
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={closeEditDateDialog}
+            disabled={savingDate}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            isLoading={savingDate}
+            data-testid="cashier-balance-edit-date-confirm"
+            onClick={() => void confirmEditDate()}
+          >
+            Save
+          </Button>
+        </DialogFooter>
       </Dialog>
 
       <Dialog
