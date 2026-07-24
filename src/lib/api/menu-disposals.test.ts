@@ -6,6 +6,7 @@ vi.mock("./client", () => ({
   api: {
     get: vi.fn(),
     delete: vi.fn(),
+    patch: vi.fn(),
   },
 }));
 
@@ -65,5 +66,34 @@ describe("menuDisposalsAdminApi", () => {
     expect(api.delete).toHaveBeenCalledWith(
       "/api/admin/menu-disposals/disposal-1",
     );
+  });
+
+  it("updates disposed_at via record-date endpoint", async () => {
+    vi.mocked(api.patch).mockResolvedValue({
+      data: {
+        id: "disposal-1",
+        menu_id: "menu-1",
+        menu_title: "Nasi Goreng",
+        quantity: "2",
+        unit_loss_amount: "15000",
+        loss_amount: "30000",
+        disposed_by_username: "manager",
+        disposed_at: "2025-12-15T00:00:00.000Z",
+        created_at: "2026-01-15T10:30:00Z",
+        updated_at: "2026-01-15T10:30:00Z",
+      },
+    });
+
+    const result = await menuDisposalsAdminApi.updateDisposedDate(
+      "disposal-1",
+      "2025-12-15T00:00:00.000Z",
+    );
+
+    expect(api.patch).toHaveBeenCalledWith(
+      "/api/admin/menu-disposals/disposal-1/record-date",
+      { disposed_at: "2025-12-15T00:00:00.000Z" },
+    );
+    expect(result.data.disposed_at).toBe("2025-12-15T00:00:00.000Z");
+    expect(result.data.quantity).toBe(2);
   });
 });

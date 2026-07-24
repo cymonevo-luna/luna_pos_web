@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Search, Trash2 } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Search, Trash2 } from "lucide-react";
 import { ApiError } from "@/lib/api/client";
 import type { MenuDisposal } from "@/lib/api/types";
+import { dateInputToIso } from "@/lib/api/transactions";
 import { useFeatures } from "@/lib/auth/use-features";
 import { useDeleteMenuDisposal } from "@/lib/query/hooks/use-delete-menu-disposal";
 import { useMenuDisposalsListQuery } from "@/lib/query/hooks/use-menu-disposals-list";
+import { useUpdateMenuDisposalDate } from "@/lib/query/hooks/use-update-menu-disposal-date";
 import {
   displayDescription,
   formatDateTime,
@@ -14,11 +16,22 @@ import {
 } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 
 const PER_PAGE = 10;
+
+function isoToDateInput(iso: string): string {
+  return iso.slice(0, 10);
+}
 
 export default function AdminMenuDisposalsPage() {
   const [page, setPage] = useState(1);
@@ -29,9 +42,15 @@ export default function AdminMenuDisposalsPage() {
   const [pendingDelete, setPendingDelete] = useState<MenuDisposal | null>(
     null,
   );
+  const [pendingEditDate, setPendingEditDate] = useState<MenuDisposal | null>(
+    null,
+  );
+  const [editDateValue, setEditDateValue] = useState("");
 
   const { hasFeature } = useFeatures();
   const canDelete = hasFeature("menu_disposals.delete");
+  const canEditDate = hasFeature("records.edit_date");
+  const canShowActions = canDelete || canEditDate;
 
   const { data, isLoading, isError, error } = useMenuDisposalsListQuery({
     page,
@@ -42,6 +61,8 @@ export default function AdminMenuDisposalsPage() {
   });
   const { mutateAsync: deleteDisposal, isPending: deleting } =
     useDeleteMenuDisposal();
+  const { mutateAsync: updateDisposedDate, isPending: savingDate } =
+    useUpdateMenuDisposalDate();
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -87,6 +108,29 @@ export default function AdminMenuDisposalsPage() {
         err instanceof ApiError
           ? err.message
           : "Failed to delete menu disposal",
+      );
+    }
+  };
+
+  const openEditDateDialog = (disposal: MenuDisposal) => {
+    setPendingEditDate(disposal);
+    setEditDateValue(isoToDateInput(disposal.disposed_at));
+  };
+
+  const handleSaveDate = async () => {
+    if (!pendingEditDate || !editDateValue) return;
+    try {
+      await updateDisposedDate(
+        pendingEditDate.id,
+        dateInputToIso(editDateValue, false),
+      );
+      toast.success("Disposal date updated");
+      setPendingEditDate(null);
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError
+          ? err.message
+          : "Failed to update disposal date",
       );
     }
   };
@@ -140,7 +184,7 @@ export default function AdminMenuDisposalsPage() {
                 <th className="px-4 py-3 font-medium">Total loss</th>
                 <th className="px-4 py-3 font-medium">Disposed by</th>
                 <th className="px-4 py-3 font-medium">Note</th>
-                {canDelete ? (
+                {canShowActions ? (
                   <th className="px-4 py-3 text-right font-medium">Actions</th>
                 ) : null}
               </tr>
@@ -149,7 +193,7 @@ export default function AdminMenuDisposalsPage() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-border">
-                    {Array.from({ length: canDelete ? 8 : 7 }).map((__, j) => (
+                    {Array.from({ length: canShowActions ? 8 : 7 }).map((__, j) => (
                       <td key={j} className="px-4 py-3">
                         <Skeleton className="h-4 w-24" />
                       </td>
@@ -159,7 +203,7 @@ export default function AdminMenuDisposalsPage() {
               ) : disposals.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={canDelete ? 8 : 7}
+                    colSpan={canShowActions ? 8 : 7}
                     className="px-4 py-10 text-center text-muted-foreground"
                     data-testid="menu-disposals-empty"
                   >
@@ -192,19 +236,33 @@ export default function AdminMenuDisposalsPage() {
                     <td className="max-w-xs px-4 py-3 text-muted-foreground">
                       {displayDescription(disposal.note)}
                     </td>
-                    {canDelete ? (
+                    {canShowActions ? (
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-end">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive"
-                            aria-label="Delete disposal"
-                            data-testid={`menu-disposal-delete-${disposal.id}`}
-                            onClick={() => setPendingDelete(disposal)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          {canEditDate ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              aria-label="Edit disposal date"
+                              data-testid={`menu-disposal-edit-date-${disposal.id}`}
+                              onClick={() => openEditDateDialog(disposal)}
+                            >
+                              <Calendar className="h-4 w-4" />
+                            </Button>
+                          ) : null}
+                          {canDelete ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive"
+                              aria-label="Delete disposal"
+                              data-testid={`menu-disposal-delete-${disposal.id}`}
+                              onClick={() => setPendingDelete(disposal)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          ) : null}
                         </div>
                       </td>
                     ) : null}
@@ -243,6 +301,46 @@ export default function AdminMenuDisposalsPage() {
           </Button>
         </div>
       </div>
+
+      {pendingEditDate && (
+        <Dialog open onClose={() => setPendingEditDate(null)}>
+          <div data-testid="menu-disposal-edit-date-dialog">
+          <DialogTitle>Edit disposal date</DialogTitle>
+          <DialogDescription>
+            Update the disposal date for {pendingEditDate.menu_title}.
+          </DialogDescription>
+          <div className="mt-4">
+            <Label htmlFor="disposal-date">Disposal date</Label>
+            <Input
+              id="disposal-date"
+              type="date"
+              value={editDateValue}
+              onChange={(e) => setEditDateValue(e.target.value)}
+              className="mt-2"
+              data-testid="menu-disposal-edit-date-input"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setPendingEditDate(null)}
+              disabled={savingDate}
+              data-testid="menu-disposal-edit-date-cancel"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void handleSaveDate()}
+              isLoading={savingDate}
+              disabled={!editDateValue}
+              data-testid="menu-disposal-edit-date-save"
+            >
+              Save
+            </Button>
+          </DialogFooter>
+          </div>
+        </Dialog>
+      )}
 
       {pendingDelete && (
         <div
