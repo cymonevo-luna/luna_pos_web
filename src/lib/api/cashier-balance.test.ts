@@ -5,10 +5,12 @@ import {
   createAdjustment,
   deleteEntry,
   getBalance,
+  isCashierBalanceEntryDateEditable,
   isCashierBalanceEntryDeletable,
   listEntries,
   normalizeCashierBalance,
   normalizeCashierBalanceEntry,
+  updateEntryRecordDate,
 } from "./cashier-balance";
 import { tokenStore } from "@/lib/auth/tokens";
 
@@ -107,6 +109,18 @@ describe("cashierBalanceAdminApi", () => {
       ) {
         return jsonResponse({ success: true, data: balanceRaw });
       }
+      if (
+        method === "PATCH" &&
+        url.endsWith("/api/admin/cashier-balance/entries/cb-entry-1/record-date")
+      ) {
+        return jsonResponse({
+          success: true,
+          data: {
+            ...entryRaw,
+            created_at: "2025-12-28T12:30:00Z",
+          },
+        });
+      }
       return jsonResponse({ success: false }, 404);
     });
 
@@ -125,6 +139,10 @@ describe("cashierBalanceAdminApi", () => {
 
     const deleted = await deleteEntry("cb-entry-1");
     expect(deleted.data.balance).toBe(500_000);
+
+    const recordDate = new Date("2025-12-28T12:30:00Z");
+    const updated = await updateEntryRecordDate("cb-entry-1", recordDate);
+    expect(updated.data.created_at).toBe("2025-12-28T12:30:00Z");
   });
 
   it("builds the correct delete entry URL", async () => {
@@ -139,6 +157,31 @@ describe("cashierBalanceAdminApi", () => {
       "http://localhost:8080/api/admin/cashier-balance/entries/cb-entry-99",
     );
     expect(init?.method).toBe("DELETE");
+  });
+
+  it("patches record date with ISO8601 payload", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: {
+          ...entryRaw,
+          created_at: "2025-12-28T12:30:00Z",
+        },
+      }),
+    );
+
+    const recordDate = new Date("2025-12-28T12:30:00Z");
+    const result = await updateEntryRecordDate("cb-entry-1", recordDate);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/cashier-balance/entries/cb-entry-1/record-date",
+    );
+    expect(init?.method).toBe("PATCH");
+    expect(JSON.parse(String(init?.body))).toEqual({
+      record_date: recordDate.toISOString(),
+    });
+    expect(result.data.created_at).toBe("2025-12-28T12:30:00Z");
   });
 });
 
@@ -177,6 +220,35 @@ describe("isCashierBalanceEntryDeletable", () => {
     );
     expect(
       isCashierBalanceEntryDeletable({ source: "TRANSACTION_REVERSAL" }),
+    ).toBe(false);
+  });
+});
+
+describe("isCashierBalanceEntryDateEditable", () => {
+  it("returns true when entry has no transaction or expense link", () => {
+    expect(
+      isCashierBalanceEntryDateEditable({
+        transaction_id: null,
+        expense_id: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("returns false when entry is transaction-linked", () => {
+    expect(
+      isCashierBalanceEntryDateEditable({
+        transaction_id: "txn-1",
+        expense_id: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("returns false when entry is expense-linked", () => {
+    expect(
+      isCashierBalanceEntryDateEditable({
+        transaction_id: null,
+        expense_id: "exp-1",
+      }),
     ).toBe(false);
   });
 });

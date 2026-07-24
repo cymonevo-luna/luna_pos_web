@@ -938,6 +938,7 @@ export interface CashierBalanceEntry {
   amount: number;
   purpose: string;
   transaction_id?: string | null;
+  expense_id?: string | null;
   requested_by_user_id?: string | null;
   requested_by_username?: string | null;
   created_at: string;
