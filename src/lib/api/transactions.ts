@@ -63,6 +63,11 @@ export const transactionsAdminApi = {
   delete: (id: string) =>
     api.delete<void>(`/api/admin/transactions/${id}`),
 
+  updateRecordDate: (id: string, transactionDate: string) =>
+    api.patch<Transaction>(`/api/admin/transactions/${id}/record-date`, {
+      transaction_date: transactionDate,
+    }),
+
   summary: ({ period, dateFrom = "", dateTo = "" }: SummaryTransactionsParams) => {
     const params = new URLSearchParams({ period });
     if (dateFrom) params.set("date_from", dateInputToIso(dateFrom, false));

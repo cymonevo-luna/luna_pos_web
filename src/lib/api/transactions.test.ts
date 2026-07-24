@@ -136,4 +136,36 @@ describe("transactionsAdminApi", () => {
     expect(url).toBe("http://localhost:8080/api/admin/transactions/txn-1");
     expect(init?.method).toBe("DELETE");
   });
+
+  it("issues PATCH to /api/admin/transactions/{id}/record-date", async () => {
+    const updated = {
+      id: "txn-1",
+      method: "CASH",
+      amount: 50000,
+      cashier_user_id: "user-1",
+      cashier_username: "kasir1",
+      items: [],
+      transaction_date: "2026-01-08T10:30:00.000Z",
+      created_at: "2026-01-15T10:30:00Z",
+    };
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, data: updated }),
+    );
+
+    const got = await transactionsAdminApi.updateRecordDate(
+      "txn-1",
+      "2026-01-08T10:30:00.000Z",
+    );
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/transactions/txn-1/record-date",
+    );
+    expect(init?.method).toBe("PATCH");
+    expect(JSON.parse(String(init?.body))).toEqual({
+      transaction_date: "2026-01-08T10:30:00.000Z",
+    });
+    expect(got.data).toEqual(updated);
+  });
 });

@@ -5,11 +5,13 @@ import { AdminTransactionDetailContent } from "./transaction-detail-content";
 import { transactionsAdminApi } from "@/lib/api/transactions";
 import { ApiError } from "@/lib/api/client";
 import { useRoles } from "@/lib/auth/use-roles";
+import { useFeatures } from "@/lib/auth/use-features";
 import type { Transaction } from "@/lib/api/types";
 import { toast } from "sonner";
 import { TestQueryProvider } from "@/test/query-provider";
 import { invalidateTransactionQueries } from "@/lib/query/invalidate-transaction-queries";
 import { invalidateCashierBalanceData } from "@/lib/hooks/use-cashier-balance";
+import { formatDateTime } from "@/lib/utils";
 
 const mockPush = vi.fn();
 
@@ -21,12 +23,22 @@ vi.mock("@/lib/auth/use-roles", () => ({
   useRoles: vi.fn(),
 }));
 
-vi.mock("@/lib/api/transactions", () => ({
-  transactionsAdminApi: {
-    get: vi.fn(),
-    delete: vi.fn(),
-  },
+vi.mock("@/lib/auth/use-features", () => ({
+  useFeatures: vi.fn(),
 }));
+
+vi.mock("@/lib/api/transactions", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api/transactions")>();
+  return {
+    ...actual,
+    transactionsAdminApi: {
+      ...actual.transactionsAdminApi,
+      get: vi.fn(),
+      delete: vi.fn(),
+      updateRecordDate: vi.fn(),
+    },
+  };
+});
 
 vi.mock("sonner", () => ({
   toast: {
@@ -72,11 +84,27 @@ function mockAdminRoles() {
   });
 }
 
+function mockAdminFeatures() {
+  vi.mocked(useFeatures).mockReturnValue({
+    features: ["records.edit_date"],
+    hasFeature: (key) => key === "records.edit_date",
+    hasAnyFeature: (keys) => keys.includes("records.edit_date"),
+  });
+}
+
 function mockManagerRoles() {
   vi.mocked(useRoles).mockReturnValue({
     roles: ["manager"],
     hasRole: (role) => role === "manager",
     hasAnyRole: (roles) => roles.includes("manager"),
+  });
+}
+
+function mockManagerFeatures() {
+  vi.mocked(useFeatures).mockReturnValue({
+    features: ["transactions.view"],
+    hasFeature: (key) => key === "transactions.view",
+    hasAnyFeature: (keys) => keys.includes("transactions.view"),
   });
 }
 
@@ -92,6 +120,7 @@ describe("AdminTransactionDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockAdminRoles();
+    mockAdminFeatures();
     vi.mocked(transactionsAdminApi.get).mockResolvedValue({ data: transaction });
   });
 
@@ -105,6 +134,7 @@ describe("AdminTransactionDetailPage", () => {
 
   it("does not show Delete transaction button for manager users", async () => {
     mockManagerRoles();
+    mockManagerFeatures();
 
     renderDetail();
 
@@ -113,6 +143,78 @@ describe("AdminTransactionDetailPage", () => {
     expect(
       screen.queryByRole("button", { name: "Delete transaction" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows Edit date button for users with records.edit_date", async () => {
+    renderDetail();
+
+    expect(
+      await screen.findByRole("button", { name: "Edit date" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Transaction date")).toBeInTheDocument();
+  });
+
+  it("does not show Edit date button for users without records.edit_date", async () => {
+    mockManagerRoles();
+    mockManagerFeatures();
+
+    renderDetail();
+
+    await screen.findByText("Transaction date");
+
+    expect(
+      screen.queryByRole("button", { name: "Edit date" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("saves a new transaction date and invalidates queries", async () => {
+    const user = userEvent.setup();
+    const updatedTransaction = {
+      ...transaction,
+      transaction_date: "2026-01-08T10:30:00.000Z",
+    };
+
+    vi.mocked(transactionsAdminApi.updateRecordDate).mockResolvedValue({
+      data: updatedTransaction,
+    });
+
+    renderDetail();
+    await screen.findByRole("button", { name: "Edit date" });
+
+    await user.click(screen.getByRole("button", { name: "Edit date" }));
+    const dateInput = screen.getByLabelText("Transaction date");
+    await user.clear(dateInput);
+    await user.type(dateInput, "2026-01-08T10:30");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(transactionsAdminApi.updateRecordDate).toHaveBeenCalledWith(
+        transaction.id,
+        expect.any(String),
+      );
+      expect(invalidateTransactionQueries).toHaveBeenCalled();
+      expect(invalidateCashierBalanceData).toHaveBeenCalled();
+      expect(toast.success).toHaveBeenCalledWith("Transaction date updated");
+    });
+
+    expect(
+      screen.getByText(formatDateTime(updatedTransaction.transaction_date)),
+    ).toBeInTheDocument();
+  });
+
+  it("shows cashier balance warning when editing a CASH transaction date", async () => {
+    const user = userEvent.setup();
+
+    renderDetail();
+    await screen.findByRole("button", { name: "Edit date" });
+
+    await user.click(screen.getByRole("button", { name: "Edit date" }));
+
+    expect(
+      screen.getByText(
+        "This will also update linked cashier balance entries.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("invalidates queries before navigating after confirmed delete", async () => {
