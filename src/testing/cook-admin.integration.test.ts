@@ -38,16 +38,19 @@ function uniqueCookEmail(): string {
   return `cook-e2e-${Date.now()}@integration.test`;
 }
 
-/**
- * Live API verification for POS-142-4. Requires luna_pos_service with cook support.
- * Set RUN_INTEGRATION_TESTS=1 and NEXT_PUBLIC_API_URL=http://localhost:8087.
- */
-describe("POS-142-4 cook admin flows (live API)", () => {
-  let originalCookFeatures: string[] = [];
-  let createdUserId: string | null = null;
+const integrationEnabled = process.env.RUN_INTEGRATION_TESTS === "1";
 
+let originalCookFeatures: string[] = [];
+let createdUserId: string | undefined;
+
+/**
+ * Live API verification for POS-143-2 cook admin flows. Requires luna_pos_service
+ * with migrations applied and the seeded admin test account.
+ * Set RUN_INTEGRATION_TESTS=1 and ensure NEXT_PUBLIC_API_URL points at the API.
+ */
+describe("POS-143-2 cook admin flows (live API)", () => {
   beforeAll(async () => {
-    if (process.env.RUN_INTEGRATION_TESTS !== "1") {
+    if (!integrationEnabled) {
       return;
     }
 
@@ -55,72 +58,78 @@ describe("POS-142-4 cook admin flows (live API)", () => {
     tokenStore.clear();
     await loginAsTestAccount("admin");
 
-    const mappings = await getRoleFeatures();
-    const cookMapping = mappings.data?.find((entry) => entry.role === "cook");
-    originalCookFeatures = [...(cookMapping?.features ?? [])];
+    const matrix = await getRoleFeatures();
+    const cookEntry = matrix.data.find((mapping) => mapping.role === "cook");
+    originalCookFeatures = [...(cookEntry?.features ?? [])];
   });
 
   afterAll(async () => {
-    if (process.env.RUN_INTEGRATION_TESTS !== "1") {
+    if (!integrationEnabled) {
       return;
     }
 
     tokenStore.clear();
-    await loginAsTestAccount("admin");
+    try {
+      await loginAsTestAccount("admin");
+    } catch {
+      // Best-effort cleanup login.
+    }
 
     if (createdUserId) {
       try {
         await adminApi.deleteUser(createdUserId);
       } catch {
-        // Best-effort cleanup for integration runs.
+        // Best-effort user cleanup.
       }
     }
 
     try {
       await updateRoleFeatures("cook", originalCookFeatures);
     } catch {
-      // Best-effort cleanup for integration runs.
+      // Best-effort cook feature restore.
     }
   });
 
-  it("1. API health check", async () => {
-    if (process.env.RUN_INTEGRATION_TESTS !== "1") {
+  it("API health check", async () => {
+    if (!integrationEnabled) {
       return;
     }
 
-    await assertApiReachable();
+    await expect(assertApiReachable()).resolves.toBeUndefined();
   });
 
-  it("2. role-features includes cook alongside existing roles", async () => {
-    if (process.env.RUN_INTEGRATION_TESTS !== "1") {
+  it("Cook in role-features matrix", async () => {
+    if (!integrationEnabled) {
       return;
     }
 
-    const result = await getRoleFeatures();
-    const roles = result.data?.map((entry) => entry.role) ?? [];
+    const matrix = await getRoleFeatures();
+    const roles = matrix.data.map((mapping) => mapping.role);
 
-    expect(roles).toEqual(expect.arrayContaining(ASSIGNABLE_ROLES));
-    expect(result.data?.some((entry) => entry.role === "cook")).toBe(true);
+    expect(roles).toContain("cook");
+    for (const role of ASSIGNABLE_ROLES) {
+      expect(roles).toContain(role);
+    }
   });
 
-  it("3. cook privileges save and persist after reload", async () => {
-    if (process.env.RUN_INTEGRATION_TESTS !== "1") {
+  it("Cook privileges save and persist", async () => {
+    if (!integrationEnabled) {
       return;
     }
 
-    const updated = await updateRoleFeatures("cook", [
+    const result = await updateRoleFeatures("cook", [
       "production_requests.view",
     ]);
-    expect(updated.data?.role).toBe("cook");
-    expect(updated.data?.features).toContain("production_requests.view");
+    expect(result.data.role).toBe("cook");
+    expect(result.data.features).toContain("production_requests.view");
 
-    const reloaded = await getRoleFeatures();
-    const cookMapping = reloaded.data?.find((entry) => entry.role === "cook");
-    expect(cookMapping?.features ?? []).toContain("production_requests.view");
+    const matrix = await getRoleFeatures();
+    const cookEntry = matrix.data.find((mapping) => mapping.role === "cook");
+    expect(cookEntry?.features).toContain("production_requests.view");
   });
 
-  it("4. create cook-only user and read back roles", async () => {
-    if (process.env.RUN_INTEGRATION_TESTS !== "1") {
+  it("Create cook-only user", async () => {
+    if (!integrationEnabled) {
       return;
     }
 
@@ -131,24 +140,29 @@ describe("POS-142-4 cook admin flows (live API)", () => {
       password: "LunaTesting123!",
       roles: ["cook"],
     });
-
     createdUserId = created.data.id;
-    expect(created.data.roles).toContain("cook");
+
+    expect(created.data.roles).toEqual(["cook"]);
 
     const fetched = await adminApi.getUser(created.data.id);
     expect(fetched.data.roles).toEqual(["cook"]);
   });
 
-  it("5. existing role mappings remain available", async () => {
-    if (process.env.RUN_INTEGRATION_TESTS !== "1") {
+  it("Existing roles regression", async () => {
+    if (!integrationEnabled) {
       return;
     }
 
-    const result = await getRoleFeatures();
-    const roles = new Set(result.data?.map((entry) => entry.role));
+    const matrix = await getRoleFeatures();
+    const roles = matrix.data.map((mapping) => mapping.role);
 
-    for (const role of ["admin", "manager", "cashier", "operational"] as const) {
-      expect(roles.has(role)).toBe(true);
+    for (const role of [
+      "admin",
+      "manager",
+      "cashier",
+      "operational",
+    ] as const) {
+      expect(roles).toContain(role);
     }
   });
 });
