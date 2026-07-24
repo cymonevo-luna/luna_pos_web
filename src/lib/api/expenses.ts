@@ -84,6 +84,7 @@ export function expenseToFormValues(
     amount: expense.amount,
     source_of_fund: expense.source_of_fund ?? "PERSONAL_MONEY",
     receipt_url: expense.receipt_url ?? "",
+    recordDate: new Date(expense.created_at),
   };
 }
 
@@ -121,6 +122,14 @@ export async function updateExpense(id: string, payload: UpdateExpensePayload) {
   return normalizeItemResult(result);
 }
 
+export async function updateRecordDate(id: string, recordDate: Date) {
+  const result = await api.patch<ExpenseRaw>(
+    `/api/admin/expenses/${id}/record-date`,
+    { record_date: recordDate.toISOString() },
+  );
+  return normalizeItemResult(result);
+}
+
 export async function deleteExpense(id: string) {
   return api.delete<void>(`/api/admin/expenses/${id}`);
 }
@@ -132,5 +141,6 @@ export const expensesAdminApi = {
   get: getExpense,
   create: createExpense,
   update: updateExpense,
+  updateRecordDate,
   delete: deleteExpense,
 };

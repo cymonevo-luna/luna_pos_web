@@ -33,6 +33,26 @@ export function formatDateTime(value: string | Date) {
   }).format(date);
 }
 
+/** Format a Date for `<input type="datetime-local" />` in the local timezone. */
+export function dateToDatetimeLocalInput(value: string | Date) {
+  const date = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** Parse a datetime-local input value to ISO8601 (UTC). */
+export function datetimeLocalInputToIso(value: string) {
+  return new Date(value).toISOString();
+}
+
+/** Compare two dates at minute precision (datetime-local resolution). */
+export function datesEqualToMinute(left: Date, right: Date) {
+  return (
+    Math.floor(left.getTime() / 60_000) === Math.floor(right.getTime() / 60_000)
+  );
+}
+
 /** Truncate an ID for compact table display. */
 export function truncateId(id: string, length = 8) {
   if (id.length <= length) return id;

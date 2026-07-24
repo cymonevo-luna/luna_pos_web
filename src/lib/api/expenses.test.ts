@@ -9,6 +9,7 @@ import {
   listExpenses,
   normalizeExpense,
   updateExpense,
+  updateRecordDate,
 } from "./expenses";
 import { uploadExpenseReceipt } from "./uploads";
 import { tokenStore } from "@/lib/auth/tokens";
@@ -85,6 +86,18 @@ describe("expensesAdminApi", () => {
           return jsonResponse({ success: true, data: expenseRaw });
         }
         if (
+          method === "PATCH" &&
+          url.endsWith("/api/admin/expenses/exp-1/record-date")
+        ) {
+          return jsonResponse({
+            success: true,
+            data: {
+              ...expenseRaw,
+              created_at: "2025-12-28T00:00:00Z",
+            },
+          });
+        }
+        if (
           method === "DELETE" &&
           url.endsWith("/api/admin/expenses/exp-1")
         ) {
@@ -128,6 +141,31 @@ describe("expensesAdminApi", () => {
 
     const result = await expensesAdminApi.list();
     expect(result.data[0]?.amount).toBe(150_000);
+  });
+
+  it("patches record date with ISO8601 payload", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: {
+          ...expenseRaw,
+          created_at: "2025-12-28T12:30:00Z",
+        },
+      }),
+    );
+
+    const recordDate = new Date("2025-12-28T12:30:00Z");
+    const result = await updateRecordDate("exp-1", recordDate);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/expenses/exp-1/record-date",
+    );
+    expect(init?.method).toBe("PATCH");
+    expect(JSON.parse(String(init?.body))).toEqual({
+      record_date: recordDate.toISOString(),
+    });
+    expect(result.data.created_at).toBe("2025-12-28T12:30:00Z");
   });
 });
 
@@ -235,6 +273,7 @@ describe("expenseToFormValues", () => {
       amount: 250_000,
       source_of_fund: "CASHIER",
       receipt_url: "https://cdn.example.com/receipt.jpg",
+      recordDate: new Date("2026-01-01T00:00:00Z"),
     });
   });
 
@@ -255,6 +294,7 @@ describe("expenseToFormValues", () => {
       amount: 250_000,
       source_of_fund: "PERSONAL_MONEY",
       receipt_url: "",
+      recordDate: new Date("2026-01-01T00:00:00Z"),
     });
   });
 });
