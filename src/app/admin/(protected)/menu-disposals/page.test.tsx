@@ -14,6 +14,7 @@ vi.mock("@/lib/api/menu-disposals", () => ({
     list: vi.fn(),
     get: vi.fn(),
     delete: vi.fn(),
+    updateDisposedDate: vi.fn(),
   },
 }));
 
@@ -75,6 +76,27 @@ function mockAdminDeleteFeatures() {
       keys.some(
         (key) =>
           key === "menu_disposals.view" || key === "menu_disposals.delete",
+      ),
+  });
+}
+
+function mockAdminEditDateFeatures() {
+  vi.mocked(useFeatures).mockReturnValue({
+    features: [
+      "menu_disposals.view",
+      "menu_disposals.delete",
+      "records.edit_date",
+    ],
+    hasFeature: (key) =>
+      key === "menu_disposals.view" ||
+      key === "menu_disposals.delete" ||
+      key === "records.edit_date",
+    hasAnyFeature: (keys) =>
+      keys.some(
+        (key) =>
+          key === "menu_disposals.view" ||
+          key === "menu_disposals.delete" ||
+          key === "records.edit_date",
       ),
   });
 }
@@ -149,6 +171,122 @@ describe("AdminMenuDisposalsPage", () => {
       screen.queryByTestId("menu-disposal-delete-disposal-1"),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+  });
+
+  it("does not show edit date action without records.edit_date", async () => {
+    renderWithProviders(<AdminMenuDisposalsPage />);
+    await screen.findByText("Nasi Goreng");
+
+    expect(
+      screen.queryByTestId("menu-disposal-edit-date-disposal-1"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows edit date action for admin with records.edit_date", async () => {
+    mockAdminEditDateFeatures();
+
+    renderWithProviders(<AdminMenuDisposalsPage />);
+    await screen.findByText("Nasi Goreng");
+
+    expect(
+      screen.getByTestId("menu-disposal-edit-date-disposal-1"),
+    ).toBeInTheDocument();
+  });
+
+  it("saves corrected disposal date and refreshes list", async () => {
+    const user = userEvent.setup();
+    mockAdminEditDateFeatures();
+
+    const updatedDisposal1: MenuDisposal = {
+      ...disposal1,
+      disposed_at: "2025-12-15T00:00:00.000Z",
+    };
+
+    vi.mocked(menuDisposalsAdminApi.updateDisposedDate).mockResolvedValue({
+      data: updatedDisposal1,
+    });
+    vi.mocked(menuDisposalsAdminApi.list)
+      .mockResolvedValueOnce({
+        data: [disposal1, disposal2],
+        meta: { page: 1, per_page: 10, total: 2 },
+      })
+      .mockResolvedValueOnce({
+        data: [updatedDisposal1, disposal2],
+        meta: { page: 1, per_page: 10, total: 2 },
+      });
+
+    renderWithProviders(<AdminMenuDisposalsPage />);
+    await screen.findByText("Nasi Goreng");
+
+    await user.click(screen.getByTestId("menu-disposal-edit-date-disposal-1"));
+    expect(screen.getByTestId("menu-disposal-edit-date-dialog")).toBeInTheDocument();
+    expect(screen.getByLabelText("Disposal date")).toHaveValue("2026-01-15");
+
+    const dateInput = screen.getByTestId("menu-disposal-edit-date-input");
+    await user.clear(dateInput);
+    await user.type(dateInput, "2025-12-15");
+    await user.click(screen.getByTestId("menu-disposal-edit-date-save"));
+
+    await waitFor(() => {
+      expect(menuDisposalsAdminApi.updateDisposedDate).toHaveBeenCalledWith(
+        "disposal-1",
+        "2025-12-15T00:00:00.000Z",
+      );
+      expect(toast.success).toHaveBeenCalledWith("Disposal date updated");
+    });
+  });
+
+  it("date filter reflects corrected disposal date after save", async () => {
+    const user = userEvent.setup();
+    mockAdminEditDateFeatures();
+
+    const updatedDisposal1: MenuDisposal = {
+      ...disposal1,
+      disposed_at: "2025-12-15T00:00:00.000Z",
+    };
+
+    vi.mocked(menuDisposalsAdminApi.updateDisposedDate).mockResolvedValue({
+      data: updatedDisposal1,
+    });
+    vi.mocked(menuDisposalsAdminApi.list)
+      .mockResolvedValueOnce({
+        data: [disposal1, disposal2],
+        meta: { page: 1, per_page: 10, total: 2 },
+      })
+      .mockResolvedValueOnce({
+        data: [updatedDisposal1, disposal2],
+        meta: { page: 1, per_page: 10, total: 2 },
+      })
+      .mockResolvedValueOnce({
+        data: [updatedDisposal1],
+        meta: { page: 1, per_page: 10, total: 1 },
+      });
+
+    renderWithProviders(<AdminMenuDisposalsPage />);
+    await screen.findByText("Nasi Goreng");
+
+    await user.click(screen.getByTestId("menu-disposal-edit-date-disposal-1"));
+    const dateInput = screen.getByTestId("menu-disposal-edit-date-input");
+    await user.clear(dateInput);
+    await user.type(dateInput, "2025-12-15");
+    await user.click(screen.getByTestId("menu-disposal-edit-date-save"));
+
+    await waitFor(() => {
+      expect(menuDisposalsAdminApi.updateDisposedDate).toHaveBeenCalled();
+    });
+
+    await user.type(screen.getByTestId("menu-disposals-date-from"), "2025-12-15");
+    await user.type(screen.getByTestId("menu-disposals-date-to"), "2025-12-15");
+
+    await waitFor(() => {
+      expect(menuDisposalsAdminApi.list).toHaveBeenLastCalledWith({
+        page: 1,
+        perPage: 10,
+        search: "",
+        dateFrom: "2025-12-15",
+        dateTo: "2025-12-15",
+      });
+    });
   });
 
   it("shows delete confirmation and removes disposal on confirm", async () => {

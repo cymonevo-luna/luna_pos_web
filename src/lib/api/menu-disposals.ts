@@ -75,4 +75,15 @@ export const menuDisposalsAdminApi = {
 
   delete: (id: string) =>
     api.delete<void>(`/api/admin/menu-disposals/${id}`),
+
+  updateDisposedDate: async (id: string, disposedAt: string) => {
+    const result = await api.patch<MenuDisposalRaw>(
+      `/api/admin/menu-disposals/${id}/record-date`,
+      { disposed_at: disposedAt },
+    );
+    return {
+      ...result,
+      data: normalizeMenuDisposal(result.data),
+    };
+  },
 };
