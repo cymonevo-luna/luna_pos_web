@@ -23,7 +23,7 @@ export interface Feature {
 /** Enabled feature keys for a merchant role. */
 export interface RoleFeatureMapping {
   role: MerchantRole;
-  features: string[];
+  features: string[] | null;
 }
 
 /** Merchant summary persisted in the auth session. */
@@ -409,7 +409,8 @@ export interface CashFlowInflowByMethodNormalized
 export type CashFlowOutflowSource =
   | "purchases"
   | "expenses"
-  | "staff_payouts";
+  | "staff_payouts"
+  | "menu_disposals";
 
 /** Wire format from cash-flow summary API (`outflow_by_source` rows). */
 export interface CashFlowOutflowBySource {
@@ -821,6 +822,22 @@ export interface Expense {
   receipt_url?: string | null;
   created_by_user_id?: string | null;
   created_by_username?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Menu disposal record from GET /api/admin/menu-disposals. */
+export interface MenuDisposal {
+  id: string;
+  menu_id: string;
+  menu_title: string;
+  quantity: number;
+  unit_loss_amount: number;
+  loss_amount: number;
+  disposed_by_user_id?: string | null;
+  disposed_by_username?: string | null;
+  note?: string | null;
+  disposed_at: string;
   created_at: string;
   updated_at: string;
 }

@@ -17,6 +17,7 @@ export const ROUTE_LABELS: Record<string, string> = {
   "/admin/cogs/summary": "COGS Summary",
   "/admin/cogs": "COGS",
   "/admin/transactions": "User Transactions",
+  "/admin/menu-disposals": "Menu Disposals",
   "/admin/cash-flow/bep": "BEP",
   "/admin/cash-flow": "Cash Flow Summary",
   "/admin/expenses": "Expenses",

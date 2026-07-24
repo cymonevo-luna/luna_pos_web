@@ -60,6 +60,7 @@ const sampleSummary = {
     { source: "purchases", total_amount: 300_000, count: 1 },
     { source: "expenses", total_amount: 150_000, count: 1 },
     { source: "staff_payouts", total_amount: 50_000, count: 1 },
+    { source: "menu_disposals", total_amount: 75_000, count: 2 },
   ],
   production_cost: {
     total_estimated_cost: 50_000,
@@ -111,6 +112,8 @@ describe("CashFlowSection", () => {
     expect(within(outflowBreakdown).getAllByText("Purchases").length).toBeGreaterThan(0);
     expect(within(outflowBreakdown).getAllByText("Expenses").length).toBeGreaterThan(0);
     expect(within(outflowBreakdown).getAllByText("Staff payouts").length).toBeGreaterThan(0);
+    expect(within(outflowBreakdown).getAllByText("Menu Disposals").length).toBeGreaterThan(0);
+    expect(within(outflowBreakdown).getAllByText("Rp 75.000").length).toBeGreaterThan(0);
     expect(
       screen.getByTestId("cash-flow-production-cost-warning"),
     ).toHaveTextContent("1 without COGS");
@@ -311,6 +314,119 @@ describe("CashFlowSection", () => {
       expect(
         screen.getByText("Customer transaction inflows, outflows, and net cash movement"),
       ).toBeInTheDocument();
+    });
+  });
+
+  describe("POS-141-6 menu disposal outflow", () => {
+    it("shows menu disposals in outflow breakdown when API returns menu_disposals source", async () => {
+      render(<CashFlowSection />);
+
+      const outflowBreakdown = await screen.findByTestId(
+        "cash-flow-outflow-breakdown",
+      );
+      expect(
+        within(outflowBreakdown).getAllByText("Menu Disposals").length,
+      ).toBeGreaterThan(0);
+      expect(
+        within(outflowBreakdown).getAllByText("Rp 75.000").length,
+      ).toBeGreaterThan(0);
+      expect(
+        within(outflowBreakdown).getByText("(2 payments)"),
+      ).toBeInTheDocument();
+    });
+
+    it("renders backend outflow totals that include menu disposals without double-counting", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          success: true,
+          data: {
+            period: "daily",
+            totals: {
+              inflow_amount: 2_000_000,
+              inflow_count: 15,
+              outflow_amount: 575_000,
+              outflow_count: 5,
+              net_amount: 1_425_000,
+            },
+            buckets: [
+              {
+                period_start: "2026-07-24T00:00:00Z",
+                period_label: "Jul 24",
+                inflow_amount: 2_000_000,
+                outflow_amount: 575_000,
+                net_amount: 1_425_000,
+              },
+            ],
+            outflow_by_source: [
+              { source: "purchases", total_amount: 300_000, count: 1 },
+              { source: "expenses", total_amount: 150_000, count: 1 },
+              { source: "staff_payouts", total_amount: 50_000, count: 1 },
+              { source: "menu_disposals", total_amount: 75_000, count: 2 },
+            ],
+          },
+        }),
+      );
+
+      render(<CashFlowSection />);
+
+      expect(await screen.findByText("Rp 575.000")).toBeInTheDocument();
+      expect(screen.getAllByText("Rp 1.425.000").length).toBeGreaterThan(0);
+      const outflowBreakdown = screen.getByTestId("cash-flow-outflow-breakdown");
+      expect(
+        within(outflowBreakdown).getAllByText("Menu Disposals").length,
+      ).toBeGreaterThan(0);
+    });
+
+    it("omits menu disposals segment when API omits menu_disposals source", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          success: true,
+          data: {
+            ...sampleSummary,
+            outflow_by_source: [
+              { source: "purchases", total_amount: 300_000, count: 1 },
+              { source: "expenses", total_amount: 150_000, count: 1 },
+              { source: "staff_payouts", total_amount: 50_000, count: 1 },
+            ],
+          },
+        }),
+      );
+
+      render(<CashFlowSection />);
+
+      const outflowBreakdown = await screen.findByTestId(
+        "cash-flow-outflow-breakdown",
+      );
+      expect(
+        within(outflowBreakdown).queryByText("Menu Disposals"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows zero menu disposals when API returns menu_disposals with zero amount", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          success: true,
+          data: {
+            ...sampleSummary,
+            outflow_by_source: [
+              { source: "purchases", total_amount: 300_000, count: 1 },
+              { source: "menu_disposals", total_amount: 0, count: 0 },
+            ],
+          },
+        }),
+      );
+
+      render(<CashFlowSection />);
+
+      const outflowBreakdown = await screen.findByTestId(
+        "cash-flow-outflow-breakdown",
+      );
+      expect(
+        within(outflowBreakdown).getAllByText("Menu Disposals").length,
+      ).toBeGreaterThan(0);
+      expect(
+        within(outflowBreakdown).getAllByText("Rp 0").length,
+      ).toBeGreaterThan(0);
     });
   });
 });

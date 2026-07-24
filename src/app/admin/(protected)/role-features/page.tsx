@@ -37,11 +37,11 @@ function emptyRoleFeatureState(): RoleFeatureState {
 }
 
 function mappingsToState(
-  mappings: { role: MerchantRole; features: string[] }[],
+  mappings: { role: MerchantRole; features: string[] | null }[],
 ): RoleFeatureState {
   const state = emptyRoleFeatureState();
   for (const mapping of mappings) {
-    state[mapping.role] = [...mapping.features];
+    state[mapping.role] = [...(mapping.features ?? [])];
   }
   return state;
 }

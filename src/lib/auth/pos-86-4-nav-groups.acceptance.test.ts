@@ -47,6 +47,7 @@ describe("POS-86-4 admin sidebar nav groups", () => {
       "Menu",
       "Cook Request",
       "User Transactions",
+      "Menu Disposals",
     ]);
     expect(childLabels(filtered, "COGS")).toEqual([
       "Menu Breakdown",

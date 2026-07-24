@@ -57,15 +57,15 @@ const OUTFLOW_SOURCE_LABELS: Record<CashFlowOutflowSource, string> = {
   purchases: "Purchases",
   expenses: "Expenses",
   staff_payouts: "Staff payouts",
+  menu_disposals: "Menu Disposals",
 };
 
-const CHART_COLORS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
-];
+const OUTFLOW_SOURCE_COLORS: Record<CashFlowOutflowSource, string> = {
+  purchases: "var(--chart-1)",
+  expenses: "var(--chart-2)",
+  staff_payouts: "var(--chart-3)",
+  menu_disposals: "var(--chart-5)",
+};
 
 function formatDateInput(date: Date): string {
   const y = date.getFullYear();
@@ -202,7 +202,7 @@ function OutflowBreakdownChart({
       <div>
         <h3 className="text-sm font-medium">Outflow breakdown</h3>
         <p className="text-sm text-muted-foreground">
-          Purchases, expenses, and staff payouts in this period
+          Purchases, expenses, staff payouts, and menu disposals in this period
         </p>
       </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:items-center">
@@ -219,10 +219,10 @@ function OutflowBreakdownChart({
                 outerRadius={80}
                 paddingAngle={2}
               >
-                {chartData.map((entry, index) => (
+                {chartData.map((entry) => (
                   <Cell
                     key={entry.source}
-                    fill={CHART_COLORS[index % CHART_COLORS.length]}
+                    fill={OUTFLOW_SOURCE_COLORS[entry.source]}
                   />
                 ))}
               </Pie>
@@ -232,7 +232,7 @@ function OutflowBreakdownChart({
           </ResponsiveContainer>
         </div>
         <div className="flex flex-wrap gap-2">
-          {chartData.map((item, index) => (
+          {chartData.map((item) => (
             <Badge
               key={item.source}
               variant="secondary"
@@ -241,7 +241,7 @@ function OutflowBreakdownChart({
               <span
                 className="inline-block h-2.5 w-2.5 rounded-full"
                 style={{
-                  backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
+                  backgroundColor: OUTFLOW_SOURCE_COLORS[item.source],
                 }}
               />
               <span className="font-medium">{item.label}</span>

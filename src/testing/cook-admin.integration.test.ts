@@ -1,30 +1,41 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { config } from "@/lib/config";
-import { getRoleFeatures, updateRoleFeatures } from "@/lib/api/role-features";
 import { adminApi } from "@/lib/api/users";
+import {
+  getRoleFeatures,
+  updateRoleFeatures,
+} from "@/lib/api/role-features";
 import { ASSIGNABLE_ROLES } from "@/lib/auth/roles";
 import { tokenStore } from "@/lib/auth/tokens";
 import { loginAsTestAccount } from "@/testing/auth";
 
 async function assertApiReachable(): Promise<void> {
-  try {
-    const res = await fetch(`${config.apiBaseUrl}/healthz`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) {
-      throw new Error(
-        `API health check failed at ${config.apiBaseUrl}/healthz (HTTP ${res.status}). ` +
-          "Start luna_pos_service with `make docker-up` in the sibling repo.",
-      );
+  const healthPaths = ["/healthz", "/health"];
+  let lastError = "unknown connection error";
+
+  for (const path of healthPaths) {
+    try {
+      const res = await fetch(`${config.apiBaseUrl}${path}`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        return;
+      }
+      lastError = `HTTP ${res.status} at ${path}`;
+    } catch (error) {
+      lastError =
+        error instanceof Error ? error.message : "unknown connection error";
     }
-  } catch (error) {
-    const detail =
-      error instanceof Error ? error.message : "unknown connection error";
-    throw new Error(
-      `API unreachable at ${config.apiBaseUrl}/healthz: ${detail}. ` +
-        "Start luna_pos_service with `make docker-up` in the sibling repo.",
-    );
   }
+
+  throw new Error(
+    `API unreachable at ${config.apiBaseUrl} (${lastError}). ` +
+      "Start luna_pos_service with `make docker-up` in the sibling repo.",
+  );
+}
+
+function uniqueCookEmail(): string {
+  return `cook-e2e-${Date.now()}@integration.test`;
 }
 
 const integrationEnabled = process.env.RUN_INTEGRATION_TESTS === "1";
@@ -49,7 +60,7 @@ describe("POS-143-2 cook admin flows (live API)", () => {
 
     const matrix = await getRoleFeatures();
     const cookEntry = matrix.data.find((mapping) => mapping.role === "cook");
-    originalCookFeatures = cookEntry?.features ?? [];
+    originalCookFeatures = [...(cookEntry?.features ?? [])];
   });
 
   afterAll(async () => {
@@ -122,7 +133,7 @@ describe("POS-143-2 cook admin flows (live API)", () => {
       return;
     }
 
-    const email = `cook-e2e-${Date.now()}@integration.test`;
+    const email = uniqueCookEmail();
     const created = await adminApi.createUser({
       email,
       name: "Cook E2E",
