@@ -3,15 +3,30 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
-import { transactionsAdminApi } from "@/lib/api/transactions";
+import {
+  datetimeLocalToIso,
+  isoToDatetimeLocal,
+  transactionsAdminApi,
+} from "@/lib/api/transactions";
 import { ApiError } from "@/lib/api/client";
 import type { Transaction } from "@/lib/api/types";
+import { useFeatures } from "@/lib/auth/use-features";
 import { useRoles } from "@/lib/auth/use-roles";
+import { invalidateCashierBalanceData } from "@/lib/hooks/use-cashier-balance";
 import { useDeleteTransaction } from "@/lib/query/hooks/use-delete-transaction";
+import { invalidateTransactionQueries } from "@/lib/query/invalidate-transaction-queries";
 import { formatDateTime, formatRupiah } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
@@ -23,11 +38,17 @@ import {
 
 export function AdminTransactionDetailContent({ id }: { id: string }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { hasRole } = useRoles();
+  const { hasFeature } = useFeatures();
+  const canEditDate = hasFeature("records.edit_date");
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState(false);
+  const [editDateOpen, setEditDateOpen] = useState(false);
+  const [editDateValue, setEditDateValue] = useState("");
+  const [savingDate, setSavingDate] = useState(false);
   const { mutateAsync: deleteTransaction, isPending: deleting } =
     useDeleteTransaction();
 
@@ -53,6 +74,44 @@ export function AdminTransactionDetailContent({ id }: { id: string }) {
       toast.error(
         err instanceof ApiError ? err.message : "Failed to delete transaction",
       );
+    }
+  };
+
+  const openEditDate = () => {
+    if (!transaction) return;
+    setEditDateValue(isoToDatetimeLocal(transaction.transaction_date));
+    setEditDateOpen(true);
+  };
+
+  const handleSaveDate = async () => {
+    if (!transaction || !editDateValue) return;
+
+    setSavingDate(true);
+    try {
+      const transactionDate = datetimeLocalToIso(editDateValue);
+      const result = await transactionsAdminApi.updateRecordDate(
+        id,
+        transactionDate,
+      );
+      const updated = result.data ?? {
+        ...transaction,
+        transaction_date: transactionDate,
+      };
+      setTransaction(updated);
+      await invalidateTransactionQueries(queryClient);
+      if (transaction.method === "CASH") {
+        invalidateCashierBalanceData();
+      }
+      toast.success("Transaction date updated");
+      setEditDateOpen(false);
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError
+          ? err.message
+          : "Failed to update transaction date",
+      );
+    } finally {
+      setSavingDate(false);
     }
   };
 
@@ -89,9 +148,25 @@ export function AdminTransactionDetailContent({ id }: { id: string }) {
               <h2 className="font-mono text-sm text-muted-foreground">
                 {transaction.id}
               </h2>
-              <p className="text-2xl font-semibold">
-                {formatDateTime(transaction.transaction_date)}
-              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Transaction date
+                  </p>
+                  <p className="text-2xl font-semibold">
+                    {formatDateTime(transaction.transaction_date)}
+                  </p>
+                </div>
+                {canEditDate ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={openEditDate}
+                  >
+                    Edit date
+                  </Button>
+                ) : null}
+              </div>
             </div>
             {hasRole("admin") && (
               <Button
@@ -283,6 +358,53 @@ export function AdminTransactionDetailContent({ id }: { id: string }) {
           </Card>
         </div>
       )}
+
+      {editDateOpen && transaction ? (
+        <Dialog
+          open={editDateOpen}
+          onClose={() => {
+            if (!savingDate) setEditDateOpen(false);
+          }}
+        >
+          <DialogTitle>Edit transaction date</DialogTitle>
+          <DialogDescription>
+            Choose a new date and time for this transaction.
+          </DialogDescription>
+          {transaction.method === "CASH" ? (
+            <p className="mt-3 text-sm text-amber-600 dark:text-amber-500">
+              This will also update linked cashier balance entries.
+            </p>
+          ) : null}
+          <div className="mt-4">
+            <label
+              htmlFor="transaction-date-input"
+              className="text-sm font-medium"
+            >
+              Transaction date
+            </label>
+            <Input
+              id="transaction-date-input"
+              type="datetime-local"
+              className="mt-2"
+              value={editDateValue}
+              onChange={(event) => setEditDateValue(event.target.value)}
+              disabled={savingDate}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditDateOpen(false)}
+              disabled={savingDate}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSaveDate} isLoading={savingDate}>
+              Save
+            </Button>
+          </DialogFooter>
+        </Dialog>
+      ) : null}
     </div>
   );
 }
