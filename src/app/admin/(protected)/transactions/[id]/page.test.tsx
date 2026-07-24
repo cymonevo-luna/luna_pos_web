@@ -227,4 +227,69 @@ describe("AdminTransactionDetailPage", () => {
     expect(mockPush).not.toHaveBeenCalled();
     expect(screen.getByText("kasir1")).toBeInTheDocument();
   });
+
+  it("shows order option name when present", async () => {
+    const orderOptionTransaction: Transaction = {
+      ...transaction,
+      order_option_id: "opt-box",
+      order_option_name: "Box",
+      order_option_additional_price: 3000,
+      subtotal_amount: 53000,
+      amount: 53000,
+    };
+    vi.mocked(transactionsAdminApi.get).mockResolvedValue({
+      data: orderOptionTransaction,
+    });
+
+    renderDetail(orderOptionTransaction.id);
+
+    expect(await screen.findByText("Order option")).toBeInTheDocument();
+    expect(screen.getByText("Box")).toBeInTheDocument();
+  });
+
+  it("shows formatted surcharge when order option additional price is positive", async () => {
+    const orderOptionTransaction: Transaction = {
+      ...transaction,
+      order_option_id: "opt-box",
+      order_option_name: "Box",
+      order_option_additional_price: 3000,
+      subtotal_amount: 53000,
+      amount: 53000,
+    };
+    vi.mocked(transactionsAdminApi.get).mockResolvedValue({
+      data: orderOptionTransaction,
+    });
+
+    renderDetail(orderOptionTransaction.id);
+
+    await screen.findByText("Amount breakdown");
+
+    expect(screen.getByText("Order option surcharge")).toBeInTheDocument();
+    expect(
+      screen.getByText("Order option surcharge").nextElementSibling,
+    ).toHaveTextContent("Rp 3.000");
+    expect(screen.getByText("Total").nextElementSibling).toHaveTextContent(
+      "Rp 53.000",
+    );
+  });
+
+  it("hides surcharge line when order option additional price is zero", async () => {
+    const orderOptionTransaction: Transaction = {
+      ...transaction,
+      order_option_id: "opt-dine-in",
+      order_option_name: "Dine in",
+      order_option_additional_price: 0,
+      amount: 50000,
+    };
+    vi.mocked(transactionsAdminApi.get).mockResolvedValue({
+      data: orderOptionTransaction,
+    });
+
+    renderDetail(orderOptionTransaction.id);
+
+    await screen.findByText("Dine in");
+
+    expect(screen.queryByText("Order option surcharge")).not.toBeInTheDocument();
+    expect(screen.queryByText("Amount breakdown")).not.toBeInTheDocument();
+  });
 });
