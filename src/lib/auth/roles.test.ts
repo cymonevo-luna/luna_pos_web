@@ -2,9 +2,11 @@ import { describe, it, expect } from "vitest";
 import type { MerchantRole } from "@/lib/api/types";
 import { sourceWithFeatures } from "@/lib/auth/feature-fixtures";
 import {
+  ASSIGNABLE_ROLES,
   canAccessNavFeature,
   canAccessRoute,
   countAdmins,
+  formatRoleLabel,
   formatUserRoles,
   getAuthenticatedLandingPath,
   getUnauthorizedFallbackPath,
@@ -308,6 +310,21 @@ describe("formatUserRoles", () => {
   it("joins role labels for display", () => {
     expect(formatUserRoles(["manager", "operational"])).toBe(
       "Manager, Operational",
+    );
+  });
+});
+
+describe("formatRoleLabel", () => {
+  it("formats cook role label", () => {
+    expect(formatRoleLabel("cook")).toBe("Cook");
+  });
+});
+
+describe("ASSIGNABLE_ROLES", () => {
+  it("includes cook after operational", () => {
+    expect(ASSIGNABLE_ROLES).toContain("cook");
+    expect(ASSIGNABLE_ROLES.indexOf("cook")).toBe(
+      ASSIGNABLE_ROLES.indexOf("operational") + 1,
     );
   });
 });

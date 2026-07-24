@@ -24,6 +24,7 @@ export const ASSIGNABLE_ROLES: MerchantRole[] = [
   "manager",
   "cashier",
   "operational",
+  "cook",
 ];
 
 const ROLE_LABELS: Record<MerchantRole, string> = {
@@ -31,6 +32,7 @@ const ROLE_LABELS: Record<MerchantRole, string> = {
   manager: "Manager",
   cashier: "Cashier",
   operational: "Operational",
+  cook: "Cook",
 };
 
 type RoleSource =

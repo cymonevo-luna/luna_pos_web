@@ -8,7 +8,8 @@ export type MerchantRole =
   | "admin"
   | "manager"
   | "cashier"
-  | "operational";
+  | "operational"
+  | "cook";
 
 /** Privilege feature registered in the backend feature registry. */
 export interface Feature {
