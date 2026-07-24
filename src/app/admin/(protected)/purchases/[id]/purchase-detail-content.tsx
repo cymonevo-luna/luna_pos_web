@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { invalidatePurchaseRequestQueries } from "@/lib/query/invalidate-purchase-request-queries";
-import { ArrowLeft, Camera, MessageCircle, Upload } from "lucide-react";
+import { ArrowLeft, Camera, CircleHelp, MessageCircle, Upload } from "lucide-react";
 import {
   purchaseRequestsAdminApi,
   type UpdatePurchaseStatusPayload,
@@ -20,6 +20,8 @@ import type {
 } from "@/lib/api/types";
 import {
   buildPurchaseWhatsAppMessage,
+  dateToDatetimeLocalInput,
+  datetimeLocalInputToIso,
   extractWhatsAppPhone,
   formatDateTime,
   formatRupiah,
@@ -28,10 +30,13 @@ import {
   menuPhotoUrl,
 } from "@/lib/utils";
 import { useRoles } from "@/lib/auth/use-roles";
+import { useFeatures } from "@/lib/auth/use-features";
 import { toast } from "sonner";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
@@ -140,11 +145,26 @@ function statusHistoryPhotoAltText(toStatus: string) {
   return "Status photo";
 }
 
+const PAID_DATE_TOOLTIP =
+  "When cash left the business for this purchase. This affects cash-flow reporting, not when the purchase request was created.";
+
+function findPaidHistoryEntry(
+  history: PurchaseRequestStatusHistoryEntry[],
+): PurchaseRequestStatusHistoryEntry | undefined {
+  return history.find((entry) => entry.to_status === "PAID");
+}
+
+function purchaseHasPaidDate(status: PurchaseRequestStatus) {
+  return status === "PAID" || status === "DELIVERED";
+}
+
 export function AdminPurchaseDetailContent({ id }: { id: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { hasRole } = useRoles();
+  const { hasFeature } = useFeatures();
   const isAdmin = hasRole("admin");
+  const canEditPaidDate = hasFeature("records.edit_date");
   const [purchase, setPurchase] = useState<PurchaseRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -162,6 +182,9 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
   const [photoValidationError, setPhotoValidationError] = useState<
     string | null
   >(null);
+  const [paidDateInput, setPaidDateInput] = useState("");
+  const [savingPaidDate, setSavingPaidDate] = useState(false);
+  const [paidDateError, setPaidDateError] = useState<string | null>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -183,6 +206,15 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!purchase) return;
+    const paidEntry = findPaidHistoryEntry(purchase.status_history);
+    setPaidDateInput(
+      paidEntry ? dateToDatetimeLocalInput(paidEntry.created_at) : "",
+    );
+    setPaidDateError(null);
+  }, [purchase]);
 
   useEffect(() => {
     if (!selectedPhoto) {
@@ -314,6 +346,29 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
     window.open(url, "_blank");
   };
 
+  const handleSavePaidDate = async () => {
+    if (!purchase || !paidDateInput.trim()) return;
+
+    setSavingPaidDate(true);
+    setPaidDateError(null);
+    try {
+      await purchaseRequestsAdminApi.updatePaidDate(
+        id,
+        datetimeLocalInputToIso(paidDateInput),
+      );
+      await load();
+      await invalidatePurchaseRequestQueries(queryClient);
+      toast.success("Paid date updated");
+    } catch (err) {
+      const message =
+        err instanceof ApiError ? err.message : "Failed to update paid date";
+      setPaidDateError(message);
+      toast.error(message);
+    } finally {
+      setSavingPaidDate(false);
+    }
+  };
+
   const handleDelete = async () => {
     setDeleting(true);
     try {
@@ -337,6 +392,12 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
     : "";
   const photoPrompt = pendingStatus ? PHOTO_PROMPTS[pendingStatus] : null;
   const showActualTotals = purchase?.total_actual_amount != null;
+  const paidHistoryEntry = purchase
+    ? findPaidHistoryEntry(purchase.status_history)
+    : undefined;
+  const showPaidDateSection =
+    purchase != null && purchaseHasPaidDate(purchase.status) && paidHistoryEntry;
+  const showPaidDateEditor = showPaidDateSection && canEditPaidDate;
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -493,7 +554,67 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                 Chronological record of status changes for this purchase request.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {showPaidDateSection ? (
+                <div
+                  className="space-y-2 rounded-xl border border-border bg-muted/20 p-4"
+                  data-testid="purchase-paid-date-section"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Label htmlFor="purchase-paid-date">
+                      Paid date (cash-flow)
+                    </Label>
+                    <span title={PAID_DATE_TOOLTIP}>
+                      <CircleHelp
+                        className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                        aria-label={PAID_DATE_TOOLTIP}
+                      />
+                    </span>
+                  </div>
+                  {showPaidDateEditor ? (
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <Input
+                        id="purchase-paid-date"
+                        type="datetime-local"
+                        value={paidDateInput}
+                        onChange={(event) => {
+                          setPaidDateInput(event.target.value);
+                          setPaidDateError(null);
+                        }}
+                        disabled={savingPaidDate}
+                        data-testid="purchase-paid-date-input"
+                        className="sm:max-w-xs"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => void handleSavePaidDate()}
+                        isLoading={savingPaidDate}
+                        disabled={savingPaidDate || !paidDateInput.trim()}
+                        data-testid="purchase-paid-date-save"
+                      >
+                        Save paid date
+                      </Button>
+                    </div>
+                  ) : (
+                    <p
+                      className="text-sm"
+                      data-testid="purchase-paid-date-readonly"
+                    >
+                      {formatDateTime(paidHistoryEntry.created_at)}
+                    </p>
+                  )}
+                  {paidDateError ? (
+                    <p
+                      className="text-sm text-destructive"
+                      role="alert"
+                      data-testid="purchase-paid-date-error"
+                    >
+                      {paidDateError}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               {purchase.status_history.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   No status history yet

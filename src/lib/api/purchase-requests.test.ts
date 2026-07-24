@@ -430,6 +430,63 @@ describe("purchaseRequestsAdminApi", () => {
     expect(init?.method).toBe("DELETE");
   });
 
+  it("patches paid date with ISO8601 payload", async () => {
+    const purchaseRequest = {
+      id: "pr-1",
+      supplier_id: "sup-1",
+      supplier_name: "Beras Supplier",
+      supplier_contact_info: "08123456789",
+      status: "DELIVERED" as const,
+      notes: null,
+      items: [],
+      total_estimated_amount: "118000",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      status_history: [
+        {
+          id: "hist-paid",
+          from_status: "REQUESTED",
+          to_status: "PAID",
+          changed_by_username: "admin",
+          photo_url: null,
+          created_at: "2025-12-28T12:30:00Z",
+        },
+      ],
+    };
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async (input, init) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+
+        if (
+          method === "PATCH" &&
+          url.endsWith("/api/admin/purchase-requests/pr-1/record-date")
+        ) {
+          return jsonResponse({
+            success: true,
+            data: purchaseRequest,
+          });
+        }
+        return jsonResponse({ success: false }, 404);
+      },
+    );
+
+    const paidAt = "2025-12-28T12:30:00.000Z";
+    const result = await purchaseRequestsAdminApi.updatePaidDate("pr-1", paidAt);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/purchase-requests/pr-1/record-date",
+    );
+    expect(init?.method).toBe("PATCH");
+    expect(JSON.parse(String(init?.body))).toEqual({ paid_at: paidAt });
+    expect(result.data.status).toBe("DELIVERED");
+    expect(result.data.status_history[0]?.created_at).toBe(
+      "2025-12-28T12:30:00Z",
+    );
+  });
+
   it("normalizes string amounts from list API", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({

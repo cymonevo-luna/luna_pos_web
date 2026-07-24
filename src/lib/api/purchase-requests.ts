@@ -352,6 +352,14 @@ export const purchaseRequestsAdminApi = {
 
   delete: (id: string) =>
     api.delete<void>(`/api/admin/purchase-requests/${id}`),
+
+  updatePaidDate: async (id: string, paidAt: string) => {
+    const result = await api.patch<PurchaseRequestRaw>(
+      `/api/admin/purchase-requests/${id}/record-date`,
+      { paid_at: paidAt },
+    );
+    return normalizeItemResult(result);
+  },
 };
 
 export interface UpdatePurchaseStatusPayload {
@@ -361,3 +369,6 @@ export interface UpdatePurchaseStatusPayload {
 
 /** Advance purchase request status (optionally with proof photo URL). */
 export const updatePurchaseStatus = purchaseRequestsAdminApi.updateStatus;
+
+/** Update the PAID status-history timestamp used for cash-flow reporting. */
+export const updatePaidDate = purchaseRequestsAdminApi.updatePaidDate;
