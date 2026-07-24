@@ -96,6 +96,23 @@ describe("AdminRoleFeaturesPage", () => {
       expect(screen.getByText("Cook")).toBeInTheDocument();
     });
 
+    it("treats null cook features from the API as an empty selection", async () => {
+      vi.mocked(getRoleFeatures).mockResolvedValue({
+        data: [
+          ...sampleMappings.filter((mapping) => mapping.role !== "cook"),
+          { role: "cook", features: null },
+        ],
+      });
+
+      render(<AdminRoleFeaturesPage />);
+      await screen.findByText("COGS");
+
+      const cookCogsCheckbox = screen.getByRole("checkbox", {
+        name: "COGS for Cook",
+      });
+      expect(cookCogsCheckbox).not.toBeChecked();
+    });
+
     it("saves updated cook features and shows success feedback", async () => {
       const user = userEvent.setup();
       vi.mocked(updateRoleFeatures).mockResolvedValue({
