@@ -65,6 +65,7 @@ const sampleMappings = [
   { role: "manager" as const, features: ["cogs"] },
   { role: "cashier" as const, features: ["pos.checkout"] },
   { role: "operational" as const, features: [] },
+  { role: "cook" as const, features: [] },
 ];
 
 describe("AdminRoleFeaturesPage", () => {
@@ -82,6 +83,41 @@ describe("AdminRoleFeaturesPage", () => {
     expect(screen.getByText("COGS")).toBeInTheDocument();
     expect(screen.getByText("POS Checkout")).toBeInTheDocument();
     expect(screen.getByText("registry.synced")).toBeInTheDocument();
+  });
+
+  it("renders Cook column alongside other role columns", async () => {
+    render(<AdminRoleFeaturesPage />);
+
+    expect(await screen.findByText("Admin")).toBeInTheDocument();
+    expect(screen.getByText("Manager")).toBeInTheDocument();
+    expect(screen.getByText("Cashier")).toBeInTheDocument();
+    expect(screen.getByText("Operational")).toBeInTheDocument();
+    expect(screen.getByText("Cook")).toBeInTheDocument();
+  });
+
+  it("saves updated cook features and shows success feedback", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateRoleFeatures).mockResolvedValue({
+      data: { role: "cook", features: ["cogs"] },
+    });
+
+    render(<AdminRoleFeaturesPage />);
+    await screen.findByText("COGS");
+
+    const cookCogsCheckbox = screen.getByRole("checkbox", {
+      name: "COGS for Cook",
+    });
+    expect(cookCogsCheckbox).not.toBeChecked();
+    await user.click(cookCogsCheckbox);
+    expect(cookCogsCheckbox).toBeChecked();
+
+    const saveButtons = screen.getAllByRole("button", { name: "Save" });
+    await user.click(saveButtons[4]);
+
+    await waitFor(() => {
+      expect(updateRoleFeatures).toHaveBeenCalledWith("cook", ["cogs"]);
+      expect(toast.success).toHaveBeenCalledWith("Cook privileges saved");
+    });
   });
 
   it("saves updated manager features and shows success feedback", async () => {
