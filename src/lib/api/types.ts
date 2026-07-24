@@ -23,7 +23,7 @@ export interface Feature {
 /** Enabled feature keys for a merchant role. */
 export interface RoleFeatureMapping {
   role: MerchantRole;
-  features: string[];
+  features: string[] | null;
 }
 
 /** Merchant summary persisted in the auth session. */

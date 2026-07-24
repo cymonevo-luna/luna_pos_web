@@ -96,6 +96,27 @@ describe("AdminRoleFeaturesPage", () => {
       expect(screen.getByText("Cook")).toBeInTheDocument();
     });
 
+    it("renders when cook has null features without load error", async () => {
+      vi.mocked(getRoleFeatures).mockResolvedValue({
+        data: [
+          ...sampleMappings.slice(0, 4),
+          { role: "cook", features: null },
+        ],
+      });
+
+      render(<AdminRoleFeaturesPage />);
+
+      expect(await screen.findByText("COGS")).toBeInTheDocument();
+      expect(
+        screen.queryByText("Failed to load privilege mapping"),
+      ).not.toBeInTheDocument();
+
+      const cookCogsCheckbox = screen.getByRole("checkbox", {
+        name: "COGS for Cook",
+      });
+      expect(cookCogsCheckbox).not.toBeChecked();
+    });
+
     it("saves updated cook features and shows success feedback", async () => {
       const user = userEvent.setup();
       vi.mocked(updateRoleFeatures).mockResolvedValue({
