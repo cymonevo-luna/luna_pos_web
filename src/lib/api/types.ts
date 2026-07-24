@@ -224,6 +224,7 @@ export interface Category {
 export interface OrderOption {
   id: string;
   name: string;
+  additional_price: number;
   priority: number;
   ingredient_count: number;
   created_at: string;

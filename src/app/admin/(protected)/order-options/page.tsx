@@ -49,6 +49,7 @@ import {
   orderOptionsToIds,
   handleOrderOptionDragEnd,
 } from "./order-option-reorder";
+import { formatRupiah } from "@/lib/utils";
 
 const PER_PAGE = 10;
 const REORDER_PER_PAGE = 100;
@@ -63,6 +64,7 @@ function orderOptionToFormValues(
 ): Partial<OrderOptionFormValues> {
   return {
     name: orderOption.name,
+    additional_price: orderOption.additional_price,
   };
 }
 
@@ -120,6 +122,9 @@ function SortableOrderOptionRow({
         ) : null}
       </td>
       <td className="px-4 py-3 font-medium">{orderOption.name}</td>
+      <td className="px-4 py-3 text-muted-foreground">
+        {formatRupiah(orderOption.additional_price)}
+      </td>
       <td className="px-4 py-3 text-muted-foreground">{orderOption.priority}</td>
       <td className="px-4 py-3 text-muted-foreground">
         {orderOption.ingredient_count}
@@ -312,7 +317,7 @@ export default function AdminOrderOptionsPage() {
       ? orderOptionToFormValues(dialog.orderOption)
       : undefined;
 
-  const columnCount = 5;
+  const columnCount = 6;
 
   return (
     <div className="space-y-6">
@@ -361,6 +366,7 @@ export default function AdminOrderOptionsPage() {
                   ) : null}
                 </th>
                 <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Additional Price</th>
                 <th className="px-4 py-3 font-medium">Priority</th>
                 <th className="px-4 py-3 font-medium">Ingredients</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>

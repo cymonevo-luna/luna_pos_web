@@ -11,9 +11,11 @@ const makeOrderOption = (
   name: string,
   priority: number,
   ingredientCount = 0,
+  additionalPrice = 0,
 ): OrderOption => ({
   id,
   name,
+  additional_price: additionalPrice,
   priority,
   ingredient_count: ingredientCount,
   created_at: "2026-01-01T00:00:00Z",

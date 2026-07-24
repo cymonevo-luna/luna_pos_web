@@ -10,6 +10,7 @@ export interface ListOrderOptionsParams {
 
 export interface CreateOrderOptionPayload {
   name: string;
+  additional_price: number;
 }
 
 export type UpdateOrderOptionPayload = CreateOrderOptionPayload;
@@ -20,6 +21,7 @@ export function orderOptionFormToPayload(
 ): CreateOrderOptionPayload {
   return {
     name: values.name.trim(),
+    additional_price: values.additional_price ?? 0,
   };
 }
 

@@ -26,8 +26,66 @@ describe("OrderOptionForm", () => {
     );
 
     await waitFor(() => {
-      expect(onSubmit.mock.calls[0]?.[0]).toEqual({ name: "Dine-In" });
+      expect(onSubmit.mock.calls[0]?.[0]).toEqual({
+        name: "Dine-In",
+        additional_price: 0,
+      });
     });
+  });
+
+  it("renders additional price input with default 0", () => {
+    render(
+      <OrderOptionForm onSubmit={() => {}} onCancel={() => {}} />,
+    );
+
+    expect(screen.getByLabelText("Additional Price (IDR)")).toHaveValue(0);
+    expect(
+      screen.getByText("Optional; leave 0 for no surcharge"),
+    ).toBeInTheDocument();
+  });
+
+  it("submits additional price with valid values", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <OrderOptionForm
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+        submitLabel="Add Order Option"
+      />,
+    );
+
+    await user.type(screen.getByLabelText("Name"), "Box");
+    await user.clear(screen.getByLabelText("Additional Price (IDR)"));
+    await user.type(screen.getByLabelText("Additional Price (IDR)"), "3000");
+    await user.click(
+      screen.getByRole("button", { name: "Add Order Option" }),
+    );
+
+    await waitFor(() => {
+      expect(onSubmit.mock.calls[0]?.[0]).toEqual({
+        name: "Box",
+        additional_price: 3000,
+      });
+    });
+  });
+
+  it("rejects negative additional price", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<OrderOptionForm onSubmit={onSubmit} onCancel={() => {}} />);
+
+    await user.type(screen.getByLabelText("Name"), "Box");
+    await user.clear(screen.getByLabelText("Additional Price (IDR)"));
+    await user.type(screen.getByLabelText("Additional Price (IDR)"), "-100");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("Additional price cannot be negative"),
+    ).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("shows validation errors for invalid input", async () => {
@@ -47,13 +105,14 @@ describe("OrderOptionForm", () => {
   it("prefills edit defaults", () => {
     render(
       <OrderOptionForm
-        defaultValues={{ name: "Dine-In" }}
+        defaultValues={{ name: "Dine-In", additional_price: 5000 }}
         onSubmit={() => {}}
         onCancel={() => {}}
       />,
     );
 
     expect(screen.getByLabelText("Name")).toHaveValue("Dine-In");
+    expect(screen.getByLabelText("Additional Price (IDR)")).toHaveValue(5000);
   });
 
   it("applies server field errors via ref", async () => {
@@ -65,10 +124,14 @@ describe("OrderOptionForm", () => {
 
     ref.current?.applyServerErrors({
       name: "Order option name already exists",
+      additional_price: "Additional price is invalid",
     });
 
     expect(
       await screen.findByText("Order option name already exists"),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText("Additional price is invalid"),
     ).toBeInTheDocument();
   });
 

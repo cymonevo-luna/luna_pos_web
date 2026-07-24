@@ -46,6 +46,7 @@ vi.mock("sonner", () => ({
 const takeAway: OrderOption = {
   id: "opt-takeaway",
   name: "Take Away",
+  additional_price: 0,
   priority: 10,
   ingredient_count: 0,
   created_at: "2026-01-01T00:00:00Z",

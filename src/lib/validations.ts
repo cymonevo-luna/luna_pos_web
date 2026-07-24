@@ -436,6 +436,10 @@ export const orderOptionSchema = z.object({
     .trim()
     .min(2, "Name must be at least 2 characters")
     .max(100, "Name is too long"),
+  additional_price: z
+    .number({ error: "Additional price is required" })
+    .int("Additional price must be a whole number")
+    .min(0, "Additional price cannot be negative"),
 });
 
 export type OrderOptionFormValues = z.infer<typeof orderOptionSchema>;
