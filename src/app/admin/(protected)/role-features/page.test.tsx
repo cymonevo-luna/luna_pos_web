@@ -85,38 +85,40 @@ describe("AdminRoleFeaturesPage", () => {
     expect(screen.getByText("registry.synced")).toBeInTheDocument();
   });
 
-  it("renders Cook column alongside other role columns", async () => {
-    render(<AdminRoleFeaturesPage />);
+  describe("Cook", () => {
+    it("renders Cook column alongside other role columns", async () => {
+      render(<AdminRoleFeaturesPage />);
 
-    expect(await screen.findByText("Admin")).toBeInTheDocument();
-    expect(screen.getByText("Manager")).toBeInTheDocument();
-    expect(screen.getByText("Cashier")).toBeInTheDocument();
-    expect(screen.getByText("Operational")).toBeInTheDocument();
-    expect(screen.getByText("Cook")).toBeInTheDocument();
-  });
-
-  it("saves updated cook features and shows success feedback", async () => {
-    const user = userEvent.setup();
-    vi.mocked(updateRoleFeatures).mockResolvedValue({
-      data: { role: "cook", features: ["cogs"] },
+      expect(await screen.findByText("Admin")).toBeInTheDocument();
+      expect(screen.getByText("Manager")).toBeInTheDocument();
+      expect(screen.getByText("Cashier")).toBeInTheDocument();
+      expect(screen.getByText("Operational")).toBeInTheDocument();
+      expect(screen.getByText("Cook")).toBeInTheDocument();
     });
 
-    render(<AdminRoleFeaturesPage />);
-    await screen.findByText("COGS");
+    it("saves updated cook features and shows success feedback", async () => {
+      const user = userEvent.setup();
+      vi.mocked(updateRoleFeatures).mockResolvedValue({
+        data: { role: "cook", features: ["cogs"] },
+      });
 
-    const cookCogsCheckbox = screen.getByRole("checkbox", {
-      name: "COGS for Cook",
-    });
-    expect(cookCogsCheckbox).not.toBeChecked();
-    await user.click(cookCogsCheckbox);
-    expect(cookCogsCheckbox).toBeChecked();
+      render(<AdminRoleFeaturesPage />);
+      await screen.findByText("COGS");
 
-    const saveButtons = screen.getAllByRole("button", { name: "Save" });
-    await user.click(saveButtons[4]);
+      const cookCogsCheckbox = screen.getByRole("checkbox", {
+        name: "COGS for Cook",
+      });
+      expect(cookCogsCheckbox).not.toBeChecked();
+      await user.click(cookCogsCheckbox);
+      expect(cookCogsCheckbox).toBeChecked();
 
-    await waitFor(() => {
-      expect(updateRoleFeatures).toHaveBeenCalledWith("cook", ["cogs"]);
-      expect(toast.success).toHaveBeenCalledWith("Cook privileges saved");
+      const saveButtons = screen.getAllByRole("button", { name: "Save" });
+      await user.click(saveButtons[4]);
+
+      await waitFor(() => {
+        expect(updateRoleFeatures).toHaveBeenCalledWith("cook", ["cogs"]);
+        expect(toast.success).toHaveBeenCalledWith("Cook privileges saved");
+      });
     });
   });
 
