@@ -26,17 +26,19 @@ describe("POS-18-11 admin user management", () => {
     expect(result.success).toBe(true);
   });
 
-  it("2b. Create user with cook role — schema accepts cook assignment", () => {
-    const result = adminUserCreateSchema.safeParse({
-      email: "cook@example.com",
-      name: "Cook User",
-      password: "password123",
-      roles: ["cook"],
-    });
-    expect(result.success).toBe(true);
+  describe("Cook", () => {
+    it("2b. Create user with cook role — schema accepts cook assignment", () => {
+      const result = adminUserCreateSchema.safeParse({
+        email: "cook@example.com",
+        name: "Cook User",
+        password: "password123",
+        roles: ["cook"],
+      });
+      expect(result.success).toBe(true);
 
-    const rolesResult = adminUserRolesSchema.safeParse({ roles: ["cook"] });
-    expect(rolesResult.success).toBe(true);
+      const rolesResult = adminUserRolesSchema.safeParse({ roles: ["cook"] });
+      expect(rolesResult.success).toBe(true);
+    });
   });
 
   it("3. Edit roles updates display — schema accepts role changes", () => {
