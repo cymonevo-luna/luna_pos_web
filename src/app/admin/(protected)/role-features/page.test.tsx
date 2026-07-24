@@ -96,7 +96,7 @@ describe("AdminRoleFeaturesPage", () => {
       expect(screen.getByText("Cook")).toBeInTheDocument();
     });
 
-    it("treats null cook features from the API as an empty selection", async () => {
+    it("renders when cook has null features without load error", async () => {
       vi.mocked(getRoleFeatures).mockResolvedValue({
         data: [
           ...sampleMappings.filter((mapping) => mapping.role !== "cook"),
@@ -105,7 +105,11 @@ describe("AdminRoleFeaturesPage", () => {
       });
 
       render(<AdminRoleFeaturesPage />);
-      await screen.findByText("COGS");
+
+      expect(await screen.findByText("COGS")).toBeInTheDocument();
+      expect(
+        screen.queryByText("Failed to load privilege mapping"),
+      ).not.toBeInTheDocument();
 
       const cookCogsCheckbox = screen.getByRole("checkbox", {
         name: "COGS for Cook",
