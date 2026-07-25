@@ -1,3 +1,4 @@
+import { startOfDayWIB } from "@/lib/datetime/wib";
 import { api, type ApiResult } from "./client";
 import { appendHistoryDateParams } from "./history-date-params";
 import { parseNumeric } from "./suppliers";
@@ -238,6 +239,7 @@ export interface CreatePurchaseRequestPayload {
   supplier_id: string;
   items: CreatePurchaseRequestItemPayload[];
   notes?: string;
+  transaction_date?: string;
 }
 
 export interface SuggestPurchaseRequestsPayload {
@@ -287,6 +289,8 @@ export function purchaseRequestFormToPayload(
   if (notes) {
     payload.notes = notes;
   }
+
+  payload.transaction_date = startOfDayWIB(values.transactionDate).toISOString();
 
   return payload;
 }
