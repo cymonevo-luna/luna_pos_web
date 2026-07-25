@@ -5,6 +5,15 @@ import { TransactionMenuPieChart } from "./transaction-menu-pie-chart";
 import type { TransactionMenuInsightsRaw } from "@/lib/api/types";
 import { tokenStore } from "@/lib/auth/tokens";
 import { toast } from "sonner";
+import { defaultReportRange } from "@/lib/datetime";
+
+vi.mock("@/lib/datetime", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/datetime")>();
+  return {
+    ...actual,
+    defaultReportRange: vi.fn(actual.defaultReportRange),
+  };
+});
 
 vi.mock("sonner", () => ({
   toast: {
@@ -68,6 +77,32 @@ describe("TransactionMenuPieChart", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("uses WIB default date range and submits YYYY-MM-DD params", async () => {
+    const range = {
+      dateFrom: "2026-06-25",
+      dateTo: "2026-07-25",
+    };
+    vi.mocked(defaultReportRange).mockReturnValue(range);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, data: backendInsights }),
+    );
+
+    render(<TransactionMenuPieChart />);
+    await screen.findByTestId("menu-pie-chart");
+
+    expect(
+      (screen.getByLabelText("Menu insights date from") as HTMLInputElement)
+        .value,
+    ).toBe(range.dateFrom);
+    expect(
+      (screen.getByLabelText("Menu insights date to") as HTMLInputElement).value,
+    ).toBe(range.dateTo);
+
+    const [url] = fetchMock.mock.calls[0] ?? [];
+    expect(url).toContain(`date_from=${range.dateFrom}`);
+    expect(url).toContain(`date_to=${range.dateTo}`);
   });
 
   it("renders pie chart when menu data is available", async () => {

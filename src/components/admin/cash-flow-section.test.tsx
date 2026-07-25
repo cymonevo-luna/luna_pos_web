@@ -6,6 +6,15 @@ import { CashFlowSection } from "./cash-flow-section";
 import { ApiError } from "@/lib/api/client";
 import { tokenStore } from "@/lib/auth/tokens";
 import { toast } from "sonner";
+import { defaultReportRange } from "@/lib/datetime";
+
+vi.mock("@/lib/datetime", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/datetime")>();
+  return {
+    ...actual,
+    defaultReportRange: vi.fn(actual.defaultReportRange),
+  };
+});
 
 vi.mock("sonner", () => ({
   toast: {
@@ -80,6 +89,33 @@ describe("CashFlowSection", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("uses WIB default date range on initial load", async () => {
+    const range = {
+      dateFrom: "2026-06-25",
+      dateTo: "2026-07-25",
+    };
+    vi.mocked(defaultReportRange).mockReturnValue(range);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, data: sampleSummary }),
+    );
+
+    render(<CashFlowSection />);
+    await screen.findByText("Rp 1.500.000");
+
+    const dateFromInput = screen.getByLabelText(
+      "Cash flow date from",
+    ) as HTMLInputElement;
+    const dateToInput = screen.getByLabelText(
+      "Cash flow date to",
+    ) as HTMLInputElement;
+    expect(dateFromInput.value).toBe(range.dateFrom);
+    expect(dateToInput.value).toBe(range.dateTo);
+
+    const [url] = fetchMock.mock.calls[0] ?? [];
+    expect(url).toContain(`date_from=${range.dateFrom}`);
+    expect(url).toContain(`date_to=${range.dateTo}`);
   });
 
   it("renders formatted currency stat cards", async () => {

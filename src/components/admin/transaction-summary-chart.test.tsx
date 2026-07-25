@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/render";
 import userEvent from "@testing-library/user-event";
@@ -8,6 +8,7 @@ import { transactionsAdminApi } from "@/lib/api/transactions";
 import { ApiError } from "@/lib/api/client";
 import type { TransactionSummary } from "@/lib/api/types";
 import { toast } from "sonner";
+import { formatPeriodStartLabel } from "@/lib/datetime";
 
 vi.mock("@/lib/api/transactions", () => ({
   transactionsAdminApi: {
@@ -64,6 +65,38 @@ describe("TransactionSummaryChart", () => {
     vi.mocked(transactionsAdminApi.summary).mockResolvedValue({
       data: dailySummary,
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("renders WIB period labels for buckets after 17:00 UTC", async () => {
+    const wibBoundarySummary: TransactionSummary = {
+      period: "daily",
+      buckets: [
+        {
+          period_start: "2026-07-24T17:00:00.000Z",
+          period_label: "Jul 24",
+          count: 4,
+          total_amount: 200000,
+        },
+      ],
+    };
+
+    vi.mocked(transactionsAdminApi.summary).mockResolvedValue({
+      data: wibBoundarySummary,
+    });
+
+    renderWithProviders(<TransactionSummaryChart />);
+
+    const chart = await screen.findByTestId("transaction-chart");
+    const expectedLabel = formatPeriodStartLabel(
+      wibBoundarySummary.buckets[0]!.period_start,
+      "daily",
+    );
+    expect(within(chart).getByText(expectedLabel)).toBeInTheDocument();
+    expect(expectedLabel).toBe("Jul 25");
   });
 
   it("renders buckets with period labels and bar points", async () => {

@@ -33,6 +33,7 @@ import type {
   TransactionSummaryPeriod,
 } from "@/lib/api/types";
 import { cn, formatRupiah } from "@/lib/utils";
+import { defaultReportRange, withWibPeriodLabels } from "@/lib/datetime";
 import { toast } from "sonner";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Button } from "@/components/ui/button";
@@ -66,23 +67,6 @@ const OUTFLOW_SOURCE_COLORS: Record<CashFlowOutflowSource, string> = {
   staff_payouts: "var(--chart-3)",
   menu_disposals: "var(--chart-5)",
 };
-
-function formatDateInput(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function getDefaultDateRange() {
-  const dateTo = new Date();
-  const dateFrom = new Date();
-  dateFrom.setDate(dateFrom.getDate() - 30);
-  return {
-    dateFrom: formatDateInput(dateFrom),
-    dateTo: formatDateInput(dateTo),
-  };
-}
 
 function formatTransactionCount(count: number): string {
   return `${count} ${count === 1 ? "transaction" : "transactions"}`;
@@ -272,7 +256,7 @@ export interface CashFlowSectionProps {
 }
 
 export function CashFlowSection({ className }: CashFlowSectionProps) {
-  const defaults = getDefaultDateRange();
+  const defaults = defaultReportRange();
   const [period, setPeriod] = useState<TransactionSummaryPeriod>("daily");
   const [dateFrom, setDateFrom] = useState(defaults.dateFrom);
   const [dateTo, setDateTo] = useState(defaults.dateTo);
@@ -299,7 +283,10 @@ export function CashFlowSection({ className }: CashFlowSectionProps) {
   }, [load]);
 
   const totals = summary?.totals;
-  const buckets = summary?.buckets ?? [];
+  const buckets = useMemo(
+    () => withWibPeriodLabels(summary?.buckets ?? [], period),
+    [summary?.buckets, period],
+  );
   const inflowByMethod = summary?.inflow_by_method ?? [];
   const outflowBySource = summary?.outflow_by_source ?? [];
   const productionCost = summary?.production_cost;
