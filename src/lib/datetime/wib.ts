@@ -182,3 +182,42 @@ export function wibDatetimeLocalInputToIso(value: string): string {
 export function maxWibDatetimeLocalInput(): string {
   return `${todayWIB()}T23:59`;
 }
+
+const WIB_PERIOD_DAILY_FORMATTER = new Intl.DateTimeFormat("en", {
+  timeZone: WIB_TIMEZONE,
+  month: "short",
+  day: "numeric",
+});
+
+const WIB_PERIOD_MONTHLY_FORMATTER = new Intl.DateTimeFormat("en", {
+  timeZone: WIB_TIMEZONE,
+  month: "short",
+  year: "numeric",
+});
+
+export type WibPeriodGranularity = "daily" | "weekly" | "monthly";
+
+/** Format a bucket `period_start` ISO value as a chart/table label in WIB. */
+export function formatPeriodStartLabel(
+  periodStart: string,
+  period: WibPeriodGranularity = "daily",
+): string {
+  const date = new Date(periodStart);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  if (period === "monthly") {
+    return WIB_PERIOD_MONTHLY_FORMATTER.format(date);
+  }
+
+  return WIB_PERIOD_DAILY_FORMATTER.format(date);
+}
+
+/** Replace bucket `period_label` values using WIB formatting of `period_start`. */
+export function withWibPeriodLabels<
+  T extends { period_start: string; period_label: string },
+>(buckets: T[], period: WibPeriodGranularity): T[] {
+  return buckets.map((bucket) => ({
+    ...bucket,
+    period_label: formatPeriodStartLabel(bucket.period_start, period),
+  }));
+}

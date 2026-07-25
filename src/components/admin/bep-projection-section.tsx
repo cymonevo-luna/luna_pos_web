@@ -31,7 +31,8 @@ import type {
   BEPProjectionResponse,
   UpcomingRecurringExpense,
 } from "@/lib/api/types";
-import { cn, formatBepValue, formatDateTime, formatRupiah } from "@/lib/utils";
+import { formatWIB } from "@/lib/datetime";
+import { cn, formatBepValue, formatRupiah } from "@/lib/utils";
 import { toast } from "sonner";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -110,7 +111,7 @@ function ProjectionTooltip({ active, payload }: ProjectionTooltipProps) {
   return (
     <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-md">
       <p className="font-medium">Day {bucket.day_offset + 1}</p>
-      <p className="text-muted-foreground">{bucket.date}</p>
+      <p className="text-muted-foreground">{formatWIB(bucket.date, "date")}</p>
       <p>Net: {formatRupiah(bucket.projected_net)}</p>
       <p className="font-medium">
         Cumulative: {formatRupiah(bucket.cumulative_net)}
@@ -131,7 +132,7 @@ const recurringExpenseColumns: Column<UpcomingRecurringExpense>[] = [
   },
   {
     header: "Next run",
-    cell: (row) => formatDateTime(row.next_run_at),
+    cell: (row) => formatWIB(row.next_run_at, "datetime"),
     className: "text-right",
   },
 ];
@@ -276,7 +277,7 @@ export function BEPProjectionSection({ className }: BEPProjectionSectionProps) {
               </CardDescription>
               {data?.generated_at ? (
                 <p className="text-xs text-muted-foreground">
-                  Generated {formatDateTime(data.generated_at)}
+                  Generated {formatWIB(data.generated_at, "datetime")}
                 </p>
               ) : null}
             </CardHeader>

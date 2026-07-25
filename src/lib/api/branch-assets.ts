@@ -5,7 +5,8 @@ import type {
   BranchAssetsProfitSource,
   BranchAssetsSummary,
 } from "./types";
-import { formatDate, formatRupiah } from "@/lib/utils";
+import { formatWIB } from "@/lib/datetime";
+import { formatRupiah } from "@/lib/utils";
 import type { BranchAssetFormValues } from "@/lib/validations";
 
 /** Wire format from the Go backend (`decimal.Decimal` marshals as JSON string). */
@@ -131,8 +132,8 @@ export async function deleteBranchAsset(id: string) {
 export function formatProfitSourceSubtitle(
   source: BranchAssetsProfitSource,
 ): string {
-  const dateFrom = formatDate(source.date_from);
-  const dateTo = formatDate(source.date_to);
+  const dateFrom = formatWIB(source.date_from, "date");
+  const dateTo = formatWIB(source.date_to, "date");
   const dateRange = `${dateFrom} – ${dateTo}`;
 
   if (source.net_amount_total > 0) {

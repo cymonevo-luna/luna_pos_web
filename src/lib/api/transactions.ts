@@ -70,8 +70,8 @@ export const transactionsAdminApi = {
 
   summary: ({ period, dateFrom = "", dateTo = "" }: SummaryTransactionsParams) => {
     const params = new URLSearchParams({ period });
-    if (dateFrom) params.set("date_from", dateInputToIso(dateFrom, false));
-    if (dateTo) params.set("date_to", dateInputToIso(dateTo, true));
+    if (dateFrom) params.set("date_from", dateFrom);
+    if (dateTo) params.set("date_to", dateTo);
     return api.get<TransactionSummary>(
       `/api/admin/transactions/summary?${params.toString()}`,
     );

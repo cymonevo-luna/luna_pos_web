@@ -120,7 +120,7 @@ describe("transactionsAdminApi", () => {
 
     const [url] = fetchMock.mock.calls[0];
     expect(url).toBe(
-      "http://localhost:8080/api/admin/transactions/summary?period=daily&date_from=2026-01-01T00%3A00%3A00.000Z&date_to=2026-01-31T23%3A59%3A59.999Z",
+      "http://localhost:8080/api/admin/transactions/summary?period=daily&date_from=2026-01-01&date_to=2026-01-31",
     );
     expect(got.data).toEqual(summary);
   });

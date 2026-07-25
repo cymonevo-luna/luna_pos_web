@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -17,6 +17,7 @@ import type {
 } from "@/lib/api/types";
 import { useTransactionSummaryQuery } from "@/lib/query/hooks/use-transaction-summary";
 import { getDefaultTransactionDateRange } from "@/lib/query/date-range";
+import { withWibPeriodLabels } from "@/lib/datetime";
 import { cn, formatRupiah } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -83,7 +84,10 @@ export function TransactionSummaryChart({
     }
   }, [isError, error]);
 
-  const buckets = data?.data?.buckets ?? [];
+  const buckets = useMemo(
+    () => withWibPeriodLabels(data?.data?.buckets ?? [], period),
+    [data?.data?.buckets, period],
+  );
 
   return (
     <Card className={cn(className)}>

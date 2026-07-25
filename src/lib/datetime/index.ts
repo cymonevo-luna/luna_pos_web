@@ -2,6 +2,7 @@ export {
   WIB_TIMEZONE,
   defaultReportRange,
   endOfDayWIB,
+  formatPeriodStartLabel,
   formatWIB,
   maxWibDatetimeLocalInput,
   nowWIB,
@@ -12,5 +13,7 @@ export {
   toApiDateParam,
   toWibDatetimeLocalInput,
   wibDatetimeLocalInputToIso,
+  withWibPeriodLabels,
   type WibFormatPattern,
+  type WibPeriodGranularity,
 } from "./wib";
