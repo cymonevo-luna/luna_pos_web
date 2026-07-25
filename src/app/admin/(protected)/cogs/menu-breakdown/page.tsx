@@ -21,6 +21,10 @@ import {
   cogsStatusBadgeClass,
   cogsStatusRowClass,
 } from "@/lib/cogs-status";
+import {
+  formatCogsMarginPercent,
+  formatNullableCogsMarginPercent,
+} from "@/lib/cogs-format";
 import { formatRupiah } from "@/lib/utils";
 import { toast } from "sonner";
 import { CogsDetailDialog } from "@/components/admin/cogs-detail-dialog";
@@ -37,11 +41,6 @@ const CATEGORY_FETCH_PER_PAGE = 100;
 
 function formatPercent(value: number) {
   return `${value}%`;
-}
-
-function formatNullablePercent(value: number | null | undefined) {
-  if (value == null) return "—";
-  return formatPercent(value);
 }
 
 function formatMoney(value: number | null | undefined) {
@@ -282,10 +281,10 @@ export default function AdminCogsPage() {
                     <td className="px-4 py-3">{item.category_name}</td>
                     <td className="px-4 py-3">{formatMoney(item.cogs_per_piece)}</td>
                     <td className="px-4 py-3">
-                      {formatPercent(item.margin_percent)}
+                      {formatCogsMarginPercent(item.margin_percent)}
                     </td>
                     <td className="px-4 py-3">
-                      {formatNullablePercent(item.actual_margin_percent)}
+                      {formatNullableCogsMarginPercent(item.actual_margin_percent)}
                     </td>
                     <td className="px-4 py-3">
                       {formatPercent(item.vat_percent)}

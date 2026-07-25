@@ -1,16 +1,15 @@
 "use client";
 
 import type { CogsMenuDetail } from "@/lib/api/types";
+import {
+  formatCogsMarginPercent,
+  formatNullableCogsMarginPercent,
+} from "@/lib/cogs-format";
 import { formatRupiah, formatStockQuantity } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 
 function formatPercent(value: number) {
   return `${value}%`;
-}
-
-function formatNullablePercent(value: number | null | undefined) {
-  if (value == null) return "—";
-  return formatPercent(value);
 }
 
 function formatMoney(value: number | null | undefined) {
@@ -39,7 +38,7 @@ export function CogsDetailContent({ detail }: CogsDetailContentProps) {
         <Card className="p-4">
           <p className="text-sm text-muted-foreground">Margin</p>
           <p className="text-lg font-semibold">
-            {formatPercent(detail.margin_percent)}
+            {formatCogsMarginPercent(detail.margin_percent)}
           </p>
         </Card>
         <Card className="p-4">
@@ -62,7 +61,7 @@ export function CogsDetailContent({ detail }: CogsDetailContentProps) {
           <Card className="p-4">
             <p className="text-sm text-muted-foreground">Actual margin</p>
             <p className="text-lg font-semibold">
-              {formatNullablePercent(detail.actual_margin_percent)}
+              {formatNullableCogsMarginPercent(detail.actual_margin_percent)}
             </p>
           </Card>
           <Card className="p-4">

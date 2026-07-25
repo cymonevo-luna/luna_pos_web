@@ -267,7 +267,7 @@ describe("AdminCogsPage", () => {
     await screen.findByText("Rendang");
 
     expect(screen.getByText("Actual margin %")).toBeInTheDocument();
-    expect(screen.getByText("45%")).toBeInTheDocument();
+    expect(screen.getByText("45.00%")).toBeInTheDocument();
   });
 
   it("shows dash for null actual margin percent", async () => {
@@ -290,9 +290,26 @@ describe("AdminCogsPage", () => {
     await screen.findByText("Rendang");
 
     expect(screen.getByText("Margin %")).toBeInTheDocument();
-    expect(screen.getByText("30%")).toBeInTheDocument();
+    expect(screen.getByText("30.00%")).toBeInTheDocument();
     expect(screen.getByText("Actual margin %")).toBeInTheDocument();
-    expect(screen.getByText("45%")).toBeInTheDocument();
+    expect(screen.getByText("45.00%")).toBeInTheDocument();
+  });
+
+  it("rounds long actual margin percent to two decimals", async () => {
+    vi.mocked(cogsAdminApi.list).mockResolvedValue({
+      data: [
+        {
+          ...rendangSummary,
+          actual_margin_percent: 217.61006289308176,
+        },
+      ],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminCogsPage />);
+    await screen.findByText("Rendang");
+
+    expect(screen.getByText("217.61%")).toBeInTheDocument();
   });
 
   it("sends actual_margin asc then desc on Actual margin header clicks", async () => {
