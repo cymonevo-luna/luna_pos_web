@@ -234,25 +234,69 @@ async function authorizedFetch(
   return res;
 }
 
+export interface DownloadBlobResult {
+  blob: Blob;
+  filename?: string;
+}
+
+function parseContentDispositionFilename(
+  header: string | null,
+): string | undefined {
+  if (!header) return undefined;
+
+  const utf8Match = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1].trim());
+    } catch {
+      return utf8Match[1].trim();
+    }
+  }
+
+  const quotedMatch = /filename="([^"]+)"/i.exec(header);
+  if (quotedMatch?.[1]) {
+    return quotedMatch[1];
+  }
+
+  const plainMatch = /filename=([^;]+)/i.exec(header);
+  return plainMatch?.[1]?.trim();
+}
+
+/** Download a binary response (e.g. CSV export) with auth and token refresh. */
+export async function downloadBlobResult(
+  path: string,
+  options: RequestOptions = {},
+): Promise<DownloadBlobResult> {
+  const res = await authorizedFetch(path, { ...options, method: "GET" });
+
+  if (!res.ok) {
+    let message = res.statusText;
+    let fields: Record<string, string> | undefined;
+    try {
+      const json = (await res.json()) as Envelope<unknown>;
+      message = json.error?.message ?? message;
+      fields = json.error?.fields;
+    } catch {
+      // Non-JSON error body — keep status text.
+    }
+    throw new ApiError(res.status, "download_failed", message, fields);
+  }
+
+  return {
+    blob: await res.blob(),
+    filename: parseContentDispositionFilename(
+      res.headers.get("Content-Disposition"),
+    ),
+  };
+}
+
 /** Download a binary response (e.g. CSV export) with auth and token refresh. */
 export async function downloadBlob(
   path: string,
   options: RequestOptions = {},
 ): Promise<Blob> {
-  const res = await authorizedFetch(path, { ...options, method: "GET" });
-
-  if (!res.ok) {
-    let message = res.statusText;
-    try {
-      const json = (await res.json()) as Envelope<unknown>;
-      message = json.error?.message ?? message;
-    } catch {
-      // Non-JSON error body — keep status text.
-    }
-    throw new ApiError(res.status, "download_failed", message);
-  }
-
-  return res.blob();
+  const { blob } = await downloadBlobResult(path, options);
+  return blob;
 }
 
 export const api = {
@@ -279,4 +323,5 @@ export const api = {
   delete: <T>(path: string, options?: RequestOptions) =>
     request<T>(path, { ...options, method: "DELETE" }),
   downloadBlob,
+  downloadBlobResult,
 };

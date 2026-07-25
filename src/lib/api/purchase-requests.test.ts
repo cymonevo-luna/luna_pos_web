@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   purchaseRequestsAdminApi,
+  downloadPurchaseRequestsCsv,
+  exportPurchaseRequestsCsv,
   normalizePurchaseRequestItem,
   normalizePurchaseRequest,
   purchaseRequestFormToPayload,
@@ -631,6 +633,52 @@ describe("purchaseRequestsAdminApi", () => {
     expect(batched.data.purchase_requests[0]?.status).toBe("PENDING");
     expect(fetchMock).toHaveBeenCalled();
   });
+
+  it("builds export URL with transaction_date and optional status", async () => {
+    tokenStore.set("token-abc", "refresh-abc");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("item_name,supplier_name", {
+        status: 200,
+        headers: {
+          "Content-Type": "text/csv",
+          "Content-Disposition":
+            'attachment; filename="purchase-requests-2026-07-25.csv"',
+        },
+      }),
+    );
+
+    const result = await exportPurchaseRequestsCsv({
+      transactionDate: "2026-07-25",
+      status: "PAID",
+    });
+
+    expect(await result.blob.text()).toBe("item_name,supplier_name");
+    expect(result.filename).toBe("purchase-requests-2026-07-25.csv");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/purchase-requests/export?transaction_date=2026-07-25&status=PAID",
+    );
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer token-abc");
+  });
+
+  it("omits status query param when exporting all statuses", async () => {
+    tokenStore.set("token-abc", "refresh-abc");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("item_name,supplier_name", {
+        status: 200,
+        headers: { "Content-Type": "text/csv" },
+      }),
+    );
+
+    await exportPurchaseRequestsCsv({ transactionDate: "2026-07-25" });
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/purchase-requests/export?transaction_date=2026-07-25",
+    );
+  });
 });
 
 describe("normalizePurchaseRequest regression", () => {
@@ -702,5 +750,54 @@ describe("normalizePurchaseRequest regression", () => {
       to_status: "REQUESTED",
       changed_by_username: "admin",
     });
+  });
+});
+
+describe("downloadPurchaseRequestsCsv", () => {
+  it("creates a dated download link for the blob", () => {
+    const click = vi.fn();
+    const anchor = {
+      href: "",
+      download: "",
+      click,
+    } as unknown as HTMLAnchorElement;
+
+    const createElement = vi
+      .spyOn(document, "createElement")
+      .mockReturnValue(anchor);
+    const createObjectURL = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:mock");
+    const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL");
+
+    downloadPurchaseRequestsCsv(new Blob(["item_name,supplier_name"]), {
+      date: new Date("2026-07-25T00:00:00Z"),
+    });
+
+    expect(createElement).toHaveBeenCalledWith("a");
+    expect(createObjectURL).toHaveBeenCalled();
+    expect(anchor.download).toBe("purchase-requests-export-2026-07-25.csv");
+    expect(click).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:mock");
+  });
+
+  it("uses Content-Disposition filename when provided", () => {
+    const click = vi.fn();
+    const anchor = {
+      href: "",
+      download: "",
+      click,
+    } as unknown as HTMLAnchorElement;
+
+    vi.spyOn(document, "createElement").mockReturnValue(anchor);
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock");
+    vi.spyOn(URL, "revokeObjectURL");
+
+    downloadPurchaseRequestsCsv(new Blob(["item_name,supplier_name"]), {
+      filename: "purchase-requests-2026-07-25.csv",
+    });
+
+    expect(anchor.download).toBe("purchase-requests-2026-07-25.csv");
+    expect(click).toHaveBeenCalled();
   });
 });

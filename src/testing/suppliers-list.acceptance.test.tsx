@@ -34,6 +34,16 @@ vi.mock("@/lib/api/purchase-requests", () => ({
   purchaseRequestsAdminApi: {
     list: vi.fn(),
   },
+  exportPurchaseRequestsCsv: vi.fn(),
+  downloadPurchaseRequestsCsv: vi.fn(),
+}));
+
+vi.mock("@/lib/auth/use-features", () => ({
+  useFeatures: vi.fn(() => ({
+    features: ["purchases.manage"],
+    hasFeature: (key: string) => key === "purchases.manage",
+    hasAnyFeature: (keys: string[]) => keys.includes("purchases.manage"),
+  })),
 }));
 
 vi.mock("next/navigation", () => ({
