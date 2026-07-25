@@ -2,9 +2,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import AdminPurchasesPage from "./page";
-import { purchaseRequestsAdminApi } from "@/lib/api/purchase-requests";
+import {
+  exportPurchaseRequestsCsv,
+  purchaseRequestsAdminApi,
+} from "@/lib/api/purchase-requests";
 import { ApiError } from "@/lib/api/client";
 import type { PurchaseRequestSummary } from "@/lib/api/types";
+import { useFeatures } from "@/lib/auth/use-features";
+import * as wib from "@/lib/datetime/wib";
 import { toast } from "sonner";
 
 const mockPush = vi.fn();
@@ -13,10 +18,22 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
-vi.mock("@/lib/api/purchase-requests", () => ({
-  purchaseRequestsAdminApi: {
-    list: vi.fn(),
-  },
+vi.mock("@/lib/api/purchase-requests", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/api/purchase-requests")>();
+  return {
+    ...actual,
+    purchaseRequestsAdminApi: {
+      ...actual.purchaseRequestsAdminApi,
+      list: vi.fn(),
+    },
+    exportPurchaseRequestsCsv: vi.fn(),
+    downloadPurchaseRequestsCsv: vi.fn(),
+  };
+});
+
+vi.mock("@/lib/auth/use-features", () => ({
+  useFeatures: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({
@@ -38,9 +55,27 @@ const purchase: PurchaseRequestSummary = {
   updated_at: "2026-01-15T10:30:00Z",
 };
 
+function mockPurchasesManageFeatures() {
+  vi.mocked(useFeatures).mockReturnValue({
+    features: ["purchases.manage"],
+    hasFeature: (key) => key === "purchases.manage",
+    hasAnyFeature: (keys) => keys.includes("purchases.manage"),
+  });
+}
+
+function mockNoPurchasesManageFeatures() {
+  vi.mocked(useFeatures).mockReturnValue({
+    features: [],
+    hasFeature: () => false,
+    hasAnyFeature: () => false,
+  });
+}
+
 describe("AdminPurchasesPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPurchasesManageFeatures();
+    vi.spyOn(wib, "todayWIB").mockReturnValue("2026-07-25");
     vi.mocked(purchaseRequestsAdminApi.list).mockResolvedValue({
       data: [purchase],
       meta: { page: 1, per_page: 10, total: 1 },
@@ -236,5 +271,119 @@ describe("AdminPurchasesPage", () => {
     expect(screen.getByText("Rp 300.000")).toBeInTheDocument();
     expect(screen.getByText("Legacy Supplier")).toBeInTheDocument();
     expect(screen.getByText("Rp 50.000")).toBeInTheDocument();
+  });
+
+  it("shows export controls for users with purchases.manage", async () => {
+    render(<AdminPurchasesPage />);
+    await screen.findByText("Beras Supplier");
+
+    expect(screen.getByTestId("purchase-export-section")).toBeInTheDocument();
+    expect(screen.getByLabelText("Transaction date")).toHaveValue("2026-07-25");
+    expect(screen.getByLabelText("Export status filter")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Export/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides export controls without purchases.manage", async () => {
+    mockNoPurchasesManageFeatures();
+
+    render(<AdminPurchasesPage />);
+    await screen.findByText("Beras Supplier");
+
+    expect(
+      screen.queryByTestId("purchase-export-section"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("exports CSV and shows success toast", async () => {
+    const user = userEvent.setup();
+    const { downloadPurchaseRequestsCsv } = await import(
+      "@/lib/api/purchase-requests"
+    );
+    const blob = new Blob(["item_name,supplier_name"]);
+    vi.mocked(exportPurchaseRequestsCsv).mockResolvedValue({
+      blob,
+      filename: "purchase-requests-2026-07-25.csv",
+    });
+
+    render(<AdminPurchasesPage />);
+    await screen.findByText("Beras Supplier");
+
+    await user.click(screen.getByRole("button", { name: /Export/i }));
+
+    await waitFor(() => {
+      expect(exportPurchaseRequestsCsv).toHaveBeenCalledWith({
+        transactionDate: "2026-07-25",
+        status: undefined,
+      });
+      expect(downloadPurchaseRequestsCsv).toHaveBeenCalledWith(blob, {
+        filename: "purchase-requests-2026-07-25.csv",
+        date: new Date("2026-07-25T00:00:00"),
+      });
+      expect(toast.success).toHaveBeenCalledWith(
+        "Purchase requests CSV exported",
+      );
+    });
+  });
+
+  it("passes selected status filter to export API", async () => {
+    const user = userEvent.setup();
+    vi.mocked(exportPurchaseRequestsCsv).mockResolvedValue({
+      blob: new Blob(["item_name,supplier_name"]),
+    });
+
+    render(<AdminPurchasesPage />);
+    await screen.findByText("Beras Supplier");
+
+    await user.selectOptions(
+      screen.getByLabelText("Export status filter"),
+      "PAID",
+    );
+    await user.click(screen.getByRole("button", { name: /Export/i }));
+
+    await waitFor(() => {
+      expect(exportPurchaseRequestsCsv).toHaveBeenCalledWith({
+        transactionDate: "2026-07-25",
+        status: "PAID",
+      });
+    });
+  });
+
+  it("shows inline validation errors and error toast when export fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(exportPurchaseRequestsCsv).mockRejectedValue(
+      new ApiError(422, "validation_error", "Invalid export parameters", {
+        transaction_date: "Transaction date is required",
+      }),
+    );
+
+    render(<AdminPurchasesPage />);
+    await screen.findByText("Beras Supplier");
+
+    await user.click(screen.getByRole("button", { name: /Export/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Transaction date is required"),
+      ).toBeInTheDocument();
+      expect(toast.error).toHaveBeenCalledWith("Invalid export parameters");
+    });
+  });
+
+  it("shows error toast when export fails without field errors", async () => {
+    const user = userEvent.setup();
+    vi.mocked(exportPurchaseRequestsCsv).mockRejectedValue(
+      new ApiError(500, "server_error", "Export failed"),
+    );
+
+    render(<AdminPurchasesPage />);
+    await screen.findByText("Beras Supplier");
+
+    await user.click(screen.getByRole("button", { name: /Export/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("Export failed");
+    });
   });
 });

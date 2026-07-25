@@ -255,6 +255,52 @@ describe("api client", () => {
     });
   });
 
+  it("throws ApiError with field errors when blob download validation fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        {
+          success: false,
+          error: {
+            code: "validation_error",
+            message: "Invalid export parameters",
+            fields: { transaction_date: "Transaction date is required" },
+          },
+        },
+        422,
+      ),
+    );
+
+    await expect(
+      api.downloadBlobResult("/api/admin/purchase-requests/export", {
+        auth: false,
+      }),
+    ).rejects.toMatchObject({
+      message: "Invalid export parameters",
+      status: 422,
+      fields: { transaction_date: "Transaction date is required" },
+    });
+  });
+
+  it("returns filename from Content-Disposition header", async () => {
+    tokenStore.set("token-abc", "refresh-abc");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("item_name,supplier_name", {
+        status: 200,
+        headers: {
+          "Content-Type": "text/csv",
+          "Content-Disposition":
+            'attachment; filename="purchase-requests-2026-07-25.csv"',
+        },
+      }),
+    );
+
+    const result = await api.downloadBlobResult(
+      "/api/admin/purchase-requests/export?transaction_date=2026-07-25",
+    );
+    expect(await result.blob.text()).toBe("item_name,supplier_name");
+    expect(result.filename).toBe("purchase-requests-2026-07-25.csv");
+  });
+
   describe("429 rate-limit retry", () => {
     beforeEach(() => {
       vi.useFakeTimers();

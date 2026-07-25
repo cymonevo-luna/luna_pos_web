@@ -224,6 +224,11 @@ export interface ListPurchaseRequestsParams {
   dateTo?: string;
 }
 
+export interface ExportPurchaseRequestsCsvParams {
+  transactionDate: string;
+  status?: PurchaseRequestStatus;
+}
+
 export interface CreatePurchaseRequestItemPayload {
   food_supply_id: string;
   quantity: string;
@@ -367,6 +372,38 @@ export const purchaseRequestsAdminApi = {
     return normalizeItemResult(result);
   },
 };
+
+/** Export purchase request line items as CSV for a transaction date. */
+export async function exportPurchaseRequestsCsv({
+  transactionDate,
+  status,
+}: ExportPurchaseRequestsCsvParams) {
+  const params = new URLSearchParams({
+    transaction_date: transactionDate,
+  });
+  if (status) {
+    params.set("status", status);
+  }
+  return api.downloadBlobResult(
+    `/api/admin/purchase-requests/export?${params.toString()}`,
+  );
+}
+
+/** Trigger a browser download for a purchase-requests CSV blob. */
+export function downloadPurchaseRequestsCsv(
+  blob: Blob,
+  options: { filename?: string; date?: Date } = {},
+) {
+  const { filename, date = new Date() } = options;
+  const stamp = date.toISOString().slice(0, 10);
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download =
+    filename ?? `purchase-requests-export-${stamp}.csv`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
 
 export interface UpdatePurchaseStatusPayload {
   status: PurchaseRequestStatus;

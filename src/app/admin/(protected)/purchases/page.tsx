@@ -3,17 +3,25 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Plus, Sparkles } from "lucide-react";
-import { purchaseRequestsAdminApi } from "@/lib/api/purchase-requests";
+import { ChevronLeft, ChevronRight, Download, Plus, Sparkles } from "lucide-react";
+import {
+  downloadPurchaseRequestsCsv,
+  exportPurchaseRequestsCsv,
+  purchaseRequestsAdminApi,
+} from "@/lib/api/purchase-requests";
 import { ApiError } from "@/lib/api/client";
 import type {
   PurchaseRequestStatus,
   PurchaseRequestSummary,
 } from "@/lib/api/types";
+import { useFeatures } from "@/lib/auth/use-features";
+import { todayWIB } from "@/lib/datetime/wib";
 import { formatDate, formatPurchaseSummaryTotal, formatRupiah } from "@/lib/utils";
 import { toast } from "sonner";
 import { buttonVariants } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
@@ -39,6 +47,14 @@ const STATUS_OPTIONS = [
   { value: "DELIVERED", label: "DELIVERED" },
 ];
 
+const EXPORT_STATUS_OPTIONS = [
+  { value: "", label: "All" },
+  { value: "PENDING", label: "PENDING" },
+  { value: "REQUESTED", label: "REQUESTED" },
+  { value: "PAID", label: "PAID" },
+  { value: "DELIVERED", label: "DELIVERED" },
+];
+
 function purchaseStatusBadgeVariant(
   status: PurchaseRequestStatus,
 ): NonNullable<BadgeProps["variant"]> {
@@ -58,6 +74,8 @@ function purchaseStatusBadgeVariant(
 
 export default function AdminPurchasesPage() {
   const router = useRouter();
+  const { hasFeature } = useFeatures();
+  const canExport = hasFeature("purchases.manage");
   const [purchases, setPurchases] = useState<PurchaseRequestSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -65,6 +83,14 @@ export default function AdminPurchasesPage() {
   const [dateRange, setDateRange] =
     useState<HistoryDateRangeValue>(INITIAL_DATE_RANGE);
   const [loading, setLoading] = useState(true);
+  const [exportTransactionDate, setExportTransactionDate] = useState(todayWIB());
+  const [exportStatus, setExportStatus] = useState<PurchaseRequestStatus | "">(
+    "",
+  );
+  const [exporting, setExporting] = useState(false);
+  const [exportFieldErrors, setExportFieldErrors] = useState<
+    Record<string, string>
+  >({});
 
   const { dateFrom, dateTo } = dateRange;
 
@@ -107,6 +133,33 @@ export default function AdminPurchasesPage() {
     setPage(1);
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    setExportFieldErrors({});
+    try {
+      const { blob, filename } = await exportPurchaseRequestsCsv({
+        transactionDate: exportTransactionDate,
+        status: exportStatus || undefined,
+      });
+      downloadPurchaseRequestsCsv(blob, {
+        filename,
+        date: new Date(`${exportTransactionDate}T00:00:00`),
+      });
+      toast.success("Purchase requests CSV exported");
+    } catch (err) {
+      if (err instanceof ApiError && err.fields) {
+        setExportFieldErrors(err.fields);
+      }
+      toast.error(
+        err instanceof ApiError
+          ? err.message
+          : "Failed to export purchase requests CSV",
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
 
   return (
@@ -145,6 +198,71 @@ export default function AdminPurchasesPage() {
           </Link>
         </div>
       </div>
+
+      {canExport && (
+        <Card className="p-4" data-testid="purchase-export-section">
+          <h3 className="text-sm font-medium">Export CSV</h3>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="w-full sm:w-auto">
+              <Label htmlFor="export-transaction-date">Transaction date</Label>
+              <Input
+                id="export-transaction-date"
+                type="date"
+                value={exportTransactionDate}
+                onChange={(e) => {
+                  setExportTransactionDate(e.target.value);
+                  setExportFieldErrors((current) => {
+                    const next = { ...current };
+                    delete next.transaction_date;
+                    return next;
+                  });
+                }}
+                className="mt-2"
+                aria-invalid={Boolean(exportFieldErrors.transaction_date)}
+                data-testid="export-transaction-date"
+              />
+              {exportFieldErrors.transaction_date && (
+                <p className="text-destructive mt-1 text-sm">
+                  {exportFieldErrors.transaction_date}
+                </p>
+              )}
+            </div>
+            <div className="w-full sm:w-44">
+              <Label htmlFor="export-status">State</Label>
+              <Select
+                id="export-status"
+                aria-label="Export status filter"
+                className="mt-2"
+                options={EXPORT_STATUS_OPTIONS}
+                value={exportStatus}
+                onChange={(e) => {
+                  setExportStatus(e.target.value as PurchaseRequestStatus | "");
+                  setExportFieldErrors((current) => {
+                    const next = { ...current };
+                    delete next.status;
+                    return next;
+                  });
+                }}
+                data-testid="export-status"
+              />
+              {exportFieldErrors.status && (
+                <p className="text-destructive mt-1 text-sm">
+                  {exportFieldErrors.status}
+                </p>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              isLoading={exporting}
+              onClick={() => void handleExport()}
+              data-testid="export-purchase-requests"
+            >
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
+          </div>
+        </Card>
+      )}
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
