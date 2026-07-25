@@ -95,6 +95,7 @@ describe("normalizePurchaseRequestItem", () => {
 describe("purchaseRequestSchema", () => {
   const base = {
     supplier_id: "sup-1",
+    transactionDate: "2026-07-20",
     items: [{ food_supply_id: "fs-1", quantity: 2 }],
   };
 
@@ -148,6 +149,19 @@ describe("purchaseRequestSchema", () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it("rejects future transaction dates", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-24T18:00:00Z"));
+
+    const result = purchaseRequestSchema.safeParse({
+      ...base,
+      transactionDate: "2026-07-26",
+    });
+
+    expect(result.success).toBe(false);
+    vi.useRealTimers();
+  });
 });
 
 describe("purchaseRequestFormToPayload", () => {
@@ -155,6 +169,7 @@ describe("purchaseRequestFormToPayload", () => {
     expect(
       purchaseRequestFormToPayload({
         supplier_id: "sup-1",
+        transactionDate: "2026-07-20",
         items: [
           { food_supply_id: "fs-1", quantity: 2.5 },
           { food_supply_id: "fs-2", quantity: 10 },
@@ -168,6 +183,7 @@ describe("purchaseRequestFormToPayload", () => {
         { food_supply_id: "fs-2", quantity: "10" },
       ],
       notes: "Urgent",
+      transaction_date: "2026-07-19T17:00:00.000Z",
     });
   });
 
@@ -175,12 +191,14 @@ describe("purchaseRequestFormToPayload", () => {
     expect(
       purchaseRequestFormToPayload({
         supplier_id: "sup-1",
+        transactionDate: "2026-07-20",
         items: [{ food_supply_id: "fs-1", quantity: 1 }],
         notes: "",
       }),
     ).toEqual({
       supplier_id: "sup-1",
       items: [{ food_supply_id: "fs-1", quantity: "1" }],
+      transaction_date: "2026-07-19T17:00:00.000Z",
     });
   });
 
@@ -188,6 +206,7 @@ describe("purchaseRequestFormToPayload", () => {
     expect(
       purchaseRequestFormToPayload({
         supplier_id: "sup-1",
+        transactionDate: "2026-07-20",
         items: [
           {
             food_supply_id: "fs-1",
@@ -205,6 +224,7 @@ describe("purchaseRequestFormToPayload", () => {
           line_actual_amount: 150000,
         },
       ],
+      transaction_date: "2026-07-19T17:00:00.000Z",
     });
   });
 
@@ -212,6 +232,7 @@ describe("purchaseRequestFormToPayload", () => {
     expect(
       purchaseRequestFormToPayload({
         supplier_id: "sup-1",
+        transactionDate: "2026-07-20",
         items: [
           {
             food_supply_id: "fs-1",
@@ -246,6 +267,7 @@ describe("purchaseRequestFormToPayload", () => {
         },
         { food_supply_id: "fs-2", quantity: "1" },
       ],
+      transaction_date: "2026-07-19T17:00:00.000Z",
     });
   });
 });

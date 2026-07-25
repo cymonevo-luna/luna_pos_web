@@ -1,3 +1,4 @@
+import { startOfDayWIB } from "@/lib/datetime/wib";
 import type {
   PurchaseRequestSupplierGroup,
   PurchaseRequestSupplierQuote,
@@ -38,6 +39,7 @@ export interface SupplierPriceUpdateDraftPayload {
 export interface BatchPurchaseGroupPayload {
   supplier_id: string;
   items: BatchPurchaseLineItemPayload[];
+  transaction_date?: string;
 }
 
 export interface BatchPurchaseRequestsPayload {
@@ -197,8 +199,12 @@ export function groupWizardItemsBySupplier(
 export function buildBatchPurchasePayload(
   items: SmartPurchaseWizardItem[],
   notes?: string,
+  transactionDate?: string,
 ): BatchPurchaseRequestsPayload {
   const groups = new Map<string, BatchPurchaseGroupPayload>();
+  const transactionDateIso = transactionDate
+    ? startOfDayWIB(transactionDate).toISOString()
+    : undefined;
 
   for (const item of items) {
     if (!item.selected_supplier_id) continue;
@@ -212,6 +218,9 @@ export function buildBatchPurchasePayload(
       groups.set(item.selected_supplier_id, {
         supplier_id: item.selected_supplier_id,
         items: [lineItem],
+        ...(transactionDateIso
+          ? { transaction_date: transactionDateIso }
+          : {}),
       });
     }
   }

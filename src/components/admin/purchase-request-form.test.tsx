@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createRef } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   PurchaseRequestForm,
   type PurchaseRequestFormHandle,
 } from "./purchase-request-form";
 import { suppliersAdminApi } from "@/lib/api/suppliers";
+import { todayWIB } from "@/lib/datetime/wib";
 import type { Supplier, SupplierPrice } from "@/lib/api/types";
 
 vi.mock("@/components/admin/supplier-picker", () => ({
@@ -79,6 +80,7 @@ const saltPrice: SupplierPrice = {
 describe("PurchaseRequestForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     vi.mocked(suppliersAdminApi.get).mockImplementation(async (id) => ({
       data: {
         id,
@@ -259,6 +261,7 @@ describe("PurchaseRequestForm", () => {
 
     expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
       supplier_id: "sup-a",
+      transactionDate: todayWIB(),
       items: [
         {
           food_supply_id: "fs-meat",
@@ -272,5 +275,57 @@ describe("PurchaseRequestForm", () => {
         },
       ],
     });
+  });
+
+  it("shows transaction date defaulting to today in WIB", () => {
+    render(<PurchaseRequestForm onSubmit={() => {}} onCancel={() => {}} />);
+
+    expect(screen.getByLabelText("Transaction date")).toBeInTheDocument();
+    expect(screen.getByTestId("purchase-transaction-date-input")).toHaveValue(
+      todayWIB(),
+    );
+  });
+
+  it("blocks submit when transaction date is in the future", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<PurchaseRequestForm onSubmit={onSubmit} onCancel={() => {}} />);
+
+    await selectSupplier(user, "sup-a");
+    await addLineItem(user);
+
+    const itemSelect = await screen.findByLabelText("Item 1");
+    await user.selectOptions(itemSelect, "fs-meat");
+    await user.type(screen.getByLabelText("Quantity"), "1000");
+    fireEvent.change(screen.getByTestId("purchase-transaction-date-input"), {
+      target: { value: "2099-01-01" },
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: "Create purchase request" }),
+    );
+
+    expect(
+      await screen.findByText("Transaction date cannot be in the future"),
+    ).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("applies server errors for transaction_date", async () => {
+    const ref = createRef<PurchaseRequestFormHandle>();
+    render(
+      <PurchaseRequestForm ref={ref} onSubmit={() => {}} onCancel={() => {}} />,
+    );
+
+    act(() => {
+      ref.current?.applyServerErrors({
+        transaction_date: "Invalid transaction date",
+      });
+    });
+
+    expect(
+      await screen.findByText("Invalid transaction date"),
+    ).toBeInTheDocument();
   });
 });
