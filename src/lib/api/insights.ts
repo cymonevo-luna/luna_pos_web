@@ -1,6 +1,6 @@
 import { api, type ApiResult } from "./client";
-import { dateInputToIso } from "./transactions";
-import { formatDate, formatRupiah } from "@/lib/utils";
+import { formatWIB } from "@/lib/datetime";
+import { formatRupiah } from "@/lib/utils";
 import type {
   BEPHistoricalSection,
   BEPProjectionResponse,
@@ -109,8 +109,8 @@ export interface BEPProjectionParams {
 export function formatBEPHistoricalSubtitle(
   historical: BEPHistoricalSection,
 ): string {
-  const dateFrom = formatDate(historical.date_from);
-  const dateTo = formatDate(historical.date_to);
+  const dateFrom = formatWIB(historical.date_from, "date");
+  const dateTo = formatWIB(historical.date_to, "date");
   const dateRange = `${dateFrom} – ${dateTo}`;
 
   if (historical.net_amount_total > 0) {
@@ -126,8 +126,8 @@ export function cashFlowSummary({
   dateTo = "",
 }: CashFlowSummaryParams = {}) {
   const params = new URLSearchParams({ period });
-  if (dateFrom) params.set("date_from", dateInputToIso(dateFrom, false));
-  if (dateTo) params.set("date_to", dateInputToIso(dateTo, true));
+  if (dateFrom) params.set("date_from", dateFrom);
+  if (dateTo) params.set("date_to", dateTo);
   return api
     .get<CashFlowSummaryRaw>(
       `/api/admin/insights/cash-flow/summary?${params.toString()}`,
@@ -171,8 +171,8 @@ export async function transactionMenuInsights({
   dateTo = "",
 }: TransactionMenuInsightsParams = {}) {
   const params = new URLSearchParams();
-  if (dateFrom) params.set("date_from", dateInputToIso(dateFrom, false));
-  if (dateTo) params.set("date_to", dateInputToIso(dateTo, true));
+  if (dateFrom) params.set("date_from", dateFrom);
+  if (dateTo) params.set("date_to", dateTo);
   const result = await api.get<TransactionMenuInsightsRaw>(
     `/api/admin/insights/transactions/by-menu?${params.toString()}`,
   );

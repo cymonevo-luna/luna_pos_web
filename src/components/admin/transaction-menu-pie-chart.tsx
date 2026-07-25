@@ -12,6 +12,7 @@ import {
 import { transactionMenuInsights } from "@/lib/api/insights";
 import { ApiError } from "@/lib/api/client";
 import type { TransactionMenuInsightItem } from "@/lib/api/types";
+import { defaultReportRange } from "@/lib/datetime";
 import { cn, formatRupiah } from "@/lib/utils";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -32,23 +33,6 @@ const CHART_COLORS = [
   "var(--chart-4)",
   "var(--chart-5)",
 ];
-
-function formatDateInput(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function getDefaultDateRange() {
-  const dateTo = new Date();
-  const dateFrom = new Date();
-  dateFrom.setDate(dateFrom.getDate() - 30);
-  return {
-    dateFrom: formatDateInput(dateFrom),
-    dateTo: formatDateInput(dateTo),
-  };
-}
 
 function formatSharePercent(value: number | null | undefined): string {
   const n = Number(value);
@@ -106,7 +90,7 @@ export interface TransactionMenuPieChartProps {
 export function TransactionMenuPieChart({
   className,
 }: TransactionMenuPieChartProps) {
-  const defaults = getDefaultDateRange();
+  const defaults = defaultReportRange();
   const [dateFrom, setDateFrom] = useState(defaults.dateFrom);
   const [dateTo, setDateTo] = useState(defaults.dateTo);
   const [menus, setMenus] = useState<TransactionMenuInsightItem[]>([]);

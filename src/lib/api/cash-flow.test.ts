@@ -47,7 +47,7 @@ describe("cashFlowAdminApi", () => {
 
     const [url] = fetchMock.mock.calls[0];
     expect(url).toBe(
-      "http://localhost:8080/api/admin/insights/cash-flow/summary?period=daily&date_from=2026-07-13T00%3A00%3A00.000Z&date_to=2026-07-13T23%3A59%3A59.999Z",
+      "http://localhost:8080/api/admin/insights/cash-flow/summary?period=daily&date_from=2026-07-13&date_to=2026-07-13",
     );
     expect(got.data.inflow_by_method).toEqual([
       { method: "CASH", amount: 1_000_000, count: 7 },

@@ -2,11 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   defaultReportRange,
   endOfDayWIB,
+  formatPeriodStartLabel,
   formatWIB,
   nowWIB,
   startOfDayWIB,
   todayWIB,
   toApiDateParam,
+  withWibPeriodLabels,
 } from "./wib";
 
 afterEach(() => {
@@ -75,6 +77,43 @@ describe("defaultReportRange", () => {
       dateFrom: "2026-06-25",
       dateTo: "2026-07-25",
     });
+  });
+});
+
+describe("formatPeriodStartLabel", () => {
+  it("labels WIB midnight boundary as the next calendar day", () => {
+    expect(formatPeriodStartLabel("2026-07-24T17:00:00.000Z", "daily")).toBe(
+      "Jul 25",
+    );
+  });
+
+  it("formats monthly buckets with month and year in WIB", () => {
+    expect(formatPeriodStartLabel("2026-07-24T17:00:00.000Z", "monthly")).toBe(
+      "Jul 2026",
+    );
+  });
+});
+
+describe("withWibPeriodLabels", () => {
+  it("replaces period_label using period_start in WIB", () => {
+    expect(
+      withWibPeriodLabels(
+        [
+          {
+            period_start: "2026-07-24T17:00:00.000Z",
+            period_label: "Jul 24",
+            count: 1,
+          },
+        ],
+        "daily",
+      ),
+    ).toEqual([
+      {
+        period_start: "2026-07-24T17:00:00.000Z",
+        period_label: "Jul 25",
+        count: 1,
+      },
+    ]);
   });
 });
 
