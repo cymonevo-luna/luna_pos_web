@@ -190,6 +190,8 @@ describe("AdminProductionRequestsPage", () => {
         page: 1,
         perPage: 10,
         status: "ACCEPTED",
+        dateFrom: "",
+        dateTo: "",
       });
     });
   });

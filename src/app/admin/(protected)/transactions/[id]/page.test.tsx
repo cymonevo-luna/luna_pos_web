@@ -12,6 +12,7 @@ import { TestQueryProvider } from "@/test/query-provider";
 import { invalidateTransactionQueries } from "@/lib/query/invalidate-transaction-queries";
 import { invalidateCashierBalanceData } from "@/lib/hooks/use-cashier-balance";
 import { formatDateTime } from "@/lib/utils";
+import * as wib from "@/lib/datetime/wib";
 
 const mockPush = vi.fn();
 
@@ -165,6 +166,20 @@ describe("AdminTransactionDetailPage", () => {
     expect(
       screen.queryByRole("button", { name: "Edit date" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("limits record-date picker to WIB today", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(wib, "todayWIB").mockReturnValue("2026-07-25");
+
+    renderDetail();
+    await screen.findByRole("button", { name: "Edit date" });
+    await user.click(screen.getByRole("button", { name: "Edit date" }));
+
+    expect(screen.getByLabelText("Transaction date")).toHaveAttribute(
+      "max",
+      "2026-07-25T23:59",
+    );
   });
 
   it("saves a new transaction date and invalidates queries", async () => {

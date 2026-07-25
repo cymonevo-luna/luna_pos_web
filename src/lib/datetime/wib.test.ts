@@ -3,10 +3,15 @@ import {
   defaultReportRange,
   endOfDayWIB,
   formatWIB,
+  maxWibDatetimeLocalInput,
   nowWIB,
   startOfDayWIB,
+  startOfMonthWIB,
+  startOfWeekWIB,
   todayWIB,
   toApiDateParam,
+  toWibDatetimeLocalInput,
+  wibDatetimeLocalInputToIso,
 } from "./wib";
 
 afterEach(() => {
@@ -94,5 +99,36 @@ describe("nowWIB", () => {
     vi.setSystemTime(new Date("2026-07-24T18:00:00Z"));
 
     expect(nowWIB().toISOString()).toBe("2026-07-24T18:00:00.000Z");
+  });
+});
+
+describe("startOfWeekWIB and startOfMonthWIB", () => {
+  it("returns Monday of the WIB week containing the date", () => {
+    expect(startOfWeekWIB("2026-07-25")).toBe("2026-07-20");
+  });
+
+  it("returns the first day of the WIB month", () => {
+    expect(startOfMonthWIB("2026-07-25")).toBe("2026-07-01");
+  });
+});
+
+describe("WIB datetime-local helpers", () => {
+  it("formats an instant for datetime-local in WIB", () => {
+    expect(toWibDatetimeLocalInput("2026-07-24T18:00:00Z")).toBe(
+      "2026-07-25T01:00",
+    );
+  });
+
+  it("parses a WIB datetime-local value to UTC ISO", () => {
+    expect(wibDatetimeLocalInputToIso("2026-07-25T01:00")).toBe(
+      "2026-07-24T18:00:00.000Z",
+    );
+  });
+
+  it("returns end of WIB today for max datetime-local", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-24T18:00:00Z"));
+
+    expect(maxWibDatetimeLocalInput()).toBe("2026-07-25T23:59");
   });
 });

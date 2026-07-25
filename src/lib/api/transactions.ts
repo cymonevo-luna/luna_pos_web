@@ -5,6 +5,7 @@ import type {
   TransactionSummary,
   TransactionSummaryPeriod,
 } from "./types";
+import { appendHistoryDateParams } from "./history-date-params";
 
 export interface ListTransactionsParams {
   page?: number;
@@ -52,8 +53,7 @@ export const transactionsAdminApi = {
       per_page: String(perPage),
     });
     if (method) params.set("method", method);
-    if (dateFrom) params.set("date_from", dateInputToIso(dateFrom, false));
-    if (dateTo) params.set("date_to", dateInputToIso(dateTo, true));
+    appendHistoryDateParams(params, dateFrom, dateTo);
     if (cashierUsername) params.set("cashier_username", cashierUsername);
     return api.get<Transaction[]>(`/api/admin/transactions?${params.toString()}`);
   },

@@ -113,6 +113,8 @@ describe("AdminPurchasesPage", () => {
         page: 1,
         perPage: 10,
         status: "PENDING",
+        dateFrom: "",
+        dateTo: "",
       });
     });
   });

@@ -24,7 +24,7 @@ import {
   cashierBalanceAdjustmentSchema,
   type CashierBalanceAdjustmentFormValues,
 } from "@/lib/validations";
-import { cn, dateToDatetimeLocalInput, datetimeLocalInputToIso, formatDateTime, formatRupiah } from "@/lib/utils";
+import { cn, dateToDatetimeLocalInput, datetimeLocalInputToIso, formatDateTime, formatRupiah, maxRecordDatetimeLocalInput } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -504,6 +504,7 @@ export default function AdminCashierBalancePage() {
             id="cashier-balance-edit-date"
             type="datetime-local"
             value={editDateValue}
+            max={maxRecordDatetimeLocalInput()}
             data-testid="cashier-balance-edit-date-input"
             onChange={(event) => setEditDateValue(event.target.value)}
           />

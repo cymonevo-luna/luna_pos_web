@@ -59,7 +59,7 @@ describe("transactionsAdminApi", () => {
 
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe(
-      "http://localhost:8080/api/admin/transactions?page=2&per_page=10&method=CASH&date_from=2026-01-01T00%3A00%3A00.000Z&date_to=2026-01-31T23%3A59%3A59.999Z&cashier_username=kasir1",
+      "http://localhost:8080/api/admin/transactions?page=2&per_page=10&method=CASH&date_from=2026-01-01&date_to=2026-01-31&cashier_username=kasir1",
     );
     const headers = new Headers(init?.headers);
     expect(headers.get("Authorization")).toBe("Bearer token-abc");

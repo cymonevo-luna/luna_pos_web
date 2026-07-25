@@ -1,4 +1,5 @@
 import { api, type ApiResult } from "./client";
+import { appendHistoryDateParams } from "./history-date-params";
 import { parseNumeric } from "./suppliers";
 import type {
   BatchPurchaseRequestsResponse,
@@ -219,6 +220,8 @@ export interface ListPurchaseRequestsParams {
   page?: number;
   perPage?: number;
   status?: PurchaseRequestStatus | "";
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export interface CreatePurchaseRequestItemPayload {
@@ -293,12 +296,15 @@ export const purchaseRequestsAdminApi = {
     page = 1,
     perPage = 10,
     status = "",
+    dateFrom = "",
+    dateTo = "",
   }: ListPurchaseRequestsParams = {}) => {
     const params = new URLSearchParams({
       page: String(page),
       per_page: String(perPage),
     });
     if (status) params.set("status", status);
+    appendHistoryDateParams(params, dateFrom, dateTo);
     const result = await api.get<PurchaseRequestSummaryRaw[]>(
       `/api/admin/purchase-requests?${params.toString()}`,
     );

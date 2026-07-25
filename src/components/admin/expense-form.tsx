@@ -13,6 +13,7 @@ import {
 } from "@/lib/validations";
 import {
   dateToDatetimeLocalInput,
+  maxRecordDatetimeLocalInput,
   menuPhotoUrl,
   formatRupiah,
 } from "@/lib/utils";
@@ -246,6 +247,7 @@ export const ExpenseForm = React.forwardRef<ExpenseFormHandle, ExpenseFormProps>
                   id="expense-record-date"
                   type="datetime-local"
                   data-testid="expense-record-date-input"
+                  max={maxRecordDatetimeLocalInput()}
                   value={
                     field.value instanceof Date && !Number.isNaN(field.value.getTime())
                       ? dateToDatetimeLocalInput(field.value)

@@ -593,7 +593,7 @@ describe("AdminPurchaseDetailContent", () => {
     ).toBeInTheDocument();
     expect(within(statusHistorySection).getByText("manager")).toBeInTheDocument();
     expect(
-      within(statusHistorySection).getByText("Jan 2, 2026, 09:30 AM"),
+      within(statusHistorySection).getByText("Jan 2, 2026, 04:30 PM"),
     ).toBeInTheDocument();
   });
 
@@ -958,7 +958,7 @@ describe("AdminPurchaseDetailContent", () => {
       ".rounded-2xl",
     ) as HTMLElement;
     expect(
-      within(statusHistorySection).getByText("Jan 5, 2026, 02:30 PM"),
+      within(statusHistorySection).getByText("Jan 5, 2026, 09:30 PM"),
     ).toBeInTheDocument();
   });
 
@@ -1038,7 +1038,7 @@ describe("AdminPurchaseDetailContent", () => {
     expect(screen.getByTestId("purchase-paid-date-section")).toBeInTheDocument();
     expect(
       screen.getByTestId("purchase-paid-date-readonly"),
-    ).toHaveTextContent("Jan 3, 2026, 10:00 AM");
+    ).toHaveTextContent("Jan 3, 2026, 05:00 PM");
     expect(
       screen.queryByTestId("purchase-paid-date-input"),
     ).not.toBeInTheDocument();

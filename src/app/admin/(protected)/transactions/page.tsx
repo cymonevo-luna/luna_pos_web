@@ -10,10 +10,14 @@ import { formatDate, formatRupiah, truncateId } from "@/lib/utils";
 import { toast } from "sonner";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
+import {
+  HistoryDateRangeFilter,
+  type HistoryDateRangeValue,
+} from "@/components/admin/history-date-range-filter";
+
 const PER_PAGE = 10;
 
 const METHOD_OPTIONS = [
@@ -22,12 +26,20 @@ const METHOD_OPTIONS = [
   { value: "QRIS", label: "QRIS" },
 ];
 
+const INITIAL_DATE_RANGE: HistoryDateRangeValue = {
+  preset: "all",
+  dateFrom: "",
+  dateTo: "",
+};
+
 export default function AdminTransactionsPage() {
   const router = useRouter();
   const [page, setPage] = useState(1);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateRange, setDateRange] =
+    useState<HistoryDateRangeValue>(INITIAL_DATE_RANGE);
   const [method, setMethod] = useState<TransactionMethod | "">("");
+
+  const { dateFrom, dateTo } = dateRange;
 
   const { data, isLoading, isError, error } = useTransactionsListQuery({
     page,
@@ -51,13 +63,8 @@ export default function AdminTransactionsPage() {
   const total = data?.meta?.total ?? 0;
   const loading = isLoading;
 
-  const handleDateFromChange = (value: string) => {
-    setDateFrom(value);
-    setPage(1);
-  };
-
-  const handleDateToChange = (value: string) => {
-    setDateTo(value);
+  const handleDateRangeChange = (value: HistoryDateRangeValue) => {
+    setDateRange(value);
     setPage(1);
   };
 
@@ -76,19 +83,12 @@ export default function AdminTransactionsPage() {
           <p className="text-muted-foreground">{total} total</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Input
-            type="date"
-            aria-label="Date from"
-            value={dateFrom}
-            onChange={(e) => handleDateFromChange(e.target.value)}
-            className="w-full sm:w-40"
-          />
-          <Input
-            type="date"
-            aria-label="Date to"
-            value={dateTo}
-            onChange={(e) => handleDateToChange(e.target.value)}
-            className="w-full sm:w-40"
+          <HistoryDateRangeFilter
+            value={dateRange}
+            onChange={handleDateRangeChange}
+            presetTestId="transactions-date-preset"
+            dateFromTestId="transactions-date-from"
+            dateToTestId="transactions-date-to"
           />
           <Select
             aria-label="Filter by method"
