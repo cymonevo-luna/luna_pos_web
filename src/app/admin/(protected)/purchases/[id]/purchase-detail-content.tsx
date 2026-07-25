@@ -210,10 +210,7 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
 
   useEffect(() => {
     if (!purchase) return;
-    const paidEntry = findPaidHistoryEntry(purchase.status_history);
-    setPaidDateInput(
-      paidEntry ? dateToDatetimeLocalInput(paidEntry.created_at) : "",
-    );
+    setPaidDateInput(dateToDatetimeLocalInput(purchase.transaction_date));
     setPaidDateError(null);
   }, [purchase]);
 
@@ -493,12 +490,18 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                 </CardHeader>
               </Card>
             ) : null}
-            <Card>
+            <Card data-testid="purchase-transaction-date-card">
               <CardHeader className="pb-2">
-                <CardDescription>Created at</CardDescription>
+                <CardDescription>Transaction date</CardDescription>
                 <CardTitle className="text-xl">
-                  {formatDateTime(purchase.created_at)}
+                  {formatDateTime(purchase.transaction_date)}
                 </CardTitle>
+                <p
+                  className="text-xs text-muted-foreground"
+                  title={`System created at ${formatDateTime(purchase.created_at)}`}
+                >
+                  Created at {formatDateTime(purchase.created_at)}
+                </p>
               </CardHeader>
             </Card>
             <Card>
@@ -603,7 +606,7 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                       className="text-sm"
                       data-testid="purchase-paid-date-readonly"
                     >
-                      {formatDateTime(paidHistoryEntry.created_at)}
+                      {formatDateTime(purchase.transaction_date)}
                     </p>
                   )}
                   {paidDateError ? (

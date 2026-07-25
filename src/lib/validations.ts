@@ -267,6 +267,16 @@ const expenseRecordDateSchema = z.coerce
     message: "Reporting date cannot be in the future",
   });
 
+const purchaseTransactionDateSchema = z
+  .string()
+  .min(1, "Transaction date is required")
+  .refine((dateStr) => /^\d{4}-\d{2}-\d{2}$/.test(dateStr), {
+    message: "Enter a valid date",
+  })
+  .refine((dateStr) => dateStr <= todayWIB(), {
+    message: "Transaction date cannot be in the future",
+  });
+
 export const expenseSchema = z.object({
   title: z
     .string()
@@ -581,6 +591,7 @@ export const purchaseRequestLineItemSchema = z
 
 export const purchaseRequestSchema = z.object({
   supplier_id: z.string().min(1, "Supplier is required"),
+  transactionDate: purchaseTransactionDateSchema,
   items: z
     .array(purchaseRequestLineItemSchema)
     .min(1, "Add at least one line item"),

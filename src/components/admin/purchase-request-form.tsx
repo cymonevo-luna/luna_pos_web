@@ -9,6 +9,7 @@ import {
   purchaseRequestSchema,
   type PurchaseRequestFormValues,
 } from "@/lib/validations";
+import { todayWIB } from "@/lib/datetime/wib";
 import { suppliersAdminApi } from "@/lib/api/suppliers";
 import { ApiError } from "@/lib/api/client";
 import type { Supplier, SupplierPrice } from "@/lib/api/types";
@@ -29,6 +30,7 @@ function buildDefaultValues(
 ): PurchaseRequestFormValues {
   return {
     supplier_id: defaultValues?.supplier_id ?? "",
+    transactionDate: defaultValues?.transactionDate ?? todayWIB(),
     items: defaultValues?.items ?? [],
     notes: defaultValues?.notes ?? "",
   };
@@ -194,6 +196,11 @@ export const PurchaseRequestForm = React.forwardRef<
           continue;
         }
 
+        if (field === "transaction_date") {
+          setError("transactionDate", { message });
+          continue;
+        }
+
         const itemMatch = /^items(?:\[(\d+)\])?\.(.+)$/.exec(field);
         if (itemMatch) {
           const index = Number(itemMatch[1] ?? "0");
@@ -299,6 +306,29 @@ export const PurchaseRequestForm = React.forwardRef<
         disabled={isLoading}
         error={errors.supplier_id?.message}
       />
+
+      <div className="space-y-1.5" data-testid="purchase-transaction-date-section">
+        <Label htmlFor="purchase-transaction-date">Transaction date</Label>
+        <Input
+          id="purchase-transaction-date"
+          type="date"
+          data-testid="purchase-transaction-date-input"
+          max={todayWIB()}
+          disabled={isLoading}
+          {...register("transactionDate")}
+        />
+        <p className="text-muted-foreground text-xs">
+          Date used for cash-flow reporting.
+        </p>
+        {errors.transactionDate && (
+          <p
+            className="text-destructive text-sm"
+            data-testid="purchase-transaction-date-error"
+          >
+            {errors.transactionDate.message}
+          </p>
+        )}
+      </div>
 
       <section aria-label="Line items" className="space-y-4 border-t border-border pt-4">
         <div>

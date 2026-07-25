@@ -27,6 +27,7 @@ import {
   wizardItemsFromSuggest,
   type SmartPurchaseWizardItem,
 } from "@/lib/api/smart-purchase-utils";
+import { todayWIB } from "@/lib/datetime/wib";
 import { FoodSupplyPicker } from "@/components/admin/food-supply-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,6 +88,10 @@ export function SmartPurchaseRequestWizard({
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
   const [wizardItems, setWizardItems] = useState<SmartPurchaseWizardItem[]>([]);
+  const [transactionDate, setTransactionDate] = useState(todayWIB);
+  const [transactionDateError, setTransactionDateError] = useState<string | null>(
+    null,
+  );
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -245,11 +250,25 @@ export function SmartPurchaseRequestWizard({
   const handleConfirm = async () => {
     if (!canConfirm) return;
 
+    if (!transactionDate) {
+      setTransactionDateError("Transaction date is required");
+      return;
+    }
+    if (transactionDate > todayWIB()) {
+      setTransactionDateError("Transaction date cannot be in the future");
+      return;
+    }
+
     setSubmitting(true);
     setSubmitError(null);
     setFieldErrors({});
+    setTransactionDateError(null);
     try {
-      const payload = buildBatchPurchasePayload(wizardItems, notes);
+      const payload = buildBatchPurchasePayload(
+        wizardItems,
+        notes,
+        transactionDate,
+      );
       await purchaseRequestsAdminApi.batch(payload);
       onSuccess();
     } catch (err) {
@@ -257,6 +276,9 @@ export function SmartPurchaseRequestWizard({
         setSubmitError(err.message);
         if (err.fields) {
           setFieldErrors(err.fields);
+          if (err.fields.transaction_date) {
+            setTransactionDateError(err.fields.transaction_date);
+          }
         }
       } else {
         setSubmitError("Failed to create purchase requests");
@@ -271,6 +293,7 @@ export function SmartPurchaseRequestWizard({
     setSuggestError(null);
     setSubmitError(null);
     setFieldErrors({});
+    setTransactionDateError(null);
   };
 
   const handleAddRow = () => {
@@ -527,6 +550,33 @@ export function SmartPurchaseRequestWizard({
               </div>
             )}
           </section>
+
+          <div className="space-y-1.5" data-testid="smart-purchase-transaction-date-section">
+            <Label htmlFor="smart-purchase-transaction-date">Transaction date</Label>
+            <Input
+              id="smart-purchase-transaction-date"
+              type="date"
+              data-testid="smart-purchase-transaction-date-input"
+              max={todayWIB()}
+              disabled={submitting}
+              value={transactionDate}
+              onChange={(event) => {
+                setTransactionDate(event.target.value);
+                setTransactionDateError(null);
+              }}
+            />
+            <p className="text-muted-foreground text-xs">
+              Date used for cash-flow reporting.
+            </p>
+            {transactionDateError && (
+              <p
+                className="text-destructive text-sm"
+                data-testid="smart-purchase-transaction-date-error"
+              >
+                {transactionDateError}
+              </p>
+            )}
+          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="smart-purchase-notes">Notes (optional)</Label>

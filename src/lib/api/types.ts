@@ -656,6 +656,7 @@ export interface PurchaseRequest {
   status_history: PurchaseRequestStatusHistoryEntry[];
   total_estimated_amount: number;
   total_actual_amount?: number | null;
+  transaction_date: string;
   created_by_username?: string | null;
   created_at: string;
   updated_at: string;
@@ -669,6 +670,7 @@ export interface PurchaseRequestSummary {
   item_count: number;
   total_estimated_amount: number;
   total_actual_amount?: number | null;
+  transaction_date: string;
   created_by_username?: string | null;
   notes?: string | null;
   created_at: string;

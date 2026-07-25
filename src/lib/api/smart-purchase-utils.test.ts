@@ -219,6 +219,31 @@ describe("buildBatchPurchasePayload", () => {
       line_actual_amount: "180",
     });
   });
+
+  it("includes transaction_date on each group when provided", () => {
+    const secondItem: SmartPurchaseWizardItem = {
+      ...baseItem,
+      food_supply_id: "fs-salt",
+      food_supply_title: "Salt",
+      selected_supplier_id: "sup-expensive",
+      selected_supplier_name: "Expensive Supplier",
+      line_estimated_amount: 10,
+    };
+
+    const payload = buildBatchPurchasePayload(
+      [baseItem, secondItem],
+      undefined,
+      "2026-07-20",
+    );
+
+    expect(payload.groups).toHaveLength(2);
+    expect(payload.groups[0]?.transaction_date).toBe(
+      "2026-07-19T17:00:00.000Z",
+    );
+    expect(payload.groups[1]?.transaction_date).toBe(
+      "2026-07-19T17:00:00.000Z",
+    );
+  });
 });
 
 describe("allItemsHaveSupplier", () => {

@@ -6,6 +6,7 @@ import {
   performSessionRefresh,
 } from "@/lib/auth/session-refresh";
 import { tokenStore } from "@/lib/auth/tokens";
+import { startOfDayWIB } from "@/lib/datetime/wib";
 import { api, ApiError, type ApiResult } from "./client";
 import type { Envelope } from "./types";
 import { appendHistoryDateParams } from "./history-date-params";
@@ -252,6 +253,7 @@ export interface CreatePurchaseRequestPayload {
   supplier_id: string;
   items: CreatePurchaseRequestItemPayload[];
   notes?: string;
+  transaction_date?: string;
 }
 
 export interface SuggestPurchaseRequestsPayload {
@@ -301,6 +303,8 @@ export function purchaseRequestFormToPayload(
   if (notes) {
     payload.notes = notes;
   }
+
+  payload.transaction_date = startOfDayWIB(values.transactionDate).toISOString();
 
   return payload;
 }

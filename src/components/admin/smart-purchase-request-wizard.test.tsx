@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { SmartPurchaseRequestWizard } from "./smart-purchase-request-wizard";
 import { purchaseRequestsAdminApi } from "@/lib/api/purchase-requests";
 import { foodSuppliesAdminApi } from "@/lib/api/food-supplies";
+import { startOfDayWIB, todayWIB } from "@/lib/datetime/wib";
 import type { FoodSupply } from "@/lib/api/types";
 
 vi.mock("@/components/admin/food-supply-picker", () => ({
@@ -145,6 +146,7 @@ const suggestResponse = {
 describe("SmartPurchaseRequestWizard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     vi.mocked(purchaseRequestsAdminApi.suggest).mockResolvedValue({
       data: suggestResponse,
     });
@@ -290,6 +292,7 @@ describe("SmartPurchaseRequestWizard", () => {
         groups: [
           {
             supplier_id: "sup-cheap",
+            transaction_date: startOfDayWIB(todayWIB()).toISOString(),
             items: [
               {
                 food_supply_id: "fs-rice",
@@ -401,12 +404,71 @@ describe("SmartPurchaseRequestWizard", () => {
         groups: [
           {
             supplier_id: "sup-cheap",
+            transaction_date: startOfDayWIB(todayWIB()).toISOString(),
             items: [{ food_supply_id: "fs-rice", quantity: "2" }],
           },
         ],
       });
       expect(onSuccess).toHaveBeenCalled();
     });
+  });
+
+  it("shows transaction date defaulting to today in WIB on review step", async () => {
+    vi.mocked(purchaseRequestsAdminApi.suggest).mockResolvedValue({
+      data: {
+        items: [suggestResponse.items[0]!],
+        grouped_by_supplier: [],
+      },
+    });
+
+    const user = userEvent.setup();
+
+    render(
+      <SmartPurchaseRequestWizard onCancel={vi.fn()} onSuccess={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /add ingredient/i }));
+    await addIngredient(user, "Ingredient 1", "fs-rice", "2");
+    await user.click(screen.getByTestId("smart-purchase-continue"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("smart-purchase-transaction-date-input")).toHaveValue(
+        todayWIB(),
+      );
+    });
+  });
+
+  it("blocks confirm when transaction date is in the future", async () => {
+    vi.mocked(purchaseRequestsAdminApi.suggest).mockResolvedValue({
+      data: {
+        items: [suggestResponse.items[0]!],
+        grouped_by_supplier: [],
+      },
+    });
+
+    const user = userEvent.setup();
+
+    render(
+      <SmartPurchaseRequestWizard onCancel={vi.fn()} onSuccess={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /add ingredient/i }));
+    await addIngredient(user, "Ingredient 1", "fs-rice", "2");
+    await user.click(screen.getByTestId("smart-purchase-continue"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("smart-purchase-confirm")).toBeEnabled();
+    });
+
+    fireEvent.change(screen.getByTestId("smart-purchase-transaction-date-input"), {
+      target: { value: "2099-01-01" },
+    });
+    await user.click(screen.getByTestId("smart-purchase-confirm"));
+
+    expect(
+      await screen.findByText("Transaction date cannot be in the future"),
+    ).toBeInTheDocument();
+    expect(purchaseRequestsAdminApi.batch).not.toHaveBeenCalled();
   });
 
   it("blocks confirm for unmatched items until supplier is selected", async () => {

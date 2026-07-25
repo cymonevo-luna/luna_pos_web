@@ -98,6 +98,7 @@ describe("normalizePurchaseRequestItem", () => {
 describe("purchaseRequestSchema", () => {
   const base = {
     supplier_id: "sup-1",
+    transactionDate: "2026-07-20",
     items: [{ food_supply_id: "fs-1", quantity: 2 }],
   };
 
@@ -151,6 +152,19 @@ describe("purchaseRequestSchema", () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it("rejects future transaction dates", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-24T18:00:00Z"));
+
+    const result = purchaseRequestSchema.safeParse({
+      ...base,
+      transactionDate: "2026-07-26",
+    });
+
+    expect(result.success).toBe(false);
+    vi.useRealTimers();
+  });
 });
 
 describe("purchaseRequestFormToPayload", () => {
@@ -158,6 +172,7 @@ describe("purchaseRequestFormToPayload", () => {
     expect(
       purchaseRequestFormToPayload({
         supplier_id: "sup-1",
+        transactionDate: "2026-07-20",
         items: [
           { food_supply_id: "fs-1", quantity: 2.5 },
           { food_supply_id: "fs-2", quantity: 10 },
@@ -171,6 +186,7 @@ describe("purchaseRequestFormToPayload", () => {
         { food_supply_id: "fs-2", quantity: "10" },
       ],
       notes: "Urgent",
+      transaction_date: "2026-07-19T17:00:00.000Z",
     });
   });
 
@@ -178,12 +194,14 @@ describe("purchaseRequestFormToPayload", () => {
     expect(
       purchaseRequestFormToPayload({
         supplier_id: "sup-1",
+        transactionDate: "2026-07-20",
         items: [{ food_supply_id: "fs-1", quantity: 1 }],
         notes: "",
       }),
     ).toEqual({
       supplier_id: "sup-1",
       items: [{ food_supply_id: "fs-1", quantity: "1" }],
+      transaction_date: "2026-07-19T17:00:00.000Z",
     });
   });
 
@@ -191,6 +209,7 @@ describe("purchaseRequestFormToPayload", () => {
     expect(
       purchaseRequestFormToPayload({
         supplier_id: "sup-1",
+        transactionDate: "2026-07-20",
         items: [
           {
             food_supply_id: "fs-1",
@@ -208,6 +227,7 @@ describe("purchaseRequestFormToPayload", () => {
           line_actual_amount: 150000,
         },
       ],
+      transaction_date: "2026-07-19T17:00:00.000Z",
     });
   });
 
@@ -215,6 +235,7 @@ describe("purchaseRequestFormToPayload", () => {
     expect(
       purchaseRequestFormToPayload({
         supplier_id: "sup-1",
+        transactionDate: "2026-07-20",
         items: [
           {
             food_supply_id: "fs-1",
@@ -249,6 +270,7 @@ describe("purchaseRequestFormToPayload", () => {
         },
         { food_supply_id: "fs-2", quantity: "1" },
       ],
+      transaction_date: "2026-07-19T17:00:00.000Z",
     });
   });
 });
@@ -261,6 +283,34 @@ describe("purchaseRequestsAdminApi", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("builds the correct list URL with date filters and attaches authorization", async () => {
+    tokenStore.set("token-abc", "refresh-abc");
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        jsonResponse({
+          success: true,
+          data: [],
+          meta: { page: 1, per_page: 10, total: 0 },
+        }),
+      );
+
+    await purchaseRequestsAdminApi.list({
+      page: 1,
+      perPage: 10,
+      status: "PENDING",
+      dateFrom: "2026-01-10",
+      dateTo: "2026-01-20",
+    });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/purchase-requests?page=1&per_page=10&status=PENDING&date_from=2026-01-10&date_to=2026-01-20",
+    );
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer token-abc");
   });
 
   it("builds the correct list URL with filters and attaches authorization", async () => {
@@ -311,6 +361,7 @@ describe("purchaseRequestsAdminApi", () => {
         },
       ],
       total_estimated_amount: "118000",
+      transaction_date: "2026-01-01T00:00:00Z",
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
@@ -374,6 +425,7 @@ describe("purchaseRequestsAdminApi", () => {
       notes: null,
       items: [],
       total_estimated_amount: "118000",
+      transaction_date: "2026-01-01T00:00:00Z",
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
@@ -445,6 +497,7 @@ describe("purchaseRequestsAdminApi", () => {
       notes: null,
       items: [],
       total_estimated_amount: "118000",
+      transaction_date: "2026-01-01T00:00:00Z",
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
       status_history: [
@@ -504,6 +557,7 @@ describe("purchaseRequestsAdminApi", () => {
             status: "PENDING",
             item_count: 2,
             total_estimated_amount: "560",
+            transaction_date: "2026-01-01T00:00:00Z",
             created_at: "2026-01-01T00:00:00Z",
             updated_at: "2026-01-01T00:00:00Z",
           },
@@ -805,8 +859,9 @@ describe("normalizePurchaseRequest regression", () => {
       notes: null,
       items: [],
       total_estimated_amount: 0,
+      transaction_date: "2026-01-01T00:00:00Z",
       created_at: "2026-01-01T00:00:00Z",
-      updated_at: "2026-01-02T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
       status_history: [
         {
           id: "hist-1",
