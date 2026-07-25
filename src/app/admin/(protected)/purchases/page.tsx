@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Download, Plus, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Plus, Sparkles, Upload } from "lucide-react";
+import { PurchaseImportDialog } from "@/components/admin/purchase-import-dialog";
 import {
   downloadPurchaseRequestsCsv,
   exportPurchaseRequestsCsv,
@@ -76,6 +77,7 @@ export default function AdminPurchasesPage() {
   const router = useRouter();
   const { hasFeature } = useFeatures();
   const canExport = hasFeature("purchases.manage");
+  const canImport = hasFeature("purchases.manage");
   const [purchases, setPurchases] = useState<PurchaseRequestSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -88,6 +90,7 @@ export default function AdminPurchasesPage() {
     "",
   );
   const [exporting, setExporting] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [exportFieldErrors, setExportFieldErrors] = useState<
     Record<string, string>
   >({});
@@ -184,6 +187,16 @@ export default function AdminPurchasesPage() {
             value={status}
             onChange={(e) => handleStatusChange(e.target.value)}
           />
+          {canImport ? (
+            <Button
+              variant="outline"
+              onClick={() => setImportOpen(true)}
+              data-testid="open-import-dialog"
+            >
+              <Upload className="h-4 w-4" />
+              Import CSV
+            </Button>
+          ) : null}
           <Link
             href="/admin/purchases/smart"
             className={buttonVariants({ variant: "outline" })}
@@ -263,6 +276,12 @@ export default function AdminPurchasesPage() {
           </div>
         </Card>
       )}
+
+      <PurchaseImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => void load()}
+      />
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
