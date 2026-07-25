@@ -3,6 +3,7 @@ import {
   menusAdminApi,
   isAbsolutePhotoUrl,
   isAllowedMenuPhotoUrl,
+  normalizeMenu,
   normalizeMenuPhotoFormValue,
   menuBasicFormToPayload,
   menuCogsFormToPayload,
@@ -351,6 +352,7 @@ describe("menusAdminApi", () => {
       photo_url: null,
       available_stock: 10,
       sell_price: 25000,
+      has_ingredients: true,
       recipe_yield: 40,
       margin_percent: 30,
       vat_percent: 11,
@@ -406,6 +408,39 @@ describe("menusAdminApi", () => {
 
     await menusAdminApi.delete("menu-1");
     expect(fetchMock).toHaveBeenCalled();
+  });
+});
+
+describe("normalizeMenu", () => {
+  const baseMenu = {
+    id: "menu-1",
+    title: "Nasi Goreng",
+    description: null,
+    category_id: "cat-1",
+    category_name: "Main",
+    photo_url: null,
+    available_stock: 10,
+    sell_price: 25000,
+    recipe_yield: 1,
+    margin_percent: 0,
+    vat_percent: 0,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  };
+
+  it("defaults has_ingredients to false when omitted", () => {
+    const normalized = normalizeMenu(baseMenu);
+
+    expect(normalized.has_ingredients).toBe(false);
+  });
+
+  it("preserves has_ingredients from the API", () => {
+    const normalized = normalizeMenu({
+      ...baseMenu,
+      has_ingredients: true,
+    });
+
+    expect(normalized.has_ingredients).toBe(true);
   });
 });
 

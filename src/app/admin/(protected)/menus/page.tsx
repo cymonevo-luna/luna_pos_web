@@ -31,6 +31,7 @@ import { useMenusListQuery } from "@/lib/query/hooks/use-menus-list";
 import { queryKeys } from "@/lib/query/keys";
 import { MenuForm, type MenuFormHandle } from "@/components/admin/menu-form";
 import { SortableTableHeader } from "@/components/admin/sortable-table-header";
+import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -338,7 +339,19 @@ export default function AdminMenusPage() {
                     <td className="px-4 py-3">
                       <MenuPhotoThumbnail photoUrl={menu.photo_url} />
                     </td>
-                    <td className="px-4 py-3 font-medium">{menu.title}</td>
+                    <td className="px-4 py-3 font-medium">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{menu.title}</span>
+                        {!menu.has_ingredients ? (
+                          <Badge
+                            variant="warning"
+                            data-testid={`missing-ingredients-badge-${menu.id}`}
+                          >
+                            Missing ingredients
+                          </Badge>
+                        ) : null}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {menu.category_name}
                     </td>

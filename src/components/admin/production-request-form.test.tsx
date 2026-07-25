@@ -39,6 +39,7 @@ vi.mock("@/components/admin/menu-picker", () => ({
             category_id: "cat-1",
             available_stock: 10,
             sell_price: 25000,
+            has_ingredients: true,
             recipe_yield: 1,
             margin_percent: 30,
             vat_percent: 11,

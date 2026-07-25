@@ -98,6 +98,7 @@ const menu: Menu = {
   photo_url: null,
   available_stock: 10,
   sell_price: 25000,
+  has_ingredients: true,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-15T00:00:00Z",
 };
@@ -652,5 +653,30 @@ describe("AdminMenusPage", () => {
         vat_percent: 0,
       });
     });
+  });
+
+  it("shows Missing ingredients badge when has_ingredients is false", async () => {
+    vi.mocked(menusAdminApi.list).mockResolvedValue({
+      data: [{ ...menu, has_ingredients: false }],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    renderWithProviders(<AdminMenusPage />);
+
+    expect(await screen.findByText("Missing ingredients")).toBeInTheDocument();
+    const badge = screen.getByTestId("missing-ingredients-badge-menu-1");
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveClass("bg-amber-100");
+    expect(badge).toHaveClass("text-amber-800");
+  });
+
+  it("does not show Missing ingredients badge when has_ingredients is true", async () => {
+    renderWithProviders(<AdminMenusPage />);
+    await screen.findByText("Nasi Goreng");
+
+    expect(screen.queryByText("Missing ingredients")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("missing-ingredients-badge-menu-1"),
+    ).not.toBeInTheDocument();
   });
 });

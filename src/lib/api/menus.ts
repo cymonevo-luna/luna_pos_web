@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, type ApiResult } from "./client";
 import type { Menu } from "./types";
 import type {
   MenuBasicFormValues,
@@ -44,6 +44,31 @@ export type MenuCogsPayload = Pick<
   CreateMenuPayload,
   "recipe_yield" | "margin_percent" | "vat_percent"
 >;
+
+interface MenuRaw extends Omit<Menu, "has_ingredients"> {
+  has_ingredients?: boolean;
+}
+
+export function normalizeMenu(raw: MenuRaw): Menu {
+  return {
+    ...raw,
+    has_ingredients: raw.has_ingredients ?? false,
+  };
+}
+
+function normalizeListResult(result: ApiResult<MenuRaw[]>): ApiResult<Menu[]> {
+  return {
+    ...result,
+    data: result.data.map(normalizeMenu),
+  };
+}
+
+function normalizeItemResult(result: ApiResult<MenuRaw>): ApiResult<Menu> {
+  return {
+    ...result,
+    data: normalizeMenu(result.data),
+  };
+}
 
 const DEFAULT_MENU_PHOTO_FILENAME = "default-food.png";
 
@@ -136,7 +161,7 @@ export function menuFormToPayload(values: MenuFormValues): CreateMenuPayload {
 }
 
 export const menusAdminApi = {
-  list: ({
+  list: async ({
     page = 1,
     perPage = 10,
     search = "",
@@ -152,16 +177,26 @@ export const menusAdminApi = {
     if (categoryId) params.set("category_id", categoryId);
     if (sortBy) params.set("sort_by", sortBy);
     if (sortOrder) params.set("sort_order", sortOrder);
-    return api.get<Menu[]>(`/api/admin/menus?${params.toString()}`);
+    const result = await api.get<MenuRaw[]>(
+      `/api/admin/menus?${params.toString()}`,
+    );
+    return normalizeListResult(result);
   },
 
-  get: (id: string) => api.get<Menu>(`/api/admin/menus/${id}`),
+  get: async (id: string) => {
+    const result = await api.get<MenuRaw>(`/api/admin/menus/${id}`);
+    return normalizeItemResult(result);
+  },
 
-  create: (payload: CreateMenuPayload) =>
-    api.post<Menu>("/api/admin/menus", payload),
+  create: async (payload: CreateMenuPayload) => {
+    const result = await api.post<MenuRaw>("/api/admin/menus", payload);
+    return normalizeItemResult(result);
+  },
 
-  update: (id: string, payload: UpdateMenuPayload) =>
-    api.put<Menu>(`/api/admin/menus/${id}`, payload),
+  update: async (id: string, payload: UpdateMenuPayload) => {
+    const result = await api.put<MenuRaw>(`/api/admin/menus/${id}`, payload);
+    return normalizeItemResult(result);
+  },
 
   delete: (id: string) => api.delete<void>(`/api/admin/menus/${id}`),
 };
