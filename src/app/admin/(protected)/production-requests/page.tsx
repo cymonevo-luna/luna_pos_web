@@ -20,8 +20,18 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import {
+  HistoryDateRangeFilter,
+  type HistoryDateRangeValue,
+} from "@/components/admin/history-date-range-filter";
 
 const PER_PAGE = 10;
+
+const INITIAL_DATE_RANGE: HistoryDateRangeValue = {
+  preset: "all",
+  dateFrom: "",
+  dateTo: "",
+};
 
 const STATUS_OPTIONS = [
   { value: "", label: "All statuses" },
@@ -56,7 +66,11 @@ export default function AdminProductionRequestsPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<ProductionRequestStatus | "">("");
+  const [dateRange, setDateRange] =
+    useState<HistoryDateRangeValue>(INITIAL_DATE_RANGE);
   const [loading, setLoading] = useState(true);
+
+  const { dateFrom, dateTo } = dateRange;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,6 +79,8 @@ export default function AdminProductionRequestsPage() {
         page,
         perPage: PER_PAGE,
         status,
+        dateFrom,
+        dateTo,
       });
       setRequests(res.data ?? []);
       setTotal(res.meta?.total ?? 0);
@@ -79,7 +95,7 @@ export default function AdminProductionRequestsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, status]);
+  }, [page, status, dateFrom, dateTo]);
 
   useEffect(() => {
     void load();
@@ -87,6 +103,11 @@ export default function AdminProductionRequestsPage() {
 
   const handleStatusChange = (value: string) => {
     setStatus(value as ProductionRequestStatus | "");
+    setPage(1);
+  };
+
+  const handleDateRangeChange = (value: HistoryDateRangeValue) => {
+    setDateRange(value);
     setPage(1);
   };
 
@@ -100,6 +121,13 @@ export default function AdminProductionRequestsPage() {
           <p className="text-muted-foreground">{total} total</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <HistoryDateRangeFilter
+            value={dateRange}
+            onChange={handleDateRangeChange}
+            presetTestId="production-requests-date-preset"
+            dateFromTestId="production-requests-date-from"
+            dateToTestId="production-requests-date-to"
+          />
           <Select
             aria-label="Filter by status"
             className="w-full sm:w-44"

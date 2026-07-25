@@ -7,6 +7,7 @@ import { menuDisposalsAdminApi } from "@/lib/api/menu-disposals";
 import { ApiError } from "@/lib/api/client";
 import type { MenuDisposal } from "@/lib/api/types";
 import { useFeatures } from "@/lib/auth/use-features";
+import { startOfDayWIB } from "@/lib/datetime/wib";
 import { toast } from "sonner";
 
 vi.mock("@/lib/api/menu-disposals", () => ({
@@ -139,7 +140,7 @@ describe("AdminMenuDisposalsPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("reloads with search and date filters", async () => {
+  it("reloads with search and custom date filters", async () => {
     const user = userEvent.setup();
 
     renderWithProviders(<AdminMenuDisposalsPage />);
@@ -148,6 +149,10 @@ describe("AdminMenuDisposalsPage", () => {
     await user.type(
       screen.getByTestId("menu-disposals-search-input"),
       "nasi",
+    );
+    await user.selectOptions(
+      screen.getByTestId("menu-disposals-date-preset"),
+      "custom",
     );
     await user.type(screen.getByTestId("menu-disposals-date-from"), "2026-01-15");
     await user.type(screen.getByTestId("menu-disposals-date-to"), "2026-01-15");
@@ -230,7 +235,7 @@ describe("AdminMenuDisposalsPage", () => {
     await waitFor(() => {
       expect(menuDisposalsAdminApi.updateDisposedDate).toHaveBeenCalledWith(
         "disposal-1",
-        "2025-12-15T00:00:00.000Z",
+        startOfDayWIB("2025-12-15").toISOString(),
       );
       expect(toast.success).toHaveBeenCalledWith("Disposal date updated");
     });
@@ -275,6 +280,10 @@ describe("AdminMenuDisposalsPage", () => {
       expect(menuDisposalsAdminApi.updateDisposedDate).toHaveBeenCalled();
     });
 
+    await user.selectOptions(
+      screen.getByTestId("menu-disposals-date-preset"),
+      "custom",
+    );
     await user.type(screen.getByTestId("menu-disposals-date-from"), "2025-12-15");
     await user.type(screen.getByTestId("menu-disposals-date-to"), "2025-12-15");
 

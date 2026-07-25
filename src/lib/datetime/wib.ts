@@ -118,6 +118,71 @@ export function toApiDateParam(date: Date | string): string {
   return formatWibDateString(toDate(date));
 }
 
+const WIB_WEEKDAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: WIB_TIMEZONE,
+  weekday: "short",
+});
+
+const WIB_DATETIME_LOCAL_FORMATTER = new Intl.DateTimeFormat("en-CA", {
+  timeZone: WIB_TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+const WIB_WEEKDAY_INDEX: Record<string, number> = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+
+/** Monday of the WIB week containing `dateStr`. */
+export function startOfWeekWIB(dateStr: string): string {
+  const anchor = startOfDayWIB(dateStr);
+  const weekday = WIB_WEEKDAY_FORMATTER.format(anchor);
+  const dayIndex = WIB_WEEKDAY_INDEX[weekday] ?? 0;
+  const daysSinceMonday = (dayIndex + 6) % 7;
+  anchor.setUTCDate(anchor.getUTCDate() - daysSinceMonday);
+  return formatWibDateString(anchor);
+}
+
+/** First day of the WIB month containing `dateStr`. */
+export function startOfMonthWIB(dateStr: string): string {
+  const [year, month] = dateStr.split("-");
+  return `${year}-${month}-01`;
+}
+
+/** Format an instant for `<input type="datetime-local" />` in WIB. */
+export function toWibDatetimeLocalInput(value: Date | string): string {
+  const parsed = toDate(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const parts = WIB_DATETIME_LOCAL_FORMATTER.formatToParts(parsed);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+}
+
+/** Parse a WIB datetime-local value to ISO8601 (UTC). */
+export function wibDatetimeLocalInputToIso(value: string): string {
+  const [datePart, timePart] = value.split("T");
+  if (!datePart || !timePart) return new Date(value).toISOString();
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hour, minute] = timePart.split(":").map(Number);
+  return wibInstant(year, month, day, hour, minute).toISOString();
+}
+
+/** Maximum selectable value for WIB datetime-local inputs (end of today in WIB). */
+export function maxWibDatetimeLocalInput(): string {
+  return `${todayWIB()}T23:59`;
+}
+
 const WIB_PERIOD_DAILY_FORMATTER = new Intl.DateTimeFormat("en", {
   timeZone: WIB_TIMEZONE,
   month: "short",

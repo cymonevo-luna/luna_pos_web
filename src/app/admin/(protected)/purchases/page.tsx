@@ -18,8 +18,18 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import {
+  HistoryDateRangeFilter,
+  type HistoryDateRangeValue,
+} from "@/components/admin/history-date-range-filter";
 
 const PER_PAGE = 10;
+
+const INITIAL_DATE_RANGE: HistoryDateRangeValue = {
+  preset: "all",
+  dateFrom: "",
+  dateTo: "",
+};
 
 const STATUS_OPTIONS = [
   { value: "", label: "All statuses" },
@@ -52,7 +62,11 @@ export default function AdminPurchasesPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<PurchaseRequestStatus | "">("");
+  const [dateRange, setDateRange] =
+    useState<HistoryDateRangeValue>(INITIAL_DATE_RANGE);
   const [loading, setLoading] = useState(true);
+
+  const { dateFrom, dateTo } = dateRange;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -61,6 +75,8 @@ export default function AdminPurchasesPage() {
         page,
         perPage: PER_PAGE,
         status,
+        dateFrom,
+        dateTo,
       });
       setPurchases(res.data ?? []);
       setTotal(res.meta?.total ?? 0);
@@ -75,7 +91,7 @@ export default function AdminPurchasesPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, status]);
+  }, [page, status, dateFrom, dateTo]);
 
   useEffect(() => {
     void load();
@@ -83,6 +99,11 @@ export default function AdminPurchasesPage() {
 
   const handleStatusChange = (value: string) => {
     setStatus(value as PurchaseRequestStatus | "");
+    setPage(1);
+  };
+
+  const handleDateRangeChange = (value: HistoryDateRangeValue) => {
+    setDateRange(value);
     setPage(1);
   };
 
@@ -96,6 +117,13 @@ export default function AdminPurchasesPage() {
           <p className="text-muted-foreground">{total} total</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <HistoryDateRangeFilter
+            value={dateRange}
+            onChange={handleDateRangeChange}
+            presetTestId="purchases-date-preset"
+            dateFromTestId="purchases-date-from"
+            dateToTestId="purchases-date-to"
+          />
           <Select
             aria-label="Filter by status"
             className="w-full sm:w-44"

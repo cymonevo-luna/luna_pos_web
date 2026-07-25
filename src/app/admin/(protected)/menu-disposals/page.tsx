@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Calendar, ChevronLeft, ChevronRight, Search, Trash2 } from "lucide-react";
 import { ApiError } from "@/lib/api/client";
 import type { MenuDisposal } from "@/lib/api/types";
-import { dateInputToIso } from "@/lib/api/transactions";
+import { toApiDateParam, todayWIB, startOfDayWIB } from "@/lib/datetime/wib";
 import { useFeatures } from "@/lib/auth/use-features";
 import { useDeleteMenuDisposal } from "@/lib/query/hooks/use-delete-menu-disposal";
 import { useMenuDisposalsListQuery } from "@/lib/query/hooks/use-menu-disposals-list";
@@ -26,19 +26,29 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
+import {
+  HistoryDateRangeFilter,
+  type HistoryDateRangeValue,
+} from "@/components/admin/history-date-range-filter";
 
 const PER_PAGE = 10;
 
+const INITIAL_DATE_RANGE: HistoryDateRangeValue = {
+  preset: "all",
+  dateFrom: "",
+  dateTo: "",
+};
+
 function isoToDateInput(iso: string): string {
-  return iso.slice(0, 10);
+  return toApiDateParam(iso);
 }
 
 export default function AdminMenuDisposalsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateRange, setDateRange] =
+    useState<HistoryDateRangeValue>(INITIAL_DATE_RANGE);
   const [pendingDelete, setPendingDelete] = useState<MenuDisposal | null>(
     null,
   );
@@ -51,6 +61,8 @@ export default function AdminMenuDisposalsPage() {
   const canDelete = hasFeature("menu_disposals.delete");
   const canEditDate = hasFeature("records.edit_date");
   const canShowActions = canDelete || canEditDate;
+
+  const { dateFrom, dateTo } = dateRange;
 
   const { data, isLoading, isError, error } = useMenuDisposalsListQuery({
     page,
@@ -87,13 +99,8 @@ export default function AdminMenuDisposalsPage() {
   const loading = isLoading;
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
 
-  const handleDateFromChange = (value: string) => {
-    setDateFrom(value);
-    setPage(1);
-  };
-
-  const handleDateToChange = (value: string) => {
-    setDateTo(value);
+  const handleDateRangeChange = (value: HistoryDateRangeValue) => {
+    setDateRange(value);
     setPage(1);
   };
 
@@ -122,7 +129,7 @@ export default function AdminMenuDisposalsPage() {
     try {
       await updateDisposedDate(
         pendingEditDate.id,
-        dateInputToIso(editDateValue, false),
+        startOfDayWIB(editDateValue).toISOString(),
       );
       toast.success("Disposal date updated");
       setPendingEditDate(null);
@@ -153,21 +160,12 @@ export default function AdminMenuDisposalsPage() {
               data-testid="menu-disposals-search-input"
             />
           </div>
-          <Input
-            type="date"
-            aria-label="Date from"
-            value={dateFrom}
-            onChange={(e) => handleDateFromChange(e.target.value)}
-            className="w-full sm:w-40"
-            data-testid="menu-disposals-date-from"
-          />
-          <Input
-            type="date"
-            aria-label="Date to"
-            value={dateTo}
-            onChange={(e) => handleDateToChange(e.target.value)}
-            className="w-full sm:w-40"
-            data-testid="menu-disposals-date-to"
+          <HistoryDateRangeFilter
+            value={dateRange}
+            onChange={handleDateRangeChange}
+            presetTestId="menu-disposals-date-preset"
+            dateFromTestId="menu-disposals-date-from"
+            dateToTestId="menu-disposals-date-to"
           />
         </div>
       </div>
@@ -315,6 +313,7 @@ export default function AdminMenuDisposalsPage() {
               id="disposal-date"
               type="date"
               value={editDateValue}
+              max={todayWIB()}
               onChange={(e) => setEditDateValue(e.target.value)}
               className="mt-2"
               data-testid="menu-disposal-edit-date-input"

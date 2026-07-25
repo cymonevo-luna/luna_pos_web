@@ -18,6 +18,7 @@ import {
   datetimeLocalInputToIso,
   formatDateTime,
   formatRupiah,
+  maxRecordDatetimeLocalInput,
 } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -384,6 +385,7 @@ export function AdminTransactionDetailContent({ id }: { id: string }) {
               type="datetime-local"
               className="mt-2"
               value={editDateValue}
+              max={maxRecordDatetimeLocalInput()}
               onChange={(event) => setEditDateValue(event.target.value)}
               disabled={savingDate}
             />

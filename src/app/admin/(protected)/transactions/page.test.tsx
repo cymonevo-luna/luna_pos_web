@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "@/test/render";
 import { createTestQueryClient, TestQueryProvider } from "@/test/query-provider";
-import userEvent from "@testing-library/user-event";
 import AdminTransactionsPage from "./page";
 import { transactionsAdminApi } from "@/lib/api/transactions";
 import { ApiError } from "@/lib/api/client";
@@ -10,6 +10,7 @@ import type { Transaction } from "@/lib/api/types";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/query/keys";
 import { invalidateTransactionQueries } from "@/lib/query/invalidate-transaction-queries";
+import * as wib from "@/lib/datetime/wib";
 
 const mockPush = vi.fn();
 
@@ -77,6 +78,7 @@ const transaction2: Transaction = {
 describe("AdminTransactionsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(wib, "todayWIB").mockReturnValue("2026-07-25");
     vi.mocked(transactionsAdminApi.list).mockResolvedValue({
       data: [transaction1, transaction2],
       meta: { page: 1, per_page: 10, total: 2 },
@@ -84,6 +86,11 @@ describe("AdminTransactionsPage", () => {
     vi.mocked(transactionsAdminApi.summary).mockResolvedValue({
       data: { period: "daily", buckets: [] },
     });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it("renders transactions from the API with Rupiah amounts and cashier names", async () => {
@@ -108,6 +115,28 @@ describe("AdminTransactionsPage", () => {
     expect(
       await screen.findByText("No transactions found."),
     ).toBeInTheDocument();
+  });
+
+  it("reloads with Today preset using WIB calendar day", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<AdminTransactionsPage />);
+    await screen.findByText("kasir1");
+
+    await user.selectOptions(
+      screen.getByTestId("transactions-date-preset"),
+      "today",
+    );
+
+    await waitFor(() => {
+      expect(transactionsAdminApi.list).toHaveBeenLastCalledWith({
+        page: 1,
+        perPage: 10,
+        method: "",
+        dateFrom: "2026-07-25",
+        dateTo: "2026-07-25",
+      });
+    });
   });
 
   it("reloads with date and method filters", async () => {

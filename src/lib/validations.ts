@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { endOfDayWIB, todayWIB } from "@/lib/datetime/wib";
 import { isAllowedMenuPhotoUrl } from "@/lib/api/menus";
 
 export const loginSchema = z.object({
@@ -262,7 +263,7 @@ export const expenseSourceOfFundSchema = z.enum(["CASHIER", "PERSONAL_MONEY"], {
 
 const expenseRecordDateSchema = z.coerce
   .date({ error: "Reporting date is required" })
-  .refine((date) => date.getTime() <= Date.now(), {
+  .refine((date) => date.getTime() <= endOfDayWIB(todayWIB()).getTime(), {
     message: "Reporting date cannot be in the future",
   });
 

@@ -3,47 +3,41 @@ import { twMerge } from "tailwind-merge";
 import { config } from "@/lib/config";
 import type { PurchaseRequest, PurchaseRequestSummary } from "@/lib/api/types";
 import { formatMeasurementQuantity } from "@/lib/units";
+import {
+  formatWIB,
+  maxWibDatetimeLocalInput,
+  toWibDatetimeLocalInput,
+  wibDatetimeLocalInputToIso,
+} from "@/lib/datetime/wib";
 
 /** Merge conditional class names and resolve Tailwind conflicts. */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** Format an ISO date string into a short, locale-aware label. */
+/** Format an ISO date string into a short label in WIB. */
 export function formatDate(value: string | Date) {
-  const date = typeof value === "string" ? new Date(value) : value;
-  if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("en", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(date);
+  return formatWIB(value, "date");
 }
 
-/** Format an ISO date string with time for detail views. */
+/** Format an ISO date string with time for detail views in WIB. */
 export function formatDateTime(value: string | Date) {
-  const date = typeof value === "string" ? new Date(value) : value;
-  if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("en", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return formatWIB(value, "datetime");
 }
 
-/** Format a Date for `<input type="datetime-local" />` in the local timezone. */
+/** Format a Date for `<input type="datetime-local" />` in WIB. */
 export function dateToDatetimeLocalInput(value: string | Date) {
-  const date = typeof value === "string" ? new Date(value) : value;
-  if (Number.isNaN(date.getTime())) return "";
-  const pad = (part: number) => String(part).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return toWibDatetimeLocalInput(value);
 }
 
-/** Parse a datetime-local input value to ISO8601 (UTC). */
+/** Parse a WIB datetime-local input value to ISO8601 (UTC). */
 export function datetimeLocalInputToIso(value: string) {
-  return new Date(value).toISOString();
+  return wibDatetimeLocalInputToIso(value);
+}
+
+/** Maximum selectable datetime-local value (end of WIB today). */
+export function maxRecordDatetimeLocalInput() {
+  return maxWibDatetimeLocalInput();
 }
 
 /** Compare two dates at minute precision (datetime-local resolution). */

@@ -1,5 +1,6 @@
 import { api, type ApiResult } from "./client";
 import { parseNumeric } from "./suppliers";
+import { appendHistoryDateParams } from "./history-date-params";
 import type { Expense, ExpenseSourceOfFund } from "./types";
 import type { ExpenseFormValues } from "@/lib/validations";
 
@@ -37,6 +38,8 @@ export interface ListExpensesParams {
   page?: number;
   perPage?: number;
   search?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export interface CreateExpensePayload {
@@ -92,12 +95,15 @@ export async function listExpenses({
   page = 1,
   perPage = 10,
   search = "",
+  dateFrom = "",
+  dateTo = "",
 }: ListExpensesParams = {}) {
   const params = new URLSearchParams({
     page: String(page),
     per_page: String(perPage),
   });
   if (search) params.set("search", search);
+  appendHistoryDateParams(params, dateFrom, dateTo);
   const result = await api.get<ExpenseRaw[]>(
     `/api/admin/expenses?${params.toString()}`,
   );

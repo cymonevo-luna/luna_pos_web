@@ -1,6 +1,6 @@
 import { api, type ApiResult } from "./client";
 import { parseNumeric } from "./suppliers";
-import { dateInputToIso } from "./transactions";
+import { appendHistoryDateParams } from "./history-date-params";
 import type { MenuDisposal } from "./types";
 
 interface MenuDisposalRaw
@@ -54,8 +54,7 @@ export const menuDisposalsAdminApi = {
       order: "desc",
     });
     if (search) params.set("search", search);
-    if (dateFrom) params.set("date_from", dateInputToIso(dateFrom, false));
-    if (dateTo) params.set("date_to", dateInputToIso(dateTo, true));
+    appendHistoryDateParams(params, dateFrom, dateTo);
 
     const result = await api.get<MenuDisposalRaw[]>(
       `/api/admin/menu-disposals?${params.toString()}`,

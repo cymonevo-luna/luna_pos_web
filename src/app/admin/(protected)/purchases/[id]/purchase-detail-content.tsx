@@ -27,6 +27,7 @@ import {
   formatRupiah,
   formatStockQuantity,
   formatSupplierUnitPrice,
+  maxRecordDatetimeLocalInput,
   menuPhotoUrl,
 } from "@/lib/utils";
 import { useRoles } from "@/lib/auth/use-roles";
@@ -577,6 +578,7 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                         id="purchase-paid-date"
                         type="datetime-local"
                         value={paidDateInput}
+                        max={maxRecordDatetimeLocalInput()}
                         onChange={(event) => {
                           setPaidDateInput(event.target.value);
                           setPaidDateError(null);

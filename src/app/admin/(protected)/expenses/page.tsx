@@ -25,8 +25,18 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
+import {
+  HistoryDateRangeFilter,
+  type HistoryDateRangeValue,
+} from "@/components/admin/history-date-range-filter";
 
 const PER_PAGE = 10;
+
+const INITIAL_DATE_RANGE: HistoryDateRangeValue = {
+  preset: "all",
+  dateFrom: "",
+  dateTo: "",
+};
 
 function ReceiptCell({ receiptUrl }: { receiptUrl?: string | null }) {
   const trimmed = receiptUrl?.trim();
@@ -63,12 +73,18 @@ export default function AdminExpensesPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
+  const [dateRange, setDateRange] =
+    useState<HistoryDateRangeValue>(INITIAL_DATE_RANGE);
   const [pendingDelete, setPendingDelete] = useState<Expense | null>(null);
+
+  const { dateFrom, dateTo } = dateRange;
 
   const { expenses, meta, loading, error } = useExpenses({
     page,
     perPage: PER_PAGE,
     search: debounced,
+    dateFrom,
+    dateTo,
   });
   const { mutateAsync: deleteExpense, isPending: deleting } =
     useDeleteExpense();
@@ -101,6 +117,11 @@ export default function AdminExpensesPage() {
     router.push(`/admin/expenses/${expense.id}/edit`);
   };
 
+  const handleDateRangeChange = (value: HistoryDateRangeValue) => {
+    setDateRange(value);
+    setPage(1);
+  };
+
   return (
     <div className="space-y-6" data-testid="expenses-page">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -119,6 +140,13 @@ export default function AdminExpensesPage() {
               data-testid="expenses-search-input"
             />
           </div>
+          <HistoryDateRangeFilter
+            value={dateRange}
+            onChange={handleDateRangeChange}
+            presetTestId="expenses-date-preset"
+            dateFromTestId="expenses-date-from"
+            dateToTestId="expenses-date-to"
+          />
           <Link href="/admin/expenses/new" className={buttonVariants()}>
             <Plus className="h-4 w-4" />
             New expense
