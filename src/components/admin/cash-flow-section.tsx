@@ -186,7 +186,8 @@ function OutflowBreakdownChart({
       <div>
         <h3 className="text-sm font-medium">Outflow breakdown</h3>
         <p className="text-sm text-muted-foreground">
-          Purchases, expenses, staff payouts, and menu disposals in this period
+          Purchases, expenses, staff payouts, and menu disposals in this period.
+          Purchase outflows use transaction date.
         </p>
       </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:items-center">

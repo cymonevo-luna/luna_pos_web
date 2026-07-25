@@ -104,6 +104,7 @@ const purchase: PurchaseRequest = {
     },
   ],
   total_estimated_amount: 118000,
+  transaction_date: "2026-01-01T00:00:00Z",
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
@@ -886,6 +887,7 @@ describe("AdminPurchaseDetailContent", () => {
     return {
       ...purchase,
       status: "DELIVERED",
+      transaction_date: paidCreatedAt,
       status_history: [
         ...purchase.status_history,
         {
@@ -915,6 +917,7 @@ describe("AdminPurchaseDetailContent", () => {
     const updatedPaidAt = "2026-01-05T14:30:00Z";
     const updatedPurchase = {
       ...initialPurchase,
+      transaction_date: updatedPaidAt,
       status_history: initialPurchase.status_history.map((entry) =>
         entry.to_status === "PAID"
           ? { ...entry, created_at: updatedPaidAt }
@@ -951,14 +954,11 @@ describe("AdminPurchaseDetailContent", () => {
       expect(toast.success).toHaveBeenCalledWith("Paid date updated");
     });
 
-    const statusHistoryHeading = screen.getByRole("heading", {
-      name: "Status History",
-    });
-    const statusHistorySection = statusHistoryHeading.closest(
-      ".rounded-2xl",
-    ) as HTMLElement;
+    const transactionDateCard = screen.getByTestId(
+      "purchase-transaction-date-card",
+    );
     expect(
-      within(statusHistorySection).getByText("Jan 5, 2026, 09:30 PM"),
+      within(transactionDateCard).getByText("Jan 5, 2026, 09:30 PM"),
     ).toBeInTheDocument();
   });
 
@@ -979,15 +979,40 @@ describe("AdminPurchaseDetailContent", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows transaction date from API on detail view", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        transaction_date: "2025-12-28T12:30:00Z",
+        created_at: "2026-01-01T00:00:00Z",
+      },
+    });
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+    await screen.findByText("Beras Supplier");
+
+    const transactionDateCard = screen.getByTestId(
+      "purchase-transaction-date-card",
+    );
+    expect(
+      within(transactionDateCard).getByText("Transaction date"),
+    ).toBeInTheDocument();
+    expect(
+      within(transactionDateCard).getByText("Dec 28, 2025, 07:30 PM"),
+    ).toBeInTheDocument();
+  });
+
   it("keeps header created_at unchanged after paid date edit", async () => {
     const user = userEvent.setup();
     mockFeatures(["records.edit_date"]);
     const initialPurchase = createDeliveredPurchaseWithPaidHistory();
+    const updatedPaidAt = "2026-01-05T14:30:00Z";
     const updatedPurchase = {
       ...initialPurchase,
+      transaction_date: updatedPaidAt,
       status_history: initialPurchase.status_history.map((entry) =>
         entry.to_status === "PAID"
-          ? { ...entry, created_at: "2026-01-05T14:30:00Z" }
+          ? { ...entry, created_at: updatedPaidAt }
           : entry,
       ),
     };
@@ -1006,14 +1031,13 @@ describe("AdminPurchaseDetailContent", () => {
     renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
     await screen.findByText("Beras Supplier");
 
-    const createdAtCard = screen.getByText("Created at").closest(
-      ".rounded-2xl",
-    ) as HTMLElement;
-    const createdAtHeading = within(createdAtCard).getByRole("heading", {
-      level: 3,
-    });
-    const originalCreatedAt = createdAtHeading.textContent;
-    expect(originalCreatedAt).toBeTruthy();
+    const transactionDateCard = screen.getByTestId(
+      "purchase-transaction-date-card",
+    );
+    const originalCreatedAtText = within(transactionDateCard).getByText(
+      /Created at/,
+    ).textContent;
+    expect(originalCreatedAtText).toContain("Jan 1, 2026");
 
     const paidDateInput = screen.getByTestId("purchase-paid-date-input");
     await user.clear(paidDateInput);
@@ -1022,9 +1046,14 @@ describe("AdminPurchaseDetailContent", () => {
 
     await waitFor(() => {
       expect(purchaseRequestsAdminApi.updatePaidDate).toHaveBeenCalled();
+      expect(
+        within(transactionDateCard).getByText("Jan 5, 2026, 09:30 PM"),
+      ).toBeInTheDocument();
     });
 
-    expect(createdAtHeading).toHaveTextContent(originalCreatedAt ?? "");
+    expect(
+      within(transactionDateCard).getByText(/Created at/),
+    ).toHaveTextContent(originalCreatedAtText ?? "");
   });
 
   it("shows read-only paid date without records.edit_date on delivered purchase", async () => {

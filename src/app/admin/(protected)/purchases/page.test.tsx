@@ -34,6 +34,7 @@ const purchase: PurchaseRequestSummary = {
   item_count: 2,
   total_estimated_amount: 280000,
   created_by_username: "admin1",
+  transaction_date: "2026-01-15T10:30:00Z",
   created_at: "2026-01-15T10:30:00Z",
   updated_at: "2026-01-15T10:30:00Z",
 };
@@ -56,7 +57,7 @@ describe("AdminPurchasesPage", () => {
     expect(screen.getByText("1 total")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
     expect(
-      screen.getByRole("columnheader", { name: "Created" }),
+      screen.getByRole("columnheader", { name: "Transaction date" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("columnheader", { name: "Supplier" }),
@@ -73,6 +74,61 @@ describe("AdminPurchasesPage", () => {
     expect(
       screen.getByRole("columnheader", { name: "Created by" }),
     ).toBeInTheDocument();
+  });
+
+  it("shows transaction date from API in the list", async () => {
+    vi.mocked(purchaseRequestsAdminApi.list).mockResolvedValue({
+      data: [
+        {
+          ...purchase,
+          transaction_date: "2025-12-28T12:30:00Z",
+          created_at: "2026-01-15T10:30:00Z",
+        },
+      ],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminPurchasesPage />);
+
+    expect(await screen.findByText("Beras Supplier")).toBeInTheDocument();
+    expect(screen.getByText("Dec 28, 2025")).toBeInTheDocument();
+  });
+
+  it("uses transaction date labels on the date range filter", async () => {
+    render(<AdminPurchasesPage />);
+    await screen.findByText("Beras Supplier");
+
+    expect(screen.getByLabelText("Transaction date")).toBeInTheDocument();
+  });
+
+  it("reloads with transaction date range filter", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminPurchasesPage />);
+    await screen.findByText("Beras Supplier");
+
+    await user.selectOptions(
+      screen.getByLabelText("Transaction date"),
+      "custom",
+    );
+    await user.type(
+      screen.getByLabelText("Transaction date from"),
+      "2026-01-10",
+    );
+    await user.type(
+      screen.getByLabelText("Transaction date to"),
+      "2026-01-20",
+    );
+
+    await waitFor(() => {
+      expect(purchaseRequestsAdminApi.list).toHaveBeenLastCalledWith({
+        page: 1,
+        perPage: 10,
+        status: "",
+        dateFrom: "2026-01-10",
+        dateTo: "2026-01-20",
+      });
+    });
   });
 
   it("links to the new purchase request page", async () => {
