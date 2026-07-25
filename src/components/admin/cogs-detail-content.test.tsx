@@ -31,7 +31,29 @@ describe("CogsDetailContent", () => {
     render(<CogsDetailContent detail={detailWithActualMargin} />);
 
     expect(screen.getByText("Actual margin")).toBeInTheDocument();
-    expect(screen.getByText("50.2%")).toBeInTheDocument();
+    expect(screen.getByText("50.20%")).toBeInTheDocument();
+  });
+
+  it("rounds long actual margin percent to two decimals", () => {
+    const detailWithLongActualMargin: CogsMenuDetail = {
+      ...mappedDetail,
+      actual_margin_percent: 217.61006289308176,
+    };
+
+    render(<CogsDetailContent detail={detailWithLongActualMargin} />);
+
+    expect(screen.getByText("217.61%")).toBeInTheDocument();
+  });
+
+  it("formats margin with two decimal places", () => {
+    const detailWithIntegerMargin: CogsMenuDetail = {
+      ...mappedDetail,
+      margin_percent: 30,
+    };
+
+    render(<CogsDetailContent detail={detailWithIntegerMargin} />);
+
+    expect(screen.getByText("30.00%")).toBeInTheDocument();
   });
 
   it("renders dash when actual margin is null", () => {
