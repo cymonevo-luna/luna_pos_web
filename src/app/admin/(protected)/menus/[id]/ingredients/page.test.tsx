@@ -59,6 +59,7 @@ const menu: Menu = {
   photo_url: null,
   available_stock: 10,
   sell_price: 25000,
+  has_ingredients: true,
   recipe_yield: 1,
   margin_percent: 0,
   vat_percent: 0,

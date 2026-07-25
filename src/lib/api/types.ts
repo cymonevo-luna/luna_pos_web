@@ -257,6 +257,7 @@ export interface Menu {
   photo_url?: string | null;
   available_stock: number;
   sell_price: number;
+  has_ingredients: boolean;
   recipe_yield?: number;
   margin_percent?: number;
   vat_percent?: number;
