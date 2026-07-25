@@ -540,6 +540,7 @@ export interface CogsMenuSummary {
   category_name: string;
   cogs_per_piece: number | null;
   margin_percent: number;
+  actual_margin_percent: number | null;
   vat_percent: number;
   price_after_margin: number | null;
   price_after_vat: number | null;

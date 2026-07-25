@@ -39,6 +39,11 @@ function formatPercent(value: number) {
   return `${value}%`;
 }
 
+function formatNullablePercent(value: number | null | undefined) {
+  if (value == null) return "—";
+  return formatPercent(value);
+}
+
 function formatMoney(value: number | null | undefined) {
   if (value == null) return "—";
   return formatRupiah(value);
@@ -212,6 +217,15 @@ export default function AdminCogsPage() {
                     onSort={handleSort}
                   />
                 </th>
+                <th className="px-4 py-3 font-medium">
+                  <SortableTableHeader
+                    label="Actual margin %"
+                    sortKey="actual_margin"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                </th>
                 <th className="px-4 py-3 font-medium">VAT %</th>
                 <th className="px-4 py-3 font-medium">Price after margin</th>
                 <th className="px-4 py-3 font-medium">Price after VAT</th>
@@ -241,7 +255,7 @@ export default function AdminCogsPage() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-border">
-                    {Array.from({ length: 11 }).map((__, j) => (
+                    {Array.from({ length: 12 }).map((__, j) => (
                       <td key={j} className="px-4 py-3">
                         <Skeleton className="h-4 w-20" />
                       </td>
@@ -251,7 +265,7 @@ export default function AdminCogsPage() {
               ) : items.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={11}
+                    colSpan={12}
                     className="px-4 py-10 text-center text-muted-foreground"
                   >
                     No menus found.
@@ -269,6 +283,9 @@ export default function AdminCogsPage() {
                     <td className="px-4 py-3">{formatMoney(item.cogs_per_piece)}</td>
                     <td className="px-4 py-3">
                       {formatPercent(item.margin_percent)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {formatNullablePercent(item.actual_margin_percent)}
                     </td>
                     <td className="px-4 py-3">
                       {formatPercent(item.vat_percent)}

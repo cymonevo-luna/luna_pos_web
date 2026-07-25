@@ -8,6 +8,11 @@ function formatPercent(value: number) {
   return `${value}%`;
 }
 
+function formatNullablePercent(value: number | null | undefined) {
+  if (value == null) return "—";
+  return formatPercent(value);
+}
+
 function formatMoney(value: number | null | undefined) {
   if (value == null) return "—";
   return formatRupiah(value);
@@ -47,11 +52,17 @@ export function CogsDetailContent({ detail }: CogsDetailContentProps) {
 
       <div className="mt-6">
         <h4 className="mb-3 text-sm font-medium">Price comparison</h4>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="p-4">
             <p className="text-sm text-muted-foreground">Current sell price</p>
             <p className="text-lg font-semibold">
               {formatRupiah(detail.sell_price)}
+            </p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-sm text-muted-foreground">Actual margin</p>
+            <p className="text-lg font-semibold">
+              {formatNullablePercent(detail.actual_margin_percent)}
             </p>
           </Card>
           <Card className="p-4">
