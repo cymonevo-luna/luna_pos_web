@@ -3,6 +3,9 @@ import {
   purchaseRequestsAdminApi,
   downloadPurchaseRequestsCsv,
   exportPurchaseRequestsCsv,
+  downloadPurchaseImportTemplate,
+  downloadPurchaseImportTemplateFile,
+  importPurchaseRequestsCsv,
   normalizePurchaseRequestItem,
   normalizePurchaseRequest,
   purchaseRequestFormToPayload,
@@ -733,6 +736,77 @@ describe("purchaseRequestsAdminApi", () => {
       "http://localhost:8080/api/admin/purchase-requests/export?transaction_date=2026-07-25",
     );
   });
+
+  it("downloads the import template with authorization", async () => {
+    tokenStore.set("token-abc", "refresh-abc");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("item_name,supplier_name", {
+        status: 200,
+        headers: {
+          "Content-Type": "text/csv",
+          "Content-Disposition":
+            'attachment; filename="purchase-import-template.csv"',
+        },
+      }),
+    );
+
+    const result = await downloadPurchaseImportTemplate();
+
+    expect(await result.blob.text()).toBe("item_name,supplier_name");
+    expect(result.filename).toBe("purchase-import-template.csv");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/purchase-requests/import/template",
+    );
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer token-abc");
+  });
+
+  it("posts multipart import payload with proofs JSON", async () => {
+    tokenStore.set("token-abc", "refresh-abc");
+    const file = new File(["csv"], "import.csv", { type: "text/csv" });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: { created_count: 2 },
+      }),
+    );
+
+    const result = await importPurchaseRequestsCsv({
+      file,
+      transactionDate: "2026-07-25",
+      targetStatus: "PAID",
+      proofs: {
+        "Beras Supplier": {
+          paid_proof_url: "https://cdn.example.com/beras.jpg",
+        },
+      },
+    });
+
+    expect(result.created_count).toBe(2);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/purchase-requests/import",
+    );
+    expect(init?.method).toBe("POST");
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer token-abc");
+    expect(headers.get("Content-Type")).toBeNull();
+
+    const body = init?.body as FormData;
+    expect(body.get("transaction_date")).toBe("2026-07-25");
+    expect(body.get("target_status")).toBe("PAID");
+    expect(body.get("proofs")).toBe(
+      JSON.stringify({
+        "Beras Supplier": {
+          paid_proof_url: "https://cdn.example.com/beras.jpg",
+        },
+      }),
+    );
+    expect(body.get("file")).toBeInstanceOf(File);
+  });
 });
 
 describe("normalizePurchaseRequest regression", () => {
@@ -805,6 +879,29 @@ describe("normalizePurchaseRequest regression", () => {
       to_status: "REQUESTED",
       changed_by_username: "admin",
     });
+  });
+});
+
+describe("downloadPurchaseImportTemplateFile", () => {
+  it("creates a download link for the template blob", () => {
+    const click = vi.fn();
+    const anchor = {
+      href: "",
+      download: "",
+      click,
+    } as unknown as HTMLAnchorElement;
+
+    vi.spyOn(document, "createElement").mockReturnValue(anchor);
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock");
+    const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL");
+
+    downloadPurchaseImportTemplateFile(new Blob(["item_name,supplier_name"]), {
+      filename: "purchase-import-template.csv",
+    });
+
+    expect(anchor.download).toBe("purchase-import-template.csv");
+    expect(click).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:mock");
   });
 });
 

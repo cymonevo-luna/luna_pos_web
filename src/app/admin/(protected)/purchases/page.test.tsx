@@ -133,7 +133,10 @@ describe("AdminPurchasesPage", () => {
     render(<AdminPurchasesPage />);
     await screen.findByText("Beras Supplier");
 
-    expect(screen.getByLabelText("Transaction date")).toBeInTheDocument();
+    expect(screen.getByTestId("purchases-date-preset")).toHaveAttribute(
+      "aria-label",
+      "Transaction date",
+    );
   });
 
   it("reloads with transaction date range filter", async () => {
@@ -143,7 +146,7 @@ describe("AdminPurchasesPage", () => {
     await screen.findByText("Beras Supplier");
 
     await user.selectOptions(
-      screen.getByLabelText("Transaction date"),
+      screen.getByTestId("purchases-date-preset"),
       "custom",
     );
     await user.type(
@@ -334,7 +337,9 @@ describe("AdminPurchasesPage", () => {
     await screen.findByText("Beras Supplier");
 
     expect(screen.getByTestId("purchase-export-section")).toBeInTheDocument();
-    expect(screen.getByLabelText("Transaction date")).toHaveValue("2026-07-25");
+    expect(screen.getByTestId("export-transaction-date")).toHaveValue(
+      "2026-07-25",
+    );
     expect(screen.getByLabelText("Export status filter")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Export/i }),
@@ -441,5 +446,33 @@ describe("AdminPurchasesPage", () => {
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Export failed");
     });
+  });
+
+  it("shows import button for users with purchases.manage", async () => {
+    render(<AdminPurchasesPage />);
+    await screen.findByText("Beras Supplier");
+
+    expect(screen.getByTestId("open-import-dialog")).toBeInTheDocument();
+  });
+
+  it("hides import button without purchases.manage", async () => {
+    mockNoPurchasesManageFeatures();
+
+    render(<AdminPurchasesPage />);
+    await screen.findByText("Beras Supplier");
+
+    expect(screen.queryByTestId("open-import-dialog")).not.toBeInTheDocument();
+  });
+
+  it("opens the import dialog when Import CSV is clicked", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminPurchasesPage />);
+    await screen.findByText("Beras Supplier");
+
+    await user.click(screen.getByTestId("open-import-dialog"));
+
+    expect(screen.getByTestId("purchase-import-dialog")).toBeInTheDocument();
+    expect(screen.getByTestId("download-import-template")).toBeInTheDocument();
   });
 });

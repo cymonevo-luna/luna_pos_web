@@ -1,5 +1,14 @@
+import { config } from "@/lib/config";
+import {
+  clearSessionAndRedirectToLogin,
+  ensureFreshAccessToken,
+  isLoginRoute,
+  performSessionRefresh,
+} from "@/lib/auth/session-refresh";
+import { tokenStore } from "@/lib/auth/tokens";
 import { startOfDayWIB } from "@/lib/datetime/wib";
-import { api, type ApiResult } from "./client";
+import { api, ApiError, type ApiResult } from "./client";
+import type { Envelope } from "./types";
 import { appendHistoryDateParams } from "./history-date-params";
 import { parseNumeric } from "./suppliers";
 import type {
@@ -391,6 +400,116 @@ export async function exportPurchaseRequestsCsv({
   return api.downloadBlobResult(
     `/api/admin/purchase-requests/export?${params.toString()}`,
   );
+}
+
+export interface PurchaseImportSupplierProofs {
+  paid_proof_url?: string;
+  delivered_proof_url?: string;
+}
+
+export type PurchaseImportProofsMap = Record<string, PurchaseImportSupplierProofs>;
+
+export interface ImportPurchaseRequestsCsvParams {
+  file: File;
+  transactionDate: string;
+  targetStatus: PurchaseRequestStatus;
+  proofs?: PurchaseImportProofsMap;
+}
+
+export interface ImportPurchaseRequestsCsvResult {
+  created_count: number;
+}
+
+/** Download the purchase import CSV template. */
+export async function downloadPurchaseImportTemplate() {
+  return api.downloadBlobResult(
+    "/api/admin/purchase-requests/import/template",
+  );
+}
+
+/** Trigger a browser download for the purchase import template blob. */
+export function downloadPurchaseImportTemplateFile(
+  blob: Blob,
+  options: { filename?: string } = {},
+) {
+  const { filename } = options;
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename ?? "purchase-requests-import-template.csv";
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+async function importPurchaseRequestsCsvRequest(
+  params: ImportPurchaseRequestsCsvParams,
+  _retried = false,
+): Promise<ImportPurchaseRequestsCsvResult> {
+  if (!isLoginRoute() && (tokenStore.access || tokenStore.refresh)) {
+    const fresh = await ensureFreshAccessToken();
+    if (!fresh) {
+      clearSessionAndRedirectToLogin();
+      throw new ApiError(401, "unauthorized", "Session expired");
+    }
+  }
+
+  const formData = new FormData();
+  formData.append("file", params.file);
+  formData.append("transaction_date", params.transactionDate);
+  formData.append("target_status", params.targetStatus);
+  if (params.proofs && Object.keys(params.proofs).length > 0) {
+    formData.append("proofs", JSON.stringify(params.proofs));
+  }
+
+  const headers = new Headers();
+  if (!isLoginRoute()) {
+    const token = tokenStore.access;
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const res = await fetch(
+    `${config.apiBaseUrl}/api/admin/purchase-requests/import`,
+    {
+      method: "POST",
+      headers,
+      body: formData,
+    },
+  );
+
+  if (res.status === 401 && !_retried && !isLoginRoute()) {
+    const refreshed = await performSessionRefresh();
+    if (refreshed) {
+      return importPurchaseRequestsCsvRequest(params, true);
+    }
+    clearSessionAndRedirectToLogin();
+  }
+
+  let json: Envelope<ImportPurchaseRequestsCsvResult>;
+  try {
+    json = (await res.json()) as Envelope<ImportPurchaseRequestsCsvResult>;
+  } catch {
+    throw new ApiError(res.status, "invalid_response", res.statusText);
+  }
+
+  if (!res.ok || json.success === false) {
+    const err = json.error;
+    throw new ApiError(
+      res.status,
+      err?.code ?? "error",
+      err?.message ?? "Import failed",
+      err?.fields,
+      json.data,
+    );
+  }
+
+  return json.data as ImportPurchaseRequestsCsvResult;
+}
+
+/** Import purchase requests from a CSV file. */
+export async function importPurchaseRequestsCsv(
+  params: ImportPurchaseRequestsCsvParams,
+): Promise<ImportPurchaseRequestsCsvResult> {
+  return importPurchaseRequestsCsvRequest(params);
 }
 
 /** Trigger a browser download for a purchase-requests CSV blob. */

@@ -176,6 +176,9 @@ export async function uploadPurchasePhoto(
   return uploadPurchasePhotoRequest(file);
 }
 
+/** Alias for purchase proof uploads used by CSV import flows. */
+export const uploadPurchaseProof = uploadPurchasePhoto;
+
 export type BranchAssetPhotoUploadResult = PhotoUploadResult;
 export type ExpenseReceiptUploadResult = PhotoUploadResult;
 
