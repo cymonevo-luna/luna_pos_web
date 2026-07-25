@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { CogsDetailContent } from "./cogs-detail-content";
 import {
   backendDetailFixture,
@@ -20,6 +20,32 @@ describe("CogsDetailContent", () => {
     expect(screen.getByText("Local Market")).toBeInTheDocument();
     expect(screen.getAllByText("Premium Meats").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Yes").length).toBeGreaterThan(0);
+  });
+
+  it("renders actual margin in price comparison section", () => {
+    const detailWithActualMargin: CogsMenuDetail = {
+      ...mappedDetail,
+      actual_margin_percent: 50.2,
+    };
+
+    render(<CogsDetailContent detail={detailWithActualMargin} />);
+
+    expect(screen.getByText("Actual margin")).toBeInTheDocument();
+    expect(screen.getByText("50.2%")).toBeInTheDocument();
+  });
+
+  it("renders dash when actual margin is null", () => {
+    const detailWithoutActualMargin: CogsMenuDetail = {
+      ...mappedDetail,
+      actual_margin_percent: null,
+    };
+
+    render(<CogsDetailContent detail={detailWithoutActualMargin} />);
+
+    const actualMarginLabel = screen.getByText("Actual margin");
+    const actualMarginCard = actualMarginLabel.closest("div");
+    expect(actualMarginCard).not.toBeNull();
+    expect(within(actualMarginCard!).getByText("—")).toBeInTheDocument();
   });
 
   it("renders empty state for no_formula without throwing", () => {

@@ -83,6 +83,7 @@ describe("cogsAdminApi", () => {
       category_name: "Main",
       cogs_per_piece: 15000,
       margin_percent: 30,
+      actual_margin_percent: 50.2,
       vat_percent: 11,
       price_after_margin: 19500,
       price_after_vat: 21645,

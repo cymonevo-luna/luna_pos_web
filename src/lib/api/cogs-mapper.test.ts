@@ -18,6 +18,7 @@ describe("normalizeCogsMenuSummary", () => {
       category_name: "Main",
       cogs_per_piece: 15000,
       margin_percent: 30,
+      actual_margin_percent: 50.2,
       vat_percent: 11,
       price_after_margin: 19500,
       price_after_vat: 21645,
@@ -41,6 +42,26 @@ describe("normalizeCogsMenuSummary", () => {
     });
     expect(normalized.margin_percent).toBe(20.5);
     expect(normalized.vat_percent).toBe(10);
+  });
+
+  it("normalizes actual_margin_percent from decimal string", () => {
+    const normalized = normalizeCogsMenuSummary({
+      ...backendSummaryFixture,
+      actual_margin_percent: "50.2",
+    });
+    expect(normalized.actual_margin_percent).toBe(50.2);
+  });
+
+  it("maps null or omitted actual_margin_percent to null", () => {
+    const withNull = normalizeCogsMenuSummary({
+      ...backendSummaryFixture,
+      actual_margin_percent: null,
+    });
+    expect(withNull.actual_margin_percent).toBeNull();
+
+    const { actual_margin_percent: _, ...withoutField } = backendSummaryFixture;
+    const omitted = normalizeCogsMenuSummary(withoutField);
+    expect(omitted.actual_margin_percent).toBeNull();
   });
 });
 

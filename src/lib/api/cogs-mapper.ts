@@ -44,6 +44,7 @@ export interface CogsMenuSummaryRaw {
   recipe_yield?: number;
   cogs_per_piece?: number | string | null;
   margin_percent: number | string;
+  actual_margin_percent?: number | string | null;
   vat_percent: number | string;
   price_after_margin?: number | string | null;
   price_after_vat?: number | string | null;
@@ -168,6 +169,7 @@ export function normalizeCogsMenuSummary(
     category_name: raw.category_name,
     cogs_per_piece: parseNullableNumeric(raw.cogs_per_piece),
     margin_percent: parseNumeric(raw.margin_percent),
+    actual_margin_percent: parseNullableNumeric(raw.actual_margin_percent),
     vat_percent: parseNumeric(raw.vat_percent),
     price_after_margin: parseNullableNumeric(raw.price_after_margin),
     price_after_vat: parseNullableNumeric(raw.price_after_vat),

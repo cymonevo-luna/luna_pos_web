@@ -16,6 +16,7 @@ import type {
 export type CogsSortBy =
   | "menu_title"
   | "margin"
+  | "actual_margin"
   | "current_sell_price"
   | "status";
 export type CogsSortOrder = "asc" | "desc";

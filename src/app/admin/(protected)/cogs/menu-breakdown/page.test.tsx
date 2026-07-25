@@ -45,6 +45,7 @@ const rendangSummary: CogsMenuSummary = {
   category_name: "Main",
   cogs_per_piece: 15000,
   margin_percent: 30,
+  actual_margin_percent: 45,
   vat_percent: 10,
   price_after_margin: 19500,
   price_after_vat: 21450,
@@ -61,6 +62,7 @@ const missingPricesSummary: CogsMenuSummary = {
   category_name: "Main",
   cogs_per_piece: null,
   margin_percent: 20,
+  actual_margin_percent: null,
   vat_percent: 11,
   price_after_margin: null,
   price_after_vat: null,
@@ -68,6 +70,23 @@ const missingPricesSummary: CogsMenuSummary = {
   recommended_online: null,
   sell_price: 18000,
   status: "missing_prices",
+};
+
+const noFormulaSummary: CogsMenuSummary = {
+  menu_id: "menu-3",
+  title: "Plain Rice",
+  category_id: "cat-1",
+  category_name: "Main",
+  cogs_per_piece: null,
+  margin_percent: 25,
+  actual_margin_percent: null,
+  vat_percent: 11,
+  price_after_margin: null,
+  price_after_vat: null,
+  recommended_offline: null,
+  recommended_online: null,
+  sell_price: 10000,
+  status: "no_formula",
 };
 
 const rendangDetail: CogsMenuDetail = {
@@ -222,7 +241,7 @@ describe("AdminCogsPage", () => {
     });
   });
 
-  it("renders four sortable column headers", async () => {
+  it("renders five sortable column headers", async () => {
     render(<AdminCogsPage />);
     await screen.findByText("Rendang");
 
@@ -233,11 +252,84 @@ describe("AdminCogsPage", () => {
       screen.getByRole("button", { name: "Sort by margin %" }),
     ).toBeInTheDocument();
     expect(
+      screen.getByRole("button", { name: "Sort by actual margin %" }),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("button", { name: "Sort by current sell price" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Sort by status" }),
     ).toBeInTheDocument();
+  });
+
+  it("renders Actual margin % column with formatted value", async () => {
+    render(<AdminCogsPage />);
+    await screen.findByText("Rendang");
+
+    expect(screen.getByText("Actual margin %")).toBeInTheDocument();
+    expect(screen.getByText("45%")).toBeInTheDocument();
+  });
+
+  it("shows dash for null actual margin percent", async () => {
+    vi.mocked(cogsAdminApi.list).mockResolvedValue({
+      data: [noFormulaSummary],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminCogsPage />);
+    await screen.findByText("Plain Rice");
+
+    const row = screen.getByText("Plain Rice").closest("tr");
+    expect(row).not.toBeNull();
+    const cells = within(row!).getAllByRole("cell");
+    expect(cells[4]).toHaveTextContent("—");
+  });
+
+  it("keeps configured Margin % column alongside Actual margin %", async () => {
+    render(<AdminCogsPage />);
+    await screen.findByText("Rendang");
+
+    expect(screen.getByText("Margin %")).toBeInTheDocument();
+    expect(screen.getByText("30%")).toBeInTheDocument();
+    expect(screen.getByText("Actual margin %")).toBeInTheDocument();
+    expect(screen.getByText("45%")).toBeInTheDocument();
+  });
+
+  it("sends actual_margin asc then desc on Actual margin header clicks", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminCogsPage />);
+    await screen.findByText("Rendang");
+
+    await user.click(
+      screen.getByRole("button", { name: "Sort by actual margin %" }),
+    );
+
+    await waitFor(() => {
+      expect(cogsAdminApi.list).toHaveBeenLastCalledWith({
+        page: 1,
+        perPage: 10,
+        search: "",
+        categoryId: "",
+        sortBy: "actual_margin",
+        sortOrder: "asc",
+      });
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: "Sort by actual margin % ascending" }),
+    );
+
+    await waitFor(() => {
+      expect(cogsAdminApi.list).toHaveBeenLastCalledWith({
+        page: 1,
+        perPage: 10,
+        search: "",
+        categoryId: "",
+        sortBy: "actual_margin",
+        sortOrder: "desc",
+      });
+    });
   });
 
   it("sends menu_title sort on Menu header click", async () => {
@@ -255,6 +347,26 @@ describe("AdminCogsPage", () => {
         search: "",
         categoryId: "",
         sortBy: "menu_title",
+        sortOrder: "asc",
+      });
+    });
+  });
+
+  it("sends margin sort on Margin header click", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminCogsPage />);
+    await screen.findByText("Rendang");
+
+    await user.click(screen.getByRole("button", { name: "Sort by margin %" }));
+
+    await waitFor(() => {
+      expect(cogsAdminApi.list).toHaveBeenLastCalledWith({
+        page: 1,
+        perPage: 10,
+        search: "",
+        categoryId: "",
+        sortBy: "margin",
         sortOrder: "asc",
       });
     });
