@@ -657,6 +657,7 @@ export interface PurchaseRequest {
   total_estimated_amount: number;
   total_actual_amount?: number | null;
   created_by_username?: string | null;
+  transaction_date: string;
   created_at: string;
   updated_at: string;
 }
@@ -671,6 +672,7 @@ export interface PurchaseRequestSummary {
   total_actual_amount?: number | null;
   created_by_username?: string | null;
   notes?: string | null;
+  transaction_date: string;
   created_at: string;
   updated_at: string;
 }

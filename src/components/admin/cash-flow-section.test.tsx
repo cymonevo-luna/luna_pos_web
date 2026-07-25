@@ -146,6 +146,11 @@ describe("CashFlowSection", () => {
     ).toBeInTheDocument();
     const outflowBreakdown = screen.getByTestId("cash-flow-outflow-breakdown");
     expect(within(outflowBreakdown).getAllByText("Purchases").length).toBeGreaterThan(0);
+    expect(
+      within(outflowBreakdown).getByText(
+        /Purchase outflows use transaction date/,
+      ),
+    ).toBeInTheDocument();
     expect(within(outflowBreakdown).getAllByText("Expenses").length).toBeGreaterThan(0);
     expect(within(outflowBreakdown).getAllByText("Staff payouts").length).toBeGreaterThan(0);
     expect(within(outflowBreakdown).getAllByText("Menu Disposals").length).toBeGreaterThan(0);

@@ -260,6 +260,34 @@ describe("purchaseRequestsAdminApi", () => {
     vi.restoreAllMocks();
   });
 
+  it("builds the correct list URL with date filters and attaches authorization", async () => {
+    tokenStore.set("token-abc", "refresh-abc");
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        jsonResponse({
+          success: true,
+          data: [],
+          meta: { page: 1, per_page: 10, total: 0 },
+        }),
+      );
+
+    await purchaseRequestsAdminApi.list({
+      page: 1,
+      perPage: 10,
+      status: "PENDING",
+      dateFrom: "2026-01-10",
+      dateTo: "2026-01-20",
+    });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/purchase-requests?page=1&per_page=10&status=PENDING&date_from=2026-01-10&date_to=2026-01-20",
+    );
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer token-abc");
+  });
+
   it("builds the correct list URL with filters and attaches authorization", async () => {
     tokenStore.set("token-abc", "refresh-abc");
     const fetchMock = vi
@@ -308,6 +336,7 @@ describe("purchaseRequestsAdminApi", () => {
         },
       ],
       total_estimated_amount: "118000",
+      transaction_date: "2026-01-01T00:00:00Z",
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
@@ -371,6 +400,7 @@ describe("purchaseRequestsAdminApi", () => {
       notes: null,
       items: [],
       total_estimated_amount: "118000",
+      transaction_date: "2026-01-01T00:00:00Z",
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
@@ -442,6 +472,7 @@ describe("purchaseRequestsAdminApi", () => {
       notes: null,
       items: [],
       total_estimated_amount: "118000",
+      transaction_date: "2026-01-01T00:00:00Z",
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
       status_history: [
@@ -501,6 +532,7 @@ describe("purchaseRequestsAdminApi", () => {
             status: "PENDING",
             item_count: 2,
             total_estimated_amount: "560",
+            transaction_date: "2026-01-01T00:00:00Z",
             created_at: "2026-01-01T00:00:00Z",
             updated_at: "2026-01-01T00:00:00Z",
           },
@@ -731,8 +763,9 @@ describe("normalizePurchaseRequest regression", () => {
       notes: null,
       items: [],
       total_estimated_amount: 0,
+      transaction_date: "2026-01-01T00:00:00Z",
       created_at: "2026-01-01T00:00:00Z",
-      updated_at: "2026-01-02T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
       status_history: [
         {
           id: "hist-1",

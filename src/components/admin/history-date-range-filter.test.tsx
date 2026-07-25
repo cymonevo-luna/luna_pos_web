@@ -54,6 +54,22 @@ describe("HistoryDateRangeFilter", () => {
     expect(screen.getByLabelText("Date to")).toBeInTheDocument();
   });
 
+  it("supports custom aria labels", async () => {
+    render(
+      <HistoryDateRangeFilter
+        value={{ preset: "custom", dateFrom: "", dateTo: "" }}
+        onChange={() => {}}
+        presetAriaLabel="Transaction date"
+        dateFromAriaLabel="Transaction date from"
+        dateToAriaLabel="Transaction date to"
+      />,
+    );
+
+    expect(screen.getByLabelText("Transaction date")).toBeInTheDocument();
+    expect(screen.getByLabelText("Transaction date from")).toBeInTheDocument();
+    expect(screen.getByLabelText("Transaction date to")).toBeInTheDocument();
+  });
+
   it("clears bounds when All dates is selected", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

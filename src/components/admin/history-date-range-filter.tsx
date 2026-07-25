@@ -23,6 +23,9 @@ interface HistoryDateRangeFilterProps {
   presetTestId?: string;
   dateFromTestId?: string;
   dateToTestId?: string;
+  presetAriaLabel?: string;
+  dateFromAriaLabel?: string;
+  dateToAriaLabel?: string;
 }
 
 export function HistoryDateRangeFilter({
@@ -32,6 +35,9 @@ export function HistoryDateRangeFilter({
   presetTestId = "history-date-preset",
   dateFromTestId = "history-date-from",
   dateToTestId = "history-date-to",
+  presetAriaLabel = "Date range",
+  dateFromAriaLabel = "Date from",
+  dateToAriaLabel = "Date to",
 }: HistoryDateRangeFilterProps) {
   const maxDate = useMemo(() => getTodayDateInput(), []);
 
@@ -51,7 +57,7 @@ export function HistoryDateRangeFilter({
   return (
     <div className={className ?? "flex flex-col gap-3 sm:flex-row sm:items-center"}>
       <Select
-        aria-label="Date range"
+        aria-label={presetAriaLabel}
         data-testid={presetTestId}
         className="w-full sm:w-44"
         options={DATE_RANGE_PRESET_OPTIONS}
@@ -64,7 +70,7 @@ export function HistoryDateRangeFilter({
         <>
           <Input
             type="date"
-            aria-label="Date from"
+            aria-label={dateFromAriaLabel}
             data-testid={dateFromTestId}
             value={value.dateFrom}
             max={maxDate}
@@ -75,7 +81,7 @@ export function HistoryDateRangeFilter({
           />
           <Input
             type="date"
-            aria-label="Date to"
+            aria-label={dateToAriaLabel}
             data-testid={dateToTestId}
             value={value.dateTo}
             max={maxDate}

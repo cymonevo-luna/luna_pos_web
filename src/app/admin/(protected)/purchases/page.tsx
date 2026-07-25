@@ -176,6 +176,9 @@ export default function AdminPurchasesPage() {
             presetTestId="purchases-date-preset"
             dateFromTestId="purchases-date-from"
             dateToTestId="purchases-date-to"
+            presetAriaLabel="Transaction date"
+            dateFromAriaLabel="Transaction date from"
+            dateToAriaLabel="Transaction date to"
           />
           <Select
             aria-label="Filter by status"
@@ -269,7 +272,7 @@ export default function AdminPurchasesPage() {
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/50 text-left text-muted-foreground">
               <tr>
-                <th className="px-4 py-3 font-medium">Created</th>
+                <th className="px-4 py-3 font-medium">Transaction date</th>
                 <th className="px-4 py-3 font-medium">Supplier</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Items</th>
@@ -307,7 +310,7 @@ export default function AdminPurchasesPage() {
                     }
                   >
                     <td className="px-4 py-3 text-muted-foreground">
-                      {formatDate(purchase.created_at)}
+                      {formatDate(purchase.transaction_date)}
                     </td>
                     <td className="px-4 py-3 font-medium">
                       {purchase.supplier_name}
