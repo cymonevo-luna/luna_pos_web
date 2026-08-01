@@ -180,7 +180,12 @@ export function extractWhatsAppPhone(contactInfo: string): string | null {
 }
 
 /** Build an Indonesian WhatsApp order message for a purchase request. */
-export function buildPurchaseWhatsAppMessage(purchase: PurchaseRequest): string {
+export function buildPurchaseWhatsAppMessage(
+  purchase: PurchaseRequest,
+  options?: { includePrices?: boolean },
+): string {
+  const includePrices = options?.includePrices ?? true;
+
   const lines = purchase.items.map((item, index) => {
     const title = item.food_supply_title ?? "Bahan";
     const quantityLabel = formatMeasurementQuantity(
@@ -190,31 +195,34 @@ export function buildPurchaseWhatsAppMessage(purchase: PurchaseRequest): string 
     return `${index + 1}. ${quantityLabel} ${title}`.trim();
   });
 
-  const totalLines: string[] = [];
-  if (purchase.total_actual_amount != null) {
-    if (purchase.total_actual_amount !== purchase.total_estimated_amount) {
-      totalLines.push(
-        `Total: ${formatRupiah(purchase.total_actual_amount)} (estimasi: ${formatRupiah(purchase.total_estimated_amount)})`,
-      );
-    } else {
-      totalLines.push(`Total: ${formatRupiah(purchase.total_actual_amount)}`);
-    }
-  } else {
-    totalLines.push(
-      `Estimasi total: ${formatRupiah(purchase.total_estimated_amount)}`,
-    );
-  }
-
-  return [
+  const messageParts = [
     `Halo ${purchase.supplier_name},`,
     "",
     "Kami ingin memesan bahan berikut:",
     ...lines,
     "",
-    ...totalLines,
-    "",
-    "Terima kasih.",
-  ].join("\n");
+  ];
+
+  if (includePrices) {
+    const totalLines: string[] = [];
+    if (purchase.total_actual_amount != null) {
+      if (purchase.total_actual_amount !== purchase.total_estimated_amount) {
+        totalLines.push(
+          `Total: ${formatRupiah(purchase.total_actual_amount)} (estimasi: ${formatRupiah(purchase.total_estimated_amount)})`,
+        );
+      } else {
+        totalLines.push(`Total: ${formatRupiah(purchase.total_actual_amount)}`);
+      }
+    } else {
+      totalLines.push(
+        `Estimasi total: ${formatRupiah(purchase.total_estimated_amount)}`,
+      );
+    }
+    messageParts.push(...totalLines, "");
+  }
+
+  messageParts.push("Terima kasih.");
+  return messageParts.join("\n");
 }
 
 /** Prefer actual purchase total for list display when present. */

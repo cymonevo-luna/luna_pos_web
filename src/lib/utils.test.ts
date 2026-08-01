@@ -261,6 +261,74 @@ describe("buildPurchaseWhatsAppMessage", () => {
     expect(message).toContain("Total: Rp 118.000");
     expect(message).not.toContain("estimasi:");
   });
+
+  it("omits total lines when includePrices is false", () => {
+    const message = buildPurchaseWhatsAppMessage(
+      {
+        id: "pr-1",
+        supplier_id: "sup-1",
+        supplier_name: "Beras Supplier",
+        supplier_contact_info: "08123456789",
+        status: "PENDING",
+        items: [
+          {
+            id: "item-1",
+            food_supply_id: "fs-1",
+            food_supply_title: "Beras",
+            unit: "piece",
+            quantity: 3,
+            price_quantity: 1,
+            unit_price: 26000,
+            price_amount: 26000,
+            line_estimated_amount: 78000,
+          },
+        ],
+        total_estimated_amount: 118000,
+        status_history: [],
+        transaction_date: "2026-01-01T00:00:00Z",
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      },
+      { includePrices: false },
+    );
+
+    expect(message).toContain("Halo Beras Supplier,");
+    expect(message).toContain("1. 3 pcs Beras");
+    expect(message).toContain("Terima kasih.");
+    expect(message).not.toContain("Estimasi total");
+    expect(message).not.toContain("Total:");
+    expect(message).not.toContain("Rp 118.000");
+  });
+
+  it("includes totals by default when options are omitted", () => {
+    const message = buildPurchaseWhatsAppMessage({
+      id: "pr-1",
+      supplier_id: "sup-1",
+      supplier_name: "Beras Supplier",
+      supplier_contact_info: "08123456789",
+      status: "PENDING",
+      items: [
+        {
+          id: "item-1",
+          food_supply_id: "fs-1",
+          food_supply_title: "Beras",
+          unit: "piece",
+          quantity: 3,
+          price_quantity: 1,
+          unit_price: 26000,
+          price_amount: 26000,
+          line_estimated_amount: 78000,
+        },
+      ],
+      total_estimated_amount: 118000,
+      status_history: [],
+      transaction_date: "2026-01-01T00:00:00Z",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+
+    expect(message).toContain("Estimasi total: Rp 118.000");
+  });
 });
 
 describe("formatPurchaseSummaryTotal", () => {
