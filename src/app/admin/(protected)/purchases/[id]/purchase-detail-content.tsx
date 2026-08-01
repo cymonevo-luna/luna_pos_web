@@ -149,6 +149,8 @@ function statusHistoryPhotoAltText(toStatus: string) {
 const PAID_DATE_TOOLTIP =
   "When cash left the business for this purchase. This affects cash-flow reporting, not when the purchase request was created.";
 
+const CONTACT_INCLUDE_PRICES_KEY = "luna_pos_web:purchase_contact_include_prices";
+
 function findPaidHistoryEntry(
   history: PurchaseRequestStatusHistoryEntry[],
 ): PurchaseRequestStatusHistoryEntry | undefined {
@@ -188,6 +190,7 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
   const [paidDateError, setPaidDateError] = useState<string | null>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const [includePricesInMessage, setIncludePricesInMessage] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -207,6 +210,15 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(CONTACT_INCLUDE_PRICES_KEY);
+    if (stored === "true") {
+      setIncludePricesInMessage(true);
+    } else if (stored === "false") {
+      setIncludePricesInMessage(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!purchase) return;
@@ -337,9 +349,19 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
     : null;
   const contactSupplierDisabledTitle = "No supplier phone number";
 
+  const handleIncludePricesChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const checked = event.target.checked;
+    setIncludePricesInMessage(checked);
+    localStorage.setItem(CONTACT_INCLUDE_PRICES_KEY, checked ? "true" : "false");
+  };
+
   const handleContactSupplier = () => {
     if (!purchase || !whatsAppPhone) return;
-    const message = buildPurchaseWhatsAppMessage(purchase);
+    const message = buildPurchaseWhatsAppMessage(purchase, {
+      includePrices: includePricesInMessage,
+    });
     const url = `https://wa.me/${whatsAppPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, "_blank");
   };
@@ -444,6 +466,18 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                   Delete purchase
                 </Button>
               ) : null}
+              <div className="flex items-center gap-2">
+                <input
+                  id="purchase-contact-include-prices"
+                  type="checkbox"
+                  className="border-input h-4 w-4 rounded border"
+                  checked={includePricesInMessage}
+                  onChange={handleIncludePricesChange}
+                />
+                <Label htmlFor="purchase-contact-include-prices">
+                  Include prices in message
+                </Label>
+              </div>
               <span title={whatsAppPhone ? undefined : contactSupplierDisabledTitle}>
                 <Button
                   variant="outline"

@@ -57,10 +57,6 @@ vi.mock("sonner", () => ({
   },
 }));
 
-function createImageFile(name = "receipt.jpg"): File {
-  return new File([new Uint8Array([1, 2, 3])], name, { type: "image/jpeg" });
-}
-
 const purchase: PurchaseRequest = {
   id: "pr-1",
   supplier_id: "sup-1",
@@ -109,6 +105,16 @@ const purchase: PurchaseRequest = {
   updated_at: "2026-01-01T00:00:00Z",
 };
 
+const CONTACT_INCLUDE_PRICES_KEY = "luna_pos_web:purchase_contact_include_prices";
+
+function createImageFile(name = "receipt.jpg"): File {
+  return new File([new Uint8Array([1, 2, 3])], name, { type: "image/jpeg" });
+}
+
+function decodeWhatsAppMessage(url: unknown): string {
+  return decodeURIComponent(String(url).split("text=")[1] ?? "");
+}
+
 function mockAdminRoles() {
   vi.mocked(useRoles).mockReturnValue({
     roles: ["admin"],
@@ -136,6 +142,7 @@ function mockOperationalRoles() {
 describe("AdminPurchaseDetailContent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mockAdminRoles();
     mockFeatures();
     vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({ data: purchase });
@@ -457,6 +464,12 @@ describe("AdminPurchaseDetailContent", () => {
       "title",
       "No supplier phone number",
     );
+
+    const checkbox = screen.getByRole("checkbox", {
+      name: "Include prices in message",
+    });
+    expect(checkbox).toBeEnabled();
+    expect(checkbox).toBeChecked();
   });
 
   it("disables contact supplier when contact info has no phone", async () => {
@@ -478,6 +491,106 @@ describe("AdminPurchaseDetailContent", () => {
       "title",
       "No supplier phone number",
     );
+
+    const checkbox = screen.getByRole("checkbox", {
+      name: "Include prices in message",
+    });
+    expect(checkbox).toBeEnabled();
+    expect(checkbox).toBeChecked();
+  });
+
+  it("renders include prices checkbox checked by default", async () => {
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+    await screen.findByText("Beras Supplier");
+
+    const checkbox = screen.getByRole("checkbox", {
+      name: "Include prices in message",
+    });
+    expect(checkbox).toBeChecked();
+  });
+
+  it("sends WhatsApp message without totals when include prices is unchecked", async () => {
+    const user = userEvent.setup();
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+    await screen.findByText("Beras Supplier");
+
+    const checkbox = screen.getByRole("checkbox", {
+      name: "Include prices in message",
+    });
+    await user.click(checkbox);
+    expect(checkbox).not.toBeChecked();
+
+    await user.click(screen.getByRole("button", { name: "Contact supplier" }));
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    const decoded = decodeWhatsAppMessage(openSpy.mock.calls[0][0]);
+    expect(decoded).toContain("Beras");
+    expect(decoded).toContain("Gula");
+    expect(decoded).not.toContain("Estimasi total");
+    expect(decoded).not.toContain("Total:");
+
+    openSpy.mockRestore();
+  });
+
+  it("sends WhatsApp message with totals when include prices is checked", async () => {
+    const user = userEvent.setup();
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+    await screen.findByText("Beras Supplier");
+
+    const checkbox = screen.getByRole("checkbox", {
+      name: "Include prices in message",
+    });
+    expect(checkbox).toBeChecked();
+
+    await user.click(screen.getByRole("button", { name: "Contact supplier" }));
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    const decoded = decodeWhatsAppMessage(openSpy.mock.calls[0][0]);
+    expect(decoded).toContain("Estimasi total: Rp 118.000");
+
+    openSpy.mockRestore();
+  });
+
+  it("persists include prices preference in localStorage across remounts", async () => {
+    const user = userEvent.setup();
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+
+    const { unmount } = renderWithProviders(
+      <AdminPurchaseDetailContent id="pr-1" />,
+    );
+    await screen.findByText("Beras Supplier");
+
+    const checkbox = screen.getByRole("checkbox", {
+      name: "Include prices in message",
+    });
+    await user.click(checkbox);
+    expect(checkbox).not.toBeChecked();
+    expect(localStorage.getItem(CONTACT_INCLUDE_PRICES_KEY)).toBe("false");
+
+    unmount();
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+    await screen.findByText("Beras Supplier");
+
+    const restoredCheckbox = await screen.findByRole("checkbox", {
+      name: "Include prices in message",
+    });
+    await waitFor(() => {
+      expect(restoredCheckbox).not.toBeChecked();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Contact supplier" }));
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    const decoded = decodeWhatsAppMessage(openSpy.mock.calls[0][0]);
+    expect(decoded).not.toContain("Estimasi total");
+    expect(decoded).not.toContain("Total:");
+
+    openSpy.mockRestore();
   });
 
   it("opens WhatsApp when contact supplier is clicked with a valid phone", async () => {
