@@ -171,17 +171,20 @@ describe("expensesAdminApi", () => {
   });
 
   it("patches record date with ISO8601 payload", async () => {
+    const originalCreatedAt = "2026-01-01T00:00:00Z";
+    const updatedTransactionDate = "2025-12-28T12:30:00Z";
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({
         success: true,
         data: {
           ...expenseRaw,
-          created_at: "2025-12-28T12:30:00Z",
+          transaction_date: updatedTransactionDate,
+          created_at: originalCreatedAt,
         },
       }),
     );
 
-    const recordDate = new Date("2025-12-28T12:30:00Z");
+    const recordDate = new Date(updatedTransactionDate);
     const result = await updateRecordDate("exp-1", recordDate);
 
     const [url, init] = fetchMock.mock.calls[0];
@@ -192,7 +195,8 @@ describe("expensesAdminApi", () => {
     expect(JSON.parse(String(init?.body))).toEqual({
       record_date: recordDate.toISOString(),
     });
-    expect(result.data.created_at).toBe("2025-12-28T12:30:00Z");
+    expect(result.data.transaction_date).toBe(updatedTransactionDate);
+    expect(result.data.created_at).toBe(originalCreatedAt);
   });
 });
 

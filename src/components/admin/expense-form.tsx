@@ -238,7 +238,9 @@ export const ExpenseForm = React.forwardRef<ExpenseFormHandle, ExpenseFormProps>
 
         {showRecordDate ? (
           <div className="space-y-1.5" data-testid="expense-record-date-section">
-            <Label htmlFor="expense-record-date">Transaction date</Label>
+            <Label htmlFor="expense-record-date">
+              Transaction date (cash-flow)
+            </Label>
             <Controller
               name="recordDate"
               control={control}
@@ -263,7 +265,8 @@ export const ExpenseForm = React.forwardRef<ExpenseFormHandle, ExpenseFormProps>
               )}
             />
             <p className="text-xs text-muted-foreground">
-              Business date used for expense reporting and cash-flow calculations.
+              When cash left the business for this expense. This affects
+              cash-flow reporting, not when the expense was recorded.
             </p>
             {errors.recordDate && (
               <p
