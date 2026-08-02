@@ -842,6 +842,10 @@ export interface Expense {
   receipt_url?: string | null;
   created_by_user_id?: string | null;
   created_by_username?: string | null;
+  /** Set when this expense was auto-generated from a recurring expense. */
+  recurring_expense_id?: string | null;
+  /** Staff linked to the recurring expense when this is an auto-generated salary payout. */
+  recurring_expense_staff_id?: string | null;
   transaction_date: string;
   created_at: string;
   updated_at: string;
