@@ -237,7 +237,7 @@ export function PurchaseImportDialog({
       );
       if (
         result.purchase_requests?.some(
-          (pr) => pr.has_catalog_price_mismatch === true,
+          (pr) => pr.has_price_mismatch === true,
         )
       ) {
         toast(

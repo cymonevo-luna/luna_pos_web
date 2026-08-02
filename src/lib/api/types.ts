@@ -660,7 +660,7 @@ export interface PurchaseRequest {
   status_history: PurchaseRequestStatusHistoryEntry[];
   total_estimated_amount: number;
   total_actual_amount?: number | null;
-  has_catalog_price_mismatch?: boolean;
+  has_price_mismatch?: boolean;
   transaction_date: string;
   created_by_username?: string | null;
   created_at: string;
@@ -675,7 +675,7 @@ export interface PurchaseRequestSummary {
   item_count: number;
   total_estimated_amount: number;
   total_actual_amount?: number | null;
-  has_catalog_price_mismatch?: boolean;
+  has_price_mismatch?: boolean;
   transaction_date: string;
   created_by_username?: string | null;
   notes?: string | null;

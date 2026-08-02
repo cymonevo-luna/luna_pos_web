@@ -479,12 +479,12 @@ describe("AdminPurchasesPage", () => {
   it("shows price mismatch badge on flagged purchase row only", async () => {
     vi.mocked(purchaseRequestsAdminApi.list).mockResolvedValue({
       data: [
-        { ...purchase, has_catalog_price_mismatch: true },
+        { ...purchase, has_price_mismatch: true },
         {
           ...purchase,
           id: "pr-2",
           supplier_name: "Sayur Supplier",
-          has_catalog_price_mismatch: false,
+          has_price_mismatch: false,
         },
       ],
       meta: { page: 1, per_page: 10, total: 2 },
