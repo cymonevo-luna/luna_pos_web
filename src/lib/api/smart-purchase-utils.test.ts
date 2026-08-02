@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   applySupplierQuoteToItem,
   buildBatchPurchasePayload,
+  buildSupplierPriceUpdatePayload,
+  canEnableCatalogPriceUpdate,
+  deriveCatalogPriceFromActual,
   effectiveLineAmount,
   findSupplierQuote,
   groupWizardItemsBySupplier,
@@ -156,6 +159,101 @@ describe("groupWizardItemsBySupplier", () => {
   });
 });
 
+describe("canEnableCatalogPriceUpdate", () => {
+  it("returns false without supplier or catalog basis", () => {
+    expect(canEnableCatalogPriceUpdate(baseItem)).toBe(false);
+    expect(
+      canEnableCatalogPriceUpdate({
+        ...baseItem,
+        selected_supplier_id: null,
+        line_actual_amount: 175,
+      }),
+    ).toBe(false);
+  });
+
+  it("returns false without valid actual price", () => {
+    expect(
+      canEnableCatalogPriceUpdate({
+        ...baseItem,
+        line_actual_amount: undefined,
+      }),
+    ).toBe(false);
+    expect(
+      canEnableCatalogPriceUpdate({
+        ...baseItem,
+        line_actual_amount: 0,
+      }),
+    ).toBe(false);
+  });
+
+  it("returns false when actual equals estimate", () => {
+    expect(
+      canEnableCatalogPriceUpdate({
+        ...baseItem,
+        line_actual_amount: 200,
+      }),
+    ).toBe(false);
+  });
+
+  it("returns true when actual differs from estimate", () => {
+    expect(
+      canEnableCatalogPriceUpdate({
+        ...baseItem,
+        line_actual_amount: 175,
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("deriveCatalogPriceFromActual", () => {
+  it("derives catalog price preserving catalog quantity basis", () => {
+    const item: SmartPurchaseWizardItem = {
+      ...baseItem,
+      quantity: 2000,
+      price_amount: 140000,
+      price_quantity: 1000,
+      line_estimated_amount: 280000,
+      line_actual_amount: 300000,
+    };
+
+    expect(deriveCatalogPriceFromActual(item)).toEqual({
+      price_amount: 150000,
+      price_quantity: 1000,
+    });
+  });
+
+  it("returns null without valid actual amount", () => {
+    expect(deriveCatalogPriceFromActual(baseItem)).toBeNull();
+  });
+});
+
+describe("buildSupplierPriceUpdatePayload", () => {
+  it("uses derived values when catalog update is enabled", () => {
+    const item: SmartPurchaseWizardItem = {
+      ...baseItem,
+      line_actual_amount: 175,
+      update_catalog_price: true,
+      catalog_price_amount: 99999,
+      catalog_price_quantity: 500,
+    };
+
+    expect(buildSupplierPriceUpdatePayload(item)).toEqual({
+      price_amount: "87500",
+      price_quantity: "1000",
+    });
+  });
+
+  it("returns undefined when catalog update is disabled", () => {
+    expect(
+      buildSupplierPriceUpdatePayload({
+        ...baseItem,
+        line_actual_amount: 175,
+        update_catalog_price: false,
+      }),
+    ).toBeUndefined();
+  });
+});
+
 describe("buildBatchPurchasePayload", () => {
   it("builds groups without duplicate food supplies across groups", () => {
     const secondItem: SmartPurchaseWizardItem = {
@@ -182,13 +280,11 @@ describe("buildBatchPurchasePayload", () => {
     });
   });
 
-  it("includes optional actual and catalog fields only when filled", () => {
+  it("includes auto-derived supplier_price_update when catalog update enabled", () => {
     const itemWithActual: SmartPurchaseWizardItem = {
       ...baseItem,
       line_actual_amount: 175,
       update_catalog_price: true,
-      catalog_price_amount: 110000,
-      catalog_price_quantity: 1000,
     };
 
     const payload = buildBatchPurchasePayload([itemWithActual]);
@@ -198,9 +294,26 @@ describe("buildBatchPurchasePayload", () => {
       quantity: "2",
       line_actual_amount: "175",
       supplier_price_update: {
-        price_amount: "110000",
+        price_amount: "87500",
         price_quantity: "1000",
       },
+    });
+  });
+
+  it("ignores stale manual catalog fields in favor of derived values", () => {
+    const itemWithStaleManual: SmartPurchaseWizardItem = {
+      ...baseItem,
+      line_actual_amount: 175,
+      update_catalog_price: true,
+      catalog_price_amount: 110000,
+      catalog_price_quantity: 1000,
+    };
+
+    const payload = buildBatchPurchasePayload([itemWithStaleManual]);
+
+    expect(payload.groups[0]?.items[0]?.supplier_price_update).toEqual({
+      price_amount: "87500",
+      price_quantity: "1000",
     });
   });
 
