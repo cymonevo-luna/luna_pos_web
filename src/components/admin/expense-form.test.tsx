@@ -244,7 +244,9 @@ describe("ExpenseForm", () => {
     expect(screen.getByTestId("expense-record-date-section")).toBeInTheDocument();
     expect(screen.getByTestId("expense-record-date-input")).toBeInTheDocument();
     expect(
-      screen.getByText("Reporting date used for cash-flow calculations."),
+      screen.getByText(
+        "Business date used for expense reporting and cash-flow calculations.",
+      ),
     ).toBeInTheDocument();
   });
 

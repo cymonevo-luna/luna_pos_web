@@ -73,6 +73,30 @@ describe("expensesAdminApi", () => {
     expect(headers.get("Authorization")).toBe("Bearer token-abc");
   });
 
+  it("builds list URL with transaction date range params", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        jsonResponse({
+          success: true,
+          data: [],
+          meta: { page: 1, per_page: 10, total: 0 },
+        }),
+      );
+
+    await listExpenses({
+      page: 1,
+      perPage: 10,
+      dateFrom: "2026-01-10",
+      dateTo: "2026-01-20",
+    });
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/expenses?page=1&per_page=10&date_from=2026-01-10&date_to=2026-01-20",
+    );
+  });
+
   it("unwraps envelope responses for get, create, update, and delete", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
       async (input, init) => {
@@ -313,7 +337,7 @@ describe("expenseFormToPayload", () => {
 });
 
 describe("expenseToFormValues", () => {
-  it("maps expense fields to form defaults", () => {
+  it("maps transaction_date to recordDate in form defaults", () => {
     expect(
       expenseToFormValues({
         id: "exp-1",
@@ -332,7 +356,7 @@ describe("expenseToFormValues", () => {
       amount: 250_000,
       source_of_fund: "CASHIER",
       receipt_url: "https://cdn.example.com/receipt.jpg",
-      recordDate: new Date("2026-01-01T00:00:00Z"),
+      recordDate: new Date("2026-07-01T10:00:00Z"),
     });
   });
 
@@ -354,7 +378,7 @@ describe("expenseToFormValues", () => {
       amount: 250_000,
       source_of_fund: "PERSONAL_MONEY",
       receipt_url: "",
-      recordDate: new Date("2026-01-01T00:00:00Z"),
+      recordDate: new Date("2026-07-01T10:00:00Z"),
     });
   });
 });
