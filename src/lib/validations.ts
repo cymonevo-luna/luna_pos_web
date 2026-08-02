@@ -471,6 +471,15 @@ export const supplierPriceSchema = z.object({
   price_quantity: z
     .number({ error: "Price quantity is required" })
     .positive("Price quantity must be greater than 0"),
+  product_link: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine(
+      (value) =>
+        !value?.trim() || z.string().url().safeParse(value.trim()).success,
+      "Enter a valid URL",
+    ),
 });
 
 export type SupplierPriceFormValues = z.infer<typeof supplierPriceSchema>;

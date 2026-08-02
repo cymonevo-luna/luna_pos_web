@@ -176,6 +176,7 @@ export interface SupplierPrice {
   price_amount: number;
   price_quantity: number;
   unit_price?: number;
+  product_link?: string | null;
   created_at?: string;
   updated_at?: string;
 }

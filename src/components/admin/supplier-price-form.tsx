@@ -23,6 +23,7 @@ function buildDefaultValues(
     food_supply_id: defaultValues?.food_supply_id ?? "",
     price_amount: defaultValues?.price_amount ?? Number.NaN,
     price_quantity: defaultValues?.price_quantity ?? Number.NaN,
+    product_link: defaultValues?.product_link ?? "",
   };
 }
 
@@ -95,7 +96,8 @@ export const SupplierPriceForm = React.forwardRef<
         if (
           field === "food_supply_id" ||
           field === "price_amount" ||
-          field === "price_quantity"
+          field === "price_quantity" ||
+          field === "product_link"
         ) {
           setError(field, { message });
         }
@@ -190,6 +192,26 @@ export const SupplierPriceForm = React.forwardRef<
           <span className="text-foreground font-medium">{unitPricePreview}</span>
         </p>
       )}
+
+      <div className="space-y-1.5">
+        <Label htmlFor="supplier-price-product-link">Product link</Label>
+        <Input
+          id="supplier-price-product-link"
+          type="url"
+          inputMode="url"
+          placeholder="https://"
+          disabled={isLoading}
+          {...register("product_link")}
+        />
+        <p className="text-muted-foreground text-xs">
+          Direct link to this product on the supplier&apos;s shop
+        </p>
+        {errors.product_link && (
+          <p className="text-sm text-destructive">
+            {errors.product_link.message}
+          </p>
+        )}
+      </div>
 
       <div className="flex justify-end gap-2 pt-2">
         <Button
