@@ -19,22 +19,16 @@ import {
   getDefaultTransactionDateRange,
   getTodayDateInput,
 } from "@/lib/query/date-range";
+import {
+  sumBucketAmounts,
+  sumBucketCounts,
+} from "@/lib/transactions/summary-helpers";
 import { formatRupiah } from "@/lib/utils";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 
 const PLACEHOLDER = "—";
-
-function sumBucketAmounts(
-  buckets: { total_amount: number }[] | undefined,
-): number {
-  return (buckets ?? []).reduce((sum, bucket) => sum + bucket.total_amount, 0);
-}
-
-function sumBucketCounts(buckets: { count: number }[] | undefined): number {
-  return (buckets ?? []).reduce((sum, bucket) => sum + bucket.count, 0);
-}
 
 interface DashboardSummaryStatsProps {
   features: string[];
