@@ -46,6 +46,7 @@ function priceToFormValues(
     food_supply_id: price.food_supply_id,
     price_amount: price.price_amount,
     price_quantity: price.price_quantity,
+    product_link: price.product_link ?? "",
   };
 }
 
@@ -266,6 +267,7 @@ export function AdminSupplierDetailContent({ id }: { id: string }) {
                     <th className="px-4 py-3 font-medium">Price amount</th>
                     <th className="px-4 py-3 font-medium">Price quantity</th>
                     <th className="px-4 py-3 font-medium">Unit price</th>
+                    <th className="px-4 py-3 font-medium">Product link</th>
                     <th className="px-4 py-3 text-right font-medium">
                       Actions
                     </th>
@@ -275,7 +277,7 @@ export function AdminSupplierDetailContent({ id }: { id: string }) {
                   {supplier.price_quotes.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={7}
                         className="px-4 py-10 text-center text-muted-foreground"
                       >
                         No price quotes yet.
@@ -304,6 +306,20 @@ export function AdminSupplierDetailContent({ id }: { id: string }) {
                         </td>
                         <td className="px-4 py-3">
                           {displayUnitPrice(price)}
+                        </td>
+                        <td className="px-4 py-3">
+                          {price.product_link ? (
+                            <a
+                              href={price.product_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline"
+                            >
+                              View product
+                            </a>
+                          ) : (
+                            "—"
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">

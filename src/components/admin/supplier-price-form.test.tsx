@@ -118,6 +118,61 @@ describe("SupplierPriceForm", () => {
       food_supply_id: "fs-gr",
       price_amount: 140000,
       price_quantity: 1000,
+      product_link: "",
     });
+  });
+
+  it("submits valid price values with product link", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <SupplierPriceForm
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+        submitLabel="Add price"
+      />,
+    );
+
+    await user.selectOptions(screen.getByLabelText("Food supply"), "fs-gr");
+    await user.type(screen.getByLabelText("Price amount (Rp)"), "140000");
+    await user.type(screen.getByLabelText("Price quantity"), "1000");
+    await user.type(
+      screen.getByLabelText("Product link"),
+      "https://shopee.co.id/product/1",
+    );
+    await user.click(screen.getByRole("button", { name: "Add price" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalled();
+    });
+    expect(onSubmit.mock.calls[0]?.[0]).toEqual({
+      food_supply_id: "fs-gr",
+      price_amount: 140000,
+      price_quantity: 1000,
+      product_link: "https://shopee.co.id/product/1",
+    });
+  });
+
+  it("rejects invalid product link", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <SupplierPriceForm
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+        submitLabel="Add price"
+      />,
+    );
+
+    await user.selectOptions(screen.getByLabelText("Food supply"), "fs-gr");
+    await user.type(screen.getByLabelText("Price amount (Rp)"), "140000");
+    await user.type(screen.getByLabelText("Price quantity"), "1000");
+    await user.type(screen.getByLabelText("Product link"), "not-a-url");
+    await user.click(screen.getByRole("button", { name: "Add price" }));
+
+    expect(await screen.findByText("Enter a valid URL")).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });

@@ -217,6 +217,37 @@ describe("supplierPriceFormToPayload", () => {
       price_quantity: 1000,
     });
   });
+
+  it("includes product_link when provided", () => {
+    expect(
+      supplierPriceFormToPayload({
+        food_supply_id: "fs-1",
+        price_amount: 140000,
+        price_quantity: 1000,
+        product_link: "https://shopee.co.id/product/1",
+      }),
+    ).toEqual({
+      food_supply_id: "fs-1",
+      price_amount: 140000,
+      price_quantity: 1000,
+      product_link: "https://shopee.co.id/product/1",
+    });
+  });
+
+  it("omits product_link when empty", () => {
+    const payload = supplierPriceFormToPayload({
+      food_supply_id: "fs-1",
+      price_amount: 140000,
+      price_quantity: 1000,
+      product_link: "",
+    });
+    expect(payload).toEqual({
+      food_supply_id: "fs-1",
+      price_amount: 140000,
+      price_quantity: 1000,
+    });
+    expect(payload.product_link).toBeUndefined();
+  });
 });
 
 describe("suppliersAdminApi", () => {
@@ -547,12 +578,16 @@ describe("normalizeSupplier", () => {
           price_amount: "140000",
           price_quantity: "1000",
           unit: "gr",
+          product_link: "https://shopee.co.id/product/1",
         },
       ],
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     });
     expect(normalized.price_quotes[0]?.price_amount).toBe(140000);
+    expect(normalized.price_quotes[0]?.product_link).toBe(
+      "https://shopee.co.id/product/1",
+    );
     expect(normalized.price_quotes_count).toBe(1);
   });
 });

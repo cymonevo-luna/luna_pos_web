@@ -172,6 +172,7 @@ describe("AdminSupplierDetailContent", () => {
         food_supply_id: "fs-1",
         price_amount: 140000,
         price_quantity: 1000,
+        product_link: "",
       });
     });
     expect(toast.success).toHaveBeenCalledWith("Price quote added");
@@ -229,7 +230,17 @@ describe("AdminSupplierDetailContent", () => {
   it("edits a price quote from the modal", async () => {
     const user = userEvent.setup();
     vi.mocked(suppliersAdminApi.get)
-      .mockResolvedValueOnce({ data: supplierWithPrices })
+      .mockResolvedValueOnce({
+        data: {
+          ...supplierWithPrices,
+          price_quotes: [
+            {
+              ...priceQuote,
+              product_link: "https://shopee.co.id/product/1",
+            },
+          ],
+        },
+      })
       .mockResolvedValueOnce({
         data: {
           ...supplierWithPrices,
@@ -238,6 +249,7 @@ describe("AdminSupplierDetailContent", () => {
               ...priceQuote,
               price_amount: 150000,
               unit_price: 150,
+              product_link: "https://shopee.co.id/product/1",
             },
           ],
         },
@@ -247,6 +259,7 @@ describe("AdminSupplierDetailContent", () => {
         ...priceQuote,
         price_amount: 150000,
         unit_price: 150,
+        product_link: "https://shopee.co.id/product/1",
       },
     });
 
@@ -257,6 +270,9 @@ describe("AdminSupplierDetailContent", () => {
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByLabelText("Price amount (Rp)")).toHaveValue(
       140000,
+    );
+    expect(within(dialog).getByLabelText("Product link")).toHaveValue(
+      "https://shopee.co.id/product/1",
     );
 
     const amountInput = within(dialog).getByLabelText("Price amount (Rp)");
@@ -271,8 +287,34 @@ describe("AdminSupplierDetailContent", () => {
         food_supply_id: "fs-1",
         price_amount: 150000,
         price_quantity: 1000,
+        product_link: "https://shopee.co.id/product/1",
       });
     });
     expect(toast.success).toHaveBeenCalledWith("Price quote updated");
+  });
+
+  it("shows product link in price quotes table", async () => {
+    vi.mocked(suppliersAdminApi.get).mockResolvedValue({
+      data: {
+        ...supplierWithPrices,
+        price_quotes: [
+          {
+            ...priceQuote,
+            product_link: "https://shopee.co.id/product/1",
+          },
+        ],
+      },
+    });
+
+    render(<AdminSupplierDetailContent id="sup-1" />);
+    await screen.findByText("Rice");
+
+    const link = screen.getByRole("link", { name: "View product" });
+    expect(link).toHaveAttribute(
+      "href",
+      "https://shopee.co.id/product/1",
+    );
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
   });
 });

@@ -43,6 +43,7 @@ function normalizePrice(raw: SupplierPriceRaw): SupplierPrice {
     price_quantity: parseNumeric(raw.price_quantity),
     unit_price:
       raw.unit_price == null ? undefined : parseNumeric(raw.unit_price),
+    product_link: raw.product_link?.trim() || null,
   };
 }
 
@@ -110,6 +111,7 @@ export interface CreateSupplierPricePayload {
   food_supply_id: string;
   price_amount: number;
   price_quantity: number;
+  product_link?: string;
 }
 
 export type UpdateSupplierPricePayload = CreateSupplierPricePayload;
@@ -134,11 +136,16 @@ export function supplierFormToPayload(
 export function supplierPriceFormToPayload(
   values: SupplierPriceFormValues,
 ): CreateSupplierPricePayload {
-  return {
+  const payload: CreateSupplierPricePayload = {
     food_supply_id: values.food_supply_id,
     price_amount: values.price_amount,
     price_quantity: values.price_quantity,
   };
+  const productLink = values.product_link?.trim();
+  if (productLink) {
+    payload.product_link = productLink;
+  }
+  return payload;
 }
 
 export const suppliersAdminApi = {
