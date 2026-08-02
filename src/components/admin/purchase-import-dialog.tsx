@@ -235,6 +235,15 @@ export function PurchaseImportDialog({
       toast.success(
         `Imported ${result.created_count} purchase request${result.created_count === 1 ? "" : "s"}`,
       );
+      if (
+        result.purchase_requests?.some(
+          (pr) => pr.has_catalog_price_mismatch === true,
+        )
+      ) {
+        toast(
+          "Import completed. Some lines have prices that differ from the supplier catalog — review flagged purchases.",
+        );
+      }
       resetForm();
       onClose();
       onImported();

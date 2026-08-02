@@ -93,6 +93,27 @@ describe("normalizePurchaseRequestItem", () => {
 
     expect(normalized.line_actual_amount).toBe(275000);
   });
+
+  it("maps catalog price mismatch fields from raw API payload", () => {
+    const normalized = normalizePurchaseRequestItem({
+      id: "item-1",
+      food_supply_id: "fs-1",
+      food_supply_title: "Beras",
+      unit: "gr",
+      quantity: "2",
+      price_quantity: "1000",
+      unit_price: "140",
+      price_amount: "140000",
+      line_estimated_amount: "280000",
+      has_catalog_price_mismatch: true,
+      imported_price_amount: "150000",
+      imported_price_quantity: "1000",
+    });
+
+    expect(normalized.has_catalog_price_mismatch).toBe(true);
+    expect(normalized.imported_price_amount).toBe(150000);
+    expect(normalized.imported_price_quantity).toBe(1000);
+  });
 });
 
 describe("purchaseRequestSchema", () => {
