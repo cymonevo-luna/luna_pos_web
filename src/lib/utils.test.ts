@@ -2,6 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
   cn,
   formatDate,
+  formatOrdinalDayOfMonth,
+  formatPayoutSchedule,
+  formatStaffJoinDateDisplay,
+  formatStaffPayoutScheduleDisplay,
   formatRupiah,
   formatStockQuantity,
   formatSignedQuantityDelta,
@@ -40,6 +44,66 @@ describe("formatDate", () => {
 
   it("returns a dash for invalid input", () => {
     expect(formatDate("not-a-date")).toBe("—");
+  });
+});
+
+describe("formatOrdinalDayOfMonth", () => {
+  it("formats common ordinals", () => {
+    expect(formatOrdinalDayOfMonth(1)).toBe("1st");
+    expect(formatOrdinalDayOfMonth(2)).toBe("2nd");
+    expect(formatOrdinalDayOfMonth(3)).toBe("3rd");
+    expect(formatOrdinalDayOfMonth(26)).toBe("26th");
+  });
+
+  it("handles teens correctly", () => {
+    expect(formatOrdinalDayOfMonth(11)).toBe("11th");
+    expect(formatOrdinalDayOfMonth(12)).toBe("12th");
+    expect(formatOrdinalDayOfMonth(13)).toBe("13th");
+  });
+});
+
+describe("formatPayoutSchedule", () => {
+  it("formats monthly payout day", () => {
+    expect(formatPayoutSchedule(26)).toBe("Every 26th");
+  });
+});
+
+describe("formatStaffJoinDateDisplay", () => {
+  it("returns em dash for unsalaried staff", () => {
+    expect(
+      formatStaffJoinDateDisplay({ salary_amount: 0, join_date: "2026-01-15" }),
+    ).toBe("—");
+  });
+
+  it("formats join date for salaried staff", () => {
+    expect(
+      formatStaffJoinDateDisplay({
+        salary_amount: 5_000_000,
+        join_date: "2026-01-15",
+      }),
+    ).toBe(formatDate("2026-01-15"));
+  });
+});
+
+describe("formatStaffPayoutScheduleDisplay", () => {
+  it("returns null for unsalaried staff", () => {
+    expect(
+      formatStaffPayoutScheduleDisplay({
+        salary_amount: 0,
+        recurring_expense_id: "rec-1",
+        payout_day_of_month: 26,
+      }),
+    ).toBeNull();
+  });
+
+  it("returns monthly summary when linked with payout day", () => {
+    expect(
+      formatStaffPayoutScheduleDisplay({
+        salary_amount: 5_000_000,
+        recurring_expense_id: "rec-1",
+        payout_day_of_month: 26,
+      }),
+    ).toBe("Active · 26th monthly");
   });
 });
 

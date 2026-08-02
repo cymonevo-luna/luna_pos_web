@@ -209,6 +209,10 @@ export interface Staff {
   address: string;
   job_title: string;
   salary_amount: number;
+  /** First salary payout date (calendar date in WIB). */
+  join_date?: string | null;
+  /** Day of month for recurring salary payout (1–31). */
+  payout_day_of_month?: number | null;
   /** Auto-managed recurring expense linked to salary payouts. */
   recurring_expense_id?: string | null;
   benefits?: string | null;

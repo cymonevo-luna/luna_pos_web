@@ -13,14 +13,13 @@ import { staffAdminApi, staffFormToPayload } from "@/lib/api/staff";
 import { ApiError } from "@/lib/api/client";
 import type { Staff } from "@/lib/api/types";
 import type { StaffFormValues } from "@/lib/validations";
-import { formatRupiah } from "@/lib/utils";
+import { formatRupiah, formatStaffJoinDateDisplay, formatStaffPayoutScheduleDisplay } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   StaffForm,
   staffToFormValues,
   type StaffFormHandle,
 } from "@/components/admin/staff-form";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -30,21 +29,17 @@ import { Card } from "@/components/ui/card";
 const PER_PAGE = 10;
 
 function StaffRecurringPayoutCell({ staff }: { staff: Staff }) {
-  if (staff.recurring_expense_id) {
+  const summary = formatStaffPayoutScheduleDisplay(staff);
+  if (!summary) {
     return (
-      <Badge
-        variant="success"
-        data-testid="staff-recurring-payout-active"
-      >
-        Active
-      </Badge>
+      <span className="text-muted-foreground" data-testid="staff-recurring-payout-none">
+        —
+      </span>
     );
   }
 
   return (
-    <span className="text-muted-foreground" data-testid="staff-recurring-payout-none">
-      —
-    </span>
+    <span data-testid="staff-recurring-payout-active">{summary}</span>
   );
 }
 
@@ -188,7 +183,8 @@ export default function AdminStaffPage() {
                 <th className="px-4 py-3 font-medium">NIK</th>
                 <th className="px-4 py-3 font-medium">Job title</th>
                 <th className="px-4 py-3 font-medium">Salary</th>
-                <th className="px-4 py-3 font-medium">Recurring payout</th>
+                <th className="px-4 py-3 font-medium">Join date</th>
+                <th className="px-4 py-3 font-medium">Payout schedule</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
@@ -196,7 +192,7 @@ export default function AdminStaffPage() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-border">
-                    {Array.from({ length: 6 }).map((__, j) => (
+                    {Array.from({ length: 7 }).map((__, j) => (
                       <td key={j} className="px-4 py-3">
                         <Skeleton className="h-4 w-24" />
                       </td>
@@ -206,7 +202,7 @@ export default function AdminStaffPage() {
               ) : error ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-10 text-center text-destructive"
                   >
                     {error}
@@ -215,7 +211,7 @@ export default function AdminStaffPage() {
               ) : staffList.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-10 text-center text-muted-foreground"
                   >
                     No staff found.
@@ -234,6 +230,12 @@ export default function AdminStaffPage() {
                       {staff.salary_amount === 0
                         ? "Not set"
                         : formatRupiah(staff.salary_amount)}
+                    </td>
+                    <td
+                      className="px-4 py-3"
+                      data-testid="staff-join-date"
+                    >
+                      {formatStaffJoinDateDisplay(staff)}
                     </td>
                     <td className="px-4 py-3">
                       <StaffRecurringPayoutCell staff={staff} />
