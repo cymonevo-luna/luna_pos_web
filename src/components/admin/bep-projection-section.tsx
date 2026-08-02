@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -36,6 +36,7 @@ import { cn, formatBepValue, formatRupiah } from "@/lib/utils";
 import { toast } from "sonner";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable, type Column } from "@/components/ui/data-table";
@@ -152,36 +153,37 @@ export function BEPProjectionSection({ className }: BEPProjectionSectionProps) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
-  const load = useCallback(
-    async (isRefresh = false) => {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-      setError(null);
-      try {
-        const res = await bepProjection({
-          profitLookbackDays: Number(profitLookbackDays),
-          projectionDays: Number(projectionDays),
-        });
-        setData(res.data ?? null);
-      } catch (err) {
-        const message =
-          err instanceof ApiError
-            ? err.message
-            : "Failed to load break-even projection";
-        setError(message);
-        toast.error(message);
+  const load = useCallback(async () => {
+    if (hasLoadedRef.current) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    setError(null);
+    try {
+      const res = await bepProjection({
+        profitLookbackDays: Number(profitLookbackDays),
+        projectionDays: Number(projectionDays),
+      });
+      setData(res.data ?? null);
+      hasLoadedRef.current = true;
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : "Failed to load break-even projection";
+      setError(message);
+      toast.error(message);
+      if (!hasLoadedRef.current) {
         setData(null);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
       }
-    },
-    [profitLookbackDays, projectionDays],
-  );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [profitLookbackDays, projectionDays]);
 
   useEffect(() => {
     void load();
@@ -201,6 +203,8 @@ export function BEPProjectionSection({ className }: BEPProjectionSectionProps) {
         ];
 
   const projectionChartData = data?.projection.buckets ?? [];
+  const showInitialSkeleton = loading && data === null;
+  const showStatSkeletons = showInitialSkeleton || refreshing;
 
   return (
     <div
@@ -216,28 +220,48 @@ export function BEPProjectionSection({ className }: BEPProjectionSectionProps) {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to cash flow
         </Link>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Select
-            aria-label="Profit lookback days"
-            value={profitLookbackDays}
-            onChange={(e) => setProfitLookbackDays(e.target.value)}
-            className="w-full sm:w-40"
-            options={PROFIT_LOOKBACK_OPTIONS}
-            data-testid="bep-profit-lookback-select"
-          />
-          <Select
-            aria-label="Projection days"
-            value={projectionDays}
-            onChange={(e) => setProjectionDays(e.target.value)}
-            className="w-full sm:w-40"
-            options={PROJECTION_DAYS_OPTIONS}
-            data-testid="bep-projection-days-select"
-          />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="space-y-1">
+            <Label htmlFor="bep-profit-lookback-select">
+              Historical profit lookback
+            </Label>
+            <Select
+              id="bep-profit-lookback-select"
+              aria-label="Historical profit lookback"
+              value={profitLookbackDays}
+              onChange={(e) => setProfitLookbackDays(e.target.value)}
+              className="w-full sm:w-40"
+              options={PROFIT_LOOKBACK_OPTIONS}
+              data-testid="bep-profit-lookback-select"
+            />
+            <p className="text-xs text-muted-foreground">
+              Averages daily/monthly profit and BEP estimates from the last N
+              days.
+            </p>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="bep-projection-days-select">
+              Forward projection window
+            </Label>
+            <Select
+              id="bep-projection-days-select"
+              aria-label="Forward projection window"
+              value={projectionDays}
+              onChange={(e) => setProjectionDays(e.target.value)}
+              className="w-full sm:w-40"
+              options={PROJECTION_DAYS_OPTIONS}
+              data-testid="bep-projection-days-select"
+            />
+            <p className="text-xs text-muted-foreground">
+              Projects cumulative net cash flow and lists recurring expenses for
+              the next N days.
+            </p>
+          </div>
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => void load(true)}
+            onClick={() => void load()}
             disabled={loading || refreshing}
             data-testid="bep-projection-refresh"
           >
@@ -257,9 +281,9 @@ export function BEPProjectionSection({ className }: BEPProjectionSectionProps) {
         </Card>
       ) : null}
 
-      {loading ? (
+      {showInitialSkeleton ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }, (_, index) => (
+          {Array.from({ length: 5 }, (_, index) => (
             <StatCardSkeleton key={index} />
           ))}
         </div>
@@ -283,46 +307,57 @@ export function BEPProjectionSection({ className }: BEPProjectionSectionProps) {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <StatCard
-                  label="Total asset value"
-                  value={formatRupiah(data?.total_asset_value ?? 0)}
-                  icon={Building2}
-                  color="blue"
-                />
-                <StatCard
-                  label="Daily profit average"
-                  value={formatRupiah(data?.historical.profit_daily_avg ?? 0)}
-                  subtitle={
-                    data
-                      ? formatBEPHistoricalSubtitle(data.historical)
-                      : undefined
-                  }
-                  icon={TrendingUp}
-                  color="green"
-                />
-                <StatCard
-                  label="Monthly profit average"
-                  value={formatRupiah(data?.historical.profit_monthly_avg ?? 0)}
-                  icon={CalendarClock}
-                  color="amber"
-                />
-                <div data-testid="bep-days-card">
-                  <StatCard
-                    label="BEP (days)"
-                    value={formatBepValue(data?.bep.bep_days)}
-                    subtitle={data?.bep.bep_message ?? undefined}
-                    icon={CalendarClock}
-                    color={bepUnreachable ? "red" : "blue"}
-                  />
-                </div>
-                <div data-testid="bep-months-card">
-                  <StatCard
-                    label="BEP (months)"
-                    value={formatBepValue(data?.bep.bep_months)}
-                    icon={CalendarClock}
-                    color={bepUnreachable ? "red" : "blue"}
-                  />
-                </div>
+                {showStatSkeletons ? (
+                  Array.from({ length: 5 }, (_, index) => (
+                    <StatCardSkeleton key={index} />
+                  ))
+                ) : (
+                  <>
+                    <StatCard
+                      label="Total asset value"
+                      value={formatRupiah(data?.total_asset_value ?? 0)}
+                      subtitle="Current total"
+                      icon={Building2}
+                      color="blue"
+                    />
+                    <StatCard
+                      label="Daily profit average"
+                      value={formatRupiah(data?.historical.profit_daily_avg ?? 0)}
+                      subtitle={
+                        data
+                          ? formatBEPHistoricalSubtitle(data.historical)
+                          : undefined
+                      }
+                      icon={TrendingUp}
+                      color="green"
+                    />
+                    <StatCard
+                      label="Monthly profit average"
+                      value={formatRupiah(
+                        data?.historical.profit_monthly_avg ?? 0,
+                      )}
+                      icon={CalendarClock}
+                      color="amber"
+                    />
+                    <div data-testid="bep-days-card">
+                      <StatCard
+                        label="BEP (days)"
+                        value={formatBepValue(data?.bep.bep_days)}
+                        subtitle={data?.bep.bep_message ?? undefined}
+                        icon={CalendarClock}
+                        color={bepUnreachable ? "red" : "blue"}
+                      />
+                    </div>
+                    <div data-testid="bep-months-card">
+                      <StatCard
+                        label="BEP (months)"
+                        value={formatBepValue(data?.bep.bep_months)}
+                        icon={CalendarClock}
+                        color={bepUnreachable ? "red" : "blue"}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
 
               {bepUnreachable && data?.bep.bep_message ? (
@@ -335,7 +370,8 @@ export function BEPProjectionSection({ className }: BEPProjectionSectionProps) {
                 </p>
               ) : null}
 
-              {comparisonData.length > 0 &&
+              {!showStatSkeletons &&
+              comparisonData.length > 0 &&
               (data?.total_asset_value ?? 0) +
                 (data?.historical.profit_monthly_avg ?? 0) >
                 0 ? (
@@ -410,7 +446,12 @@ export function BEPProjectionSection({ className }: BEPProjectionSectionProps) {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {projectionChartData.length > 0 ? (
+              {refreshing ? (
+                <Skeleton
+                  className="h-[280px] w-full rounded-xl"
+                  data-testid="bep-projection-chart-loading"
+                />
+              ) : projectionChartData.length > 0 ? (
                 <div
                   className="h-[280px] w-full"
                   data-testid="bep-projection-chart"
@@ -478,7 +519,7 @@ export function BEPProjectionSection({ className }: BEPProjectionSectionProps) {
                 columns={recurringExpenseColumns}
                 rows={data?.projection.upcoming_recurring_expenses ?? []}
                 getRowKey={(row) => row.recurring_expense_id}
-                loading={loading}
+                loading={refreshing}
                 emptyMessage="No upcoming recurring expenses in this projection window"
               />
             </CardContent>

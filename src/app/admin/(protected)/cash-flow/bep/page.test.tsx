@@ -4,6 +4,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import AdminCashFlowBepPage from "./page";
 import { formatBEPHistoricalSubtitle } from "@/lib/api/insights";
+import { formatRupiah } from "@/lib/utils";
 import { tokenStore } from "@/lib/auth/tokens";
 import { toast } from "sonner";
 
@@ -48,14 +49,17 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-const profitableHistorical = {
-  profit_daily_avg: 100_000,
-  profit_monthly_avg: 3_000_000,
-  net_amount_total: 15_000_000,
-  lookback_days: 30,
-  date_from: "2026-06-13T00:00:00Z",
-  date_to: "2026-07-13T00:00:00Z",
-};
+function profitableHistorical(profitLookbackDays: number) {
+  const isExtendedLookback = profitLookbackDays >= 60;
+  return {
+    profit_daily_avg: isExtendedLookback ? 200_000 : 100_000,
+    profit_monthly_avg: isExtendedLookback ? 6_000_000 : 3_000_000,
+    net_amount_total: 15_000_000,
+    lookback_days: profitLookbackDays,
+    date_from: "2026-06-13T00:00:00Z",
+    date_to: "2026-07-13T00:00:00Z",
+  };
+}
 
 function buildProjectionPayload({
   profitLookbackDays = 30,
@@ -66,13 +70,11 @@ function buildProjectionPayload({
   projectionDays?: number;
   reachable?: boolean;
 } = {}) {
+  const historical = profitableHistorical(profitLookbackDays);
   return {
     total_asset_value: 30_000_000,
     asset_count: 3,
-    historical: {
-      ...profitableHistorical,
-      lookback_days: profitLookbackDays,
-    },
+    historical,
     bep: {
       bep_days: reachable ? 300 : null,
       bep_months: reachable ? 10 : null,
@@ -99,9 +101,9 @@ function buildProjectionPayload({
       })),
       upcoming_recurring_expenses: [
         {
-          recurring_expense_id: "rec-1",
-          title: "Rent",
-          amount: 5_000_000,
+          recurring_expense_id: `rec-${projectionDays}`,
+          title: projectionDays === 60 ? "Insurance" : "Rent",
+          amount: projectionDays === 60 ? 2_000_000 : 5_000_000,
           next_run_at: "2026-08-01T00:00:00Z",
         },
       ],
@@ -142,20 +144,142 @@ describe("AdminCashFlowBepPage", () => {
     vi.restoreAllMocks();
   });
 
-  it("1. BEP page shows projection chart with stat cards and 90 data points by default", async () => {
+  it("BEP filters show descriptive labels", async () => {
+    render(<AdminCashFlowBepPage />);
+
+    expect(await screen.findByTestId("cash-flow-bep-page")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Historical profit lookback"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Forward projection window"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Historical profit lookback")).toBeInTheDocument();
+    expect(screen.getByText("Forward projection window")).toBeInTheDocument();
+  });
+
+  it("BEP page default load regression", async () => {
     render(<AdminCashFlowBepPage />);
 
     expect(await screen.findByTestId("cash-flow-bep-page")).toBeInTheDocument();
     expect(screen.getByTestId("bep-days-card")).toBeInTheDocument();
     expect(screen.getByText("300")).toBeInTheDocument();
     expect(screen.getByTestId("bep-months-card")).toHaveTextContent("10");
+    expect(screen.getByTestId("bep-comparison-chart")).toBeInTheDocument();
 
     const chart = await screen.findByTestId("bep-projection-chart");
     expect(chart).toHaveAttribute("data-point-count", "90");
     expect(screen.getByText("Rent")).toBeInTheDocument();
+    expect(toast.error).not.toHaveBeenCalled();
   });
 
-  it("2. BEP unreachable state shows API message without NaN", async () => {
+  it("Profit lookback refetch updates historical stat cards", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url.includes("/api/admin/insights/bep/projection")) {
+        const parsed = new URL(url);
+        const profitLookbackDays = Number(
+          parsed.searchParams.get("profit_lookback_days") ?? "30",
+        );
+        return Promise.resolve(
+          jsonResponse({
+            success: true,
+            data: buildProjectionPayload({
+              profitLookbackDays,
+              projectionDays: 90,
+            }),
+          }),
+        );
+      }
+      return Promise.reject(new Error(`Unhandled fetch: ${url}`));
+    });
+
+    render(<AdminCashFlowBepPage />);
+
+    const defaultHistorical = profitableHistorical(30);
+    expect(
+      await screen.findByText(formatBEPHistoricalSubtitle(defaultHistorical)),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(formatRupiah(defaultHistorical.profit_daily_avg)),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(formatRupiah(defaultHistorical.profit_monthly_avg)),
+    ).toBeInTheDocument();
+
+    await user.selectOptions(
+      screen.getByTestId("bep-profit-lookback-select"),
+      "60",
+    );
+
+    const extendedHistorical = profitableHistorical(60);
+    await waitFor(() => {
+      const urls = fetchMock.mock.calls.map(([input]) => String(input));
+      expect(
+        urls.some((url) => url.includes("profit_lookback_days=60")),
+      ).toBe(true);
+    });
+    expect(
+      await screen.findByText(formatRupiah(extendedHistorical.profit_daily_avg)),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(formatRupiah(extendedHistorical.profit_monthly_avg)),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("NaN")).not.toBeInTheDocument();
+    expect(screen.queryByText("undefined")).not.toBeInTheDocument();
+  });
+
+  it("Projection window refetch updates chart and recurring expenses", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url.includes("/api/admin/insights/bep/projection")) {
+        const parsed = new URL(url);
+        const projectionDays = Number(
+          parsed.searchParams.get("projection_days") ?? "90",
+        );
+        return Promise.resolve(
+          jsonResponse({
+            success: true,
+            data: buildProjectionPayload({
+              profitLookbackDays: 30,
+              projectionDays,
+            }),
+          }),
+        );
+      }
+      return Promise.reject(new Error(`Unhandled fetch: ${url}`));
+    });
+
+    render(<AdminCashFlowBepPage />);
+
+    const chart = await screen.findByTestId("bep-projection-chart");
+    expect(chart).toHaveAttribute("data-point-count", "90");
+    expect(screen.getByText("Rent")).toBeInTheDocument();
+
+    await user.selectOptions(
+      screen.getByTestId("bep-projection-days-select"),
+      "60",
+    );
+
+    await waitFor(() => {
+      const urls = fetchMock.mock.calls.map(([input]) => String(input));
+      expect(urls.some((url) => url.includes("projection_days=60"))).toBe(
+        true,
+      );
+    });
+
+    const updatedChart = await screen.findByTestId("bep-projection-chart");
+    expect(updatedChart).toHaveAttribute("data-point-count", "60");
+    expect(screen.getByText("Insurance")).toBeInTheDocument();
+    expect(screen.queryByText("Rent")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/over the next 60 days/i),
+    ).toBeInTheDocument();
+  });
+
+  it("BEP unreachable state shows API message without NaN", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({
         success: true,
@@ -171,48 +295,6 @@ describe("AdminCashFlowBepPage", () => {
       "Profit must be positive to calculate break-even.",
     );
     expect(screen.queryByText("NaN")).not.toBeInTheDocument();
-  });
-
-  it("3. Profit lookback selector refetches BEP values", async () => {
-    const user = userEvent.setup();
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
-      const url = String(input);
-      if (url.includes("/api/admin/insights/bep/projection")) {
-        const parsed = new URL(url);
-        const profitLookbackDays = Number(
-          parsed.searchParams.get("profit_lookback_days") ?? "30",
-        );
-        return Promise.resolve(
-          jsonResponse({
-            success: true,
-            data: buildProjectionPayload({
-              profitLookbackDays,
-              projectionDays: 90,
-              reachable: true,
-            }),
-          }),
-        );
-      }
-      return Promise.reject(new Error(`Unhandled fetch: ${url}`));
-    });
-
-    render(<AdminCashFlowBepPage />);
-
-    expect(
-      await screen.findByText(formatBEPHistoricalSubtitle(profitableHistorical)),
-    ).toBeInTheDocument();
-
-    await user.selectOptions(
-      screen.getByTestId("bep-profit-lookback-select"),
-      "60",
-    );
-
-    await waitFor(() => {
-      const urls = fetchMock.mock.calls.map(([input]) => String(input));
-      expect(
-        urls.some((url) => url.includes("profit_lookback_days=60")),
-      ).toBe(true);
-    });
   });
 
   it("shows error toast when loading fails", async () => {
