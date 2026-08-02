@@ -238,8 +238,8 @@ describe("buildSupplierPriceUpdatePayload", () => {
     };
 
     expect(buildSupplierPriceUpdatePayload(item)).toEqual({
-      price_amount: "87500",
-      price_quantity: "1000",
+      price_amount: 87500,
+      price_quantity: 1000,
     });
   });
 
@@ -292,12 +292,18 @@ describe("buildBatchPurchasePayload", () => {
     expect(payload.groups[0]?.items[0]).toEqual({
       food_supply_id: "fs-rice",
       quantity: "2",
-      line_actual_amount: "175",
+      line_actual_amount: 175,
       supplier_price_update: {
-        price_amount: "87500",
-        price_quantity: "1000",
+        price_amount: 87500,
+        price_quantity: 1000,
       },
     });
+
+    const serialized = JSON.stringify(payload);
+    expect(serialized).toContain('"line_actual_amount":175');
+    expect(serialized).not.toContain('"line_actual_amount":"175"');
+    expect(serialized).toContain('"price_amount":87500');
+    expect(serialized).not.toContain('"price_amount":"87500"');
   });
 
   it("ignores stale manual catalog fields in favor of derived values", () => {
@@ -312,8 +318,8 @@ describe("buildBatchPurchasePayload", () => {
     const payload = buildBatchPurchasePayload([itemWithStaleManual]);
 
     expect(payload.groups[0]?.items[0]?.supplier_price_update).toEqual({
-      price_amount: "87500",
-      price_quantity: "1000",
+      price_amount: 87500,
+      price_quantity: 1000,
     });
   });
 
@@ -329,7 +335,7 @@ describe("buildBatchPurchasePayload", () => {
     expect(payload.groups[0]?.items[0]).toEqual({
       food_supply_id: "fs-rice",
       quantity: "2",
-      line_actual_amount: "180",
+      line_actual_amount: 180,
     });
   });
 
