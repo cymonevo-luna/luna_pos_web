@@ -14,7 +14,9 @@ vi.mock("@/lib/api/food-supplies", () => ({
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    exportCsv: vi.fn(),
   },
+  downloadFoodSuppliesCsv: vi.fn(),
   foodSupplyFormToPayload: vi.fn((values) => ({
     title: values.title,
     stock_quantity: values.stock_quantity,
@@ -559,5 +561,41 @@ describe("AdminFoodSuppliesPage", () => {
     expect(
       screen.queryByTestId("missing-supplier-badge-fs-1"),
     ).not.toBeInTheDocument();
+  });
+
+  it("exports CSV and triggers download", async () => {
+    const user = userEvent.setup();
+    const { downloadFoodSuppliesCsv } = await import("@/lib/api/food-supplies");
+    const blob = new Blob(["title,stock_quantity,unit"]);
+    vi.mocked(foodSuppliesAdminApi.exportCsv).mockResolvedValue({ blob });
+
+    render(<AdminFoodSuppliesPage />);
+    await screen.findByText("Olive oil");
+
+    await user.click(screen.getByTestId("export-food-supplies"));
+
+    await waitFor(() => {
+      expect(foodSuppliesAdminApi.exportCsv).toHaveBeenCalled();
+      expect(downloadFoodSuppliesCsv).toHaveBeenCalledWith(blob, {
+        filename: undefined,
+      });
+      expect(toast.success).toHaveBeenCalledWith("Food supplies CSV exported");
+    });
+  });
+
+  it("shows error toast when export fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(foodSuppliesAdminApi.exportCsv).mockRejectedValue(
+      new ApiError(500, "server_error", "Export failed"),
+    );
+
+    render(<AdminFoodSuppliesPage />);
+    await screen.findByText("Olive oil");
+
+    await user.click(screen.getByTestId("export-food-supplies"));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("Export failed");
+    });
   });
 });

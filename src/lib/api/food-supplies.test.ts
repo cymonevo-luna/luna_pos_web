@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
+  downloadFoodSuppliesCsv,
   foodSuppliesAdminApi,
   foodSupplyFormToPayload,
   formatConversionQuantity,
@@ -298,6 +299,27 @@ describe("foodSuppliesAdminApi", () => {
     expect(result.data?.stock_quantity).toBe(2.5);
     expect(typeof result.data?.stock_quantity).toBe("number");
   });
+
+  it("downloads CSV export from the correct endpoint", async () => {
+    tokenStore.set("token-abc", "refresh-abc");
+    const csv = "title,stock_quantity,unit\nOlive oil,500,ml";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(csv, {
+        status: 200,
+        headers: { "Content-Type": "text/csv" },
+      }),
+    );
+
+    const result = await foodSuppliesAdminApi.exportCsv();
+    expect(await result.blob.text()).toBe(csv);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/food-supplies/export",
+    );
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer token-abc");
+  });
 });
 
 describe("parseStockQuantity", () => {
@@ -487,5 +509,54 @@ describe("foodSupplyFormToPayload", () => {
     });
 
     expect(payload.cooking_measurements).toBeUndefined();
+  });
+});
+
+describe("downloadFoodSuppliesCsv", () => {
+  it("creates a dated download link for the blob", () => {
+    const click = vi.fn();
+    const anchor = {
+      href: "",
+      download: "",
+      click,
+    } as unknown as HTMLAnchorElement;
+
+    const createElement = vi
+      .spyOn(document, "createElement")
+      .mockReturnValue(anchor);
+    const createObjectURL = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:mock");
+    const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL");
+
+    downloadFoodSuppliesCsv(new Blob(["title,stock_quantity,unit"]), {
+      date: new Date("2026-08-02T00:00:00Z"),
+    });
+
+    expect(createElement).toHaveBeenCalledWith("a");
+    expect(createObjectURL).toHaveBeenCalled();
+    expect(anchor.download).toBe("food-supplies-export-2026-08-02.csv");
+    expect(click).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:mock");
+  });
+
+  it("uses Content-Disposition filename when provided", () => {
+    const click = vi.fn();
+    const anchor = {
+      href: "",
+      download: "",
+      click,
+    } as unknown as HTMLAnchorElement;
+
+    vi.spyOn(document, "createElement").mockReturnValue(anchor);
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock");
+    vi.spyOn(URL, "revokeObjectURL");
+
+    downloadFoodSuppliesCsv(new Blob(["title,stock_quantity,unit"]), {
+      filename: "food-supplies-2026-08-02.csv",
+    });
+
+    expect(anchor.download).toBe("food-supplies-2026-08-02.csv");
+    expect(click).toHaveBeenCalled();
   });
 });
