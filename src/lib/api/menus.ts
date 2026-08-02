@@ -199,4 +199,21 @@ export const menusAdminApi = {
   },
 
   delete: (id: string) => api.delete<void>(`/api/admin/menus/${id}`),
+
+  exportCsv: () => api.downloadBlobResult("/api/admin/menus/export"),
 };
+
+/** Trigger a browser download for a menus CSV blob. */
+export function downloadMenusCsv(
+  blob: Blob,
+  options: { filename?: string; date?: Date } = {},
+) {
+  const { filename, date = new Date() } = options;
+  const stamp = date.toISOString().slice(0, 10);
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename ?? `menus-export-${stamp}.csv`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}

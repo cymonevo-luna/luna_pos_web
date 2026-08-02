@@ -11,9 +11,11 @@ import {
   Plus,
   Pencil,
   ChefHat,
+  Download,
 } from "lucide-react";
 import {
   menusAdminApi,
+  downloadMenusCsv,
   menuBasicFormToPayload,
   menuFullFormToPayload,
   normalizeMenuPhotoFormValue,
@@ -87,6 +89,7 @@ export default function AdminMenusPage() {
   const [deleting, setDeleting] = useState(false);
   const [dialog, setDialog] = useState<MenuDialogState>(null);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const formRef = useRef<MenuFormHandle>(null);
 
   const categoriesQuery = useCategoriesListQuery({
@@ -136,6 +139,21 @@ export default function AdminMenusPage() {
   const handleCategoryFilterChange = (value: string) => {
     setCategoryFilter(value);
     setPage(1);
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { blob, filename } = await menusAdminApi.exportCsv();
+      downloadMenusCsv(blob, { filename });
+      toast.success("Menus CSV exported");
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError ? err.message : "Failed to export menus CSV",
+      );
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleSort = (column: MenuSortBy) => {
@@ -253,6 +271,15 @@ export default function AdminMenusPage() {
             onChange={(e) => handleCategoryFilterChange(e.target.value)}
             disabled={categoriesLoading}
           />
+          <Button
+            variant="outline"
+            onClick={() => void handleExport()}
+            isLoading={exporting}
+            data-testid="export-menus"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
           <Button
             onClick={() => openDialog({ mode: "create" })}
             disabled={!hasCategories || categoriesLoading}

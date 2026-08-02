@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   menusAdminApi,
+  downloadMenusCsv,
   isAbsolutePhotoUrl,
   isAllowedMenuPhotoUrl,
   normalizeMenu,
@@ -10,6 +11,7 @@ import {
   menuFullFormToPayload,
   menuFormToPayload,
 } from "./menus";
+import { api } from "./client";
 import { menuBasicSchema, menuCogsSchema, menuSchema } from "@/lib/validations";
 import { tokenStore } from "@/lib/auth/tokens";
 
@@ -409,6 +411,22 @@ describe("menusAdminApi", () => {
     await menusAdminApi.delete("menu-1");
     expect(fetchMock).toHaveBeenCalled();
   });
+
+  it("exportCsv requests GET /api/admin/menus/export via downloadBlobResult", async () => {
+    const blob = new Blob(["title,category\nNasi Goreng,Main"]);
+    const downloadMock = vi.spyOn(api, "downloadBlobResult").mockResolvedValue({
+      blob,
+      filename: "menus-export-2026-08-02.csv",
+    });
+
+    const result = await menusAdminApi.exportCsv();
+
+    expect(downloadMock).toHaveBeenCalledWith("/api/admin/menus/export");
+    expect(result).toEqual({
+      blob,
+      filename: "menus-export-2026-08-02.csv",
+    });
+  });
 });
 
 describe("normalizeMenu", () => {
@@ -691,5 +709,54 @@ describe("menuFormToPayload", () => {
       margin_percent: 30,
       vat_percent: 11,
     });
+  });
+});
+
+describe("downloadMenusCsv", () => {
+  it("creates a dated download link for the blob", () => {
+    const click = vi.fn();
+    const anchor = {
+      href: "",
+      download: "",
+      click,
+    } as unknown as HTMLAnchorElement;
+
+    const createElement = vi
+      .spyOn(document, "createElement")
+      .mockReturnValue(anchor);
+    const createObjectURL = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:mock");
+    const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL");
+
+    downloadMenusCsv(new Blob(["title,category"]), {
+      date: new Date("2026-08-02T00:00:00Z"),
+    });
+
+    expect(createElement).toHaveBeenCalledWith("a");
+    expect(createObjectURL).toHaveBeenCalled();
+    expect(anchor.download).toBe("menus-export-2026-08-02.csv");
+    expect(click).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:mock");
+  });
+
+  it("uses Content-Disposition filename when provided", () => {
+    const click = vi.fn();
+    const anchor = {
+      href: "",
+      download: "",
+      click,
+    } as unknown as HTMLAnchorElement;
+
+    vi.spyOn(document, "createElement").mockReturnValue(anchor);
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock");
+    vi.spyOn(URL, "revokeObjectURL");
+
+    downloadMenusCsv(new Blob(["title,category"]), {
+      filename: "menus-export-2026-08-02.csv",
+    });
+
+    expect(anchor.download).toBe("menus-export-2026-08-02.csv");
+    expect(click).toHaveBeenCalled();
   });
 });
