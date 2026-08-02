@@ -1358,4 +1358,97 @@ describe("AdminPurchaseDetailContent", () => {
     expect(screen.getByTestId("catalog-price-mismatch-badge")).toBeInTheDocument();
     expect(screen.getByTestId("actual-price-difference-badge")).toBeInTheDocument();
   });
+
+  it("shows Open store link when supplier_store_link is a valid http(s) URL", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        supplier_store_link: "https://tokopedia.com/shop",
+      },
+    });
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+    await screen.findByText("Beras Supplier");
+
+    const openStoreLink = screen.getByRole("link", { name: "Open store" });
+    expect(openStoreLink).toHaveAttribute(
+      "href",
+      "https://tokopedia.com/shop",
+    );
+    expect(openStoreLink).toHaveAttribute("target", "_blank");
+    expect(openStoreLink).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("hides Open store link when supplier_store_link is absent", async () => {
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+    await screen.findByText("Beras Supplier");
+
+    expect(
+      screen.queryByRole("link", { name: "Open store" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Contact supplier" }),
+    ).toBeEnabled();
+  });
+
+  it("opens WhatsApp when contact supplier is clicked without store link (regression)", async () => {
+    const user = userEvent.setup();
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        supplier_contact_info: "08123456789",
+        supplier_store_link: null,
+      },
+    });
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+    await screen.findByText("Beras Supplier");
+
+    expect(
+      screen.queryByRole("link", { name: "Open store" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Contact supplier" }));
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    const [url, target] = openSpy.mock.calls[0];
+    expect(url).toMatch(/^https:\/\/wa\.me\/628123456789\?text=/);
+    expect(target).toBe("_blank");
+
+    openSpy.mockRestore();
+  });
+
+  it("shows View product link in line items when product_link is present", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        items: [
+          {
+            ...purchase.items[0],
+            product_link: "https://tokopedia.com/product/beras-5kg",
+          },
+          purchase.items[1],
+        ],
+      },
+    });
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+    await screen.findByText("Beras Supplier");
+
+    const lineItemsTable = screen.getAllByRole("table")[0] as HTMLTableElement;
+    const viewProductLink = within(lineItemsTable).getByRole("link", {
+      name: "View product",
+    });
+    expect(viewProductLink).toHaveAttribute(
+      "href",
+      "https://tokopedia.com/product/beras-5kg",
+    );
+    expect(viewProductLink).toHaveAttribute("target", "_blank");
+    expect(viewProductLink).toHaveAttribute("rel", "noopener noreferrer");
+    expect(
+      within(lineItemsTable).queryAllByRole("link", { name: "View product" }),
+    ).toHaveLength(1);
+  });
 });
