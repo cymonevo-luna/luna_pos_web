@@ -297,7 +297,7 @@ describe("SmartPurchaseRequestWizard", () => {
               {
                 food_supply_id: "fs-rice",
                 quantity: "2",
-                line_actual_amount: "175",
+                line_actual_amount: 175,
               },
             ],
           },

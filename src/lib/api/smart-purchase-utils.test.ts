@@ -196,12 +196,18 @@ describe("buildBatchPurchasePayload", () => {
     expect(payload.groups[0]?.items[0]).toEqual({
       food_supply_id: "fs-rice",
       quantity: "2",
-      line_actual_amount: "175",
+      line_actual_amount: 175,
       supplier_price_update: {
-        price_amount: "110000",
-        price_quantity: "1000",
+        price_amount: 110000,
+        price_quantity: 1000,
       },
     });
+
+    const serialized = JSON.stringify(payload);
+    expect(serialized).toContain('"line_actual_amount":175');
+    expect(serialized).not.toContain('"line_actual_amount":"175"');
+    expect(serialized).toContain('"price_amount":110000');
+    expect(serialized).not.toContain('"price_amount":"110000"');
   });
 
   it("omits supplier_price_update when catalog update is disabled", () => {
@@ -216,7 +222,7 @@ describe("buildBatchPurchasePayload", () => {
     expect(payload.groups[0]?.items[0]).toEqual({
       food_supply_id: "fs-rice",
       quantity: "2",
-      line_actual_amount: "180",
+      line_actual_amount: 180,
     });
   });
 
