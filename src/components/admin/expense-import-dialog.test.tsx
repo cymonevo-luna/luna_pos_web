@@ -48,6 +48,8 @@ describe("ExpenseImportDialog", () => {
 
     expect(screen.getByTestId("expense-import-dialog")).toBeInTheDocument();
     expect(screen.getByText("Import expenses")).toBeInTheDocument();
+    expect(screen.getByText(/source_of_fund/i)).toBeInTheDocument();
+    expect(screen.getByText(/QRIS/)).toBeInTheDocument();
     expect(screen.getByTestId("download-import-template")).toBeInTheDocument();
     expect(screen.getByTestId("import-expenses")).toBeDisabled();
   });
@@ -99,6 +101,32 @@ describe("ExpenseImportDialog", () => {
       expect(toast.success).toHaveBeenCalledWith("Imported 2 expenses");
       expect(onImported).toHaveBeenCalled();
       expect(onClose).toHaveBeenCalled();
+    });
+  });
+
+  it("imports a CSV with QRIS source of fund", async () => {
+    const user = userEvent.setup();
+    vi.mocked(importExpensesCsv).mockResolvedValue({ imported_row_count: 1 });
+
+    render(
+      <ExpenseImportDialog open onClose={onClose} onImported={onImported} />,
+    );
+
+    const csv = [
+      "title,amount,description,source_of_fund,receipt_url",
+      "QRIS supplies,50000,,QRIS,",
+    ].join("\n");
+
+    await user.upload(screen.getByTestId("import-csv-input"), createCsvFile(csv));
+    await user.click(screen.getByTestId("import-expenses"));
+
+    await waitFor(() => {
+      expect(importExpensesCsv).toHaveBeenCalledWith({
+        file: expect.objectContaining({ name: "import.csv" }),
+        transactionDate: "2026-07-25",
+      });
+      expect(toast.success).toHaveBeenCalledWith("Imported 1 expense");
+      expect(onImported).toHaveBeenCalled();
     });
   });
 

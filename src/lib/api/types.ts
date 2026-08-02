@@ -831,7 +831,7 @@ export interface BranchAssetsProfitSource {
   net_amount_total: number;
 }
 
-export type ExpenseSourceOfFund = "CASHIER" | "PERSONAL_MONEY";
+export type ExpenseSourceOfFund = "CASHIER" | "QRIS" | "PERSONAL_MONEY";
 
 export interface Expense {
   id: string;

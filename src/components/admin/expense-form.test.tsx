@@ -23,6 +23,15 @@ vi.mock("@/lib/hooks/use-cashier-balance", () => ({
   }),
 }));
 
+vi.mock("@/lib/hooks/use-qris-balance", () => ({
+  useQrisBalance: () => ({
+    balance: { balance: 750_000 },
+    loading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+}));
+
 function createImageFile(name = "receipt.jpg"): File {
   return new File([new Uint8Array([0xff, 0xd8, 0xff])], name, {
     type: "image/jpeg",
@@ -172,6 +181,9 @@ describe("ExpenseForm", () => {
     expect(select).toHaveValue("PERSONAL_MONEY");
     expect(screen.getByRole("option", { name: "Cashier" })).toBeInTheDocument();
     expect(
+      screen.getByRole("option", { name: "QRIS Balance" }),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("option", { name: "Personal Money" }),
     ).toBeInTheDocument();
   });
@@ -200,6 +212,32 @@ describe("ExpenseForm", () => {
     expect(
       screen.getByTestId("expense-cashier-balance-hint"),
     ).toHaveTextContent("Current cashier balance:");
+  });
+
+  it("submits with QRIS source of fund when selected", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<ExpenseForm onSubmit={onSubmit} onCancel={() => {}} />);
+
+    await user.type(screen.getByLabelText(/^Title/), "QRIS supplies");
+    await user.type(screen.getByLabelText(/^Amount/), "50000");
+    await user.selectOptions(
+      screen.getByTestId("expense-source-of-fund-select"),
+      "QRIS",
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalled();
+    });
+
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
+      source_of_fund: "QRIS",
+    });
+    expect(screen.getByTestId("expense-qris-balance-hint")).toHaveTextContent(
+      "Current QRIS balance:",
+    );
   });
 
   it("applies server errors for source_of_fund", async () => {

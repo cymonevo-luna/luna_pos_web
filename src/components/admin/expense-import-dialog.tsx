@@ -128,7 +128,8 @@ export function ExpenseImportDialog({
         <DialogTitle>Import expenses</DialogTitle>
         <DialogDescription>
           Upload a CSV file to bulk-create expenses. Use the template for the
-          expected column format.
+          expected column format. The <code>source_of_fund</code> column accepts{" "}
+          <code>CASHIER</code>, <code>QRIS</code>, or <code>PERSONAL_MONEY</code>.
         </DialogDescription>
 
         <div className="mt-4 space-y-4">

@@ -22,6 +22,7 @@ import {
 } from "@/lib/utils";
 import { withTitleCaseOnBlur } from "@/lib/withTitleCaseOnBlur";
 import { useCashierBalance } from "@/lib/hooks/use-cashier-balance";
+import { useQrisBalance } from "@/lib/hooks/use-qris-balance";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 const SOURCE_OF_FUND_OPTIONS = [
   { value: "CASHIER", label: "Cashier" },
+  { value: "QRIS", label: "QRIS Balance" },
   { value: "PERSONAL_MONEY", label: "Personal Money" },
 ] as const;
 
@@ -53,6 +55,30 @@ function CashierBalanceHint() {
       data-testid="expense-cashier-balance-hint"
     >
       Current cashier balance: {formatRupiah(balance?.balance ?? 0)}
+    </p>
+  );
+}
+
+function QrisBalanceHint() {
+  const { balance, loading } = useQrisBalance();
+
+  if (loading) {
+    return (
+      <p
+        className="text-xs text-muted-foreground"
+        data-testid="expense-qris-balance-loading"
+      >
+        Loading QRIS balance…
+      </p>
+    );
+  }
+
+  return (
+    <p
+      className="text-xs text-muted-foreground"
+      data-testid="expense-qris-balance-hint"
+    >
+      Current QRIS balance: {formatRupiah(balance?.balance ?? 0)}
     </p>
   );
 }
@@ -352,6 +378,7 @@ export const ExpenseForm = React.forwardRef<ExpenseFormHandle, ExpenseFormProps>
             {...register("source_of_fund")}
           />
           {sourceOfFund === "CASHIER" ? <CashierBalanceHint /> : null}
+          {sourceOfFund === "QRIS" ? <QrisBalanceHint /> : null}
           {errors.source_of_fund && (
             <p
               className="text-sm text-destructive"

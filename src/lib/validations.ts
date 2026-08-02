@@ -257,9 +257,12 @@ export const recurringExpenseSchema = z.object({
 
 export type RecurringExpenseFormValues = z.infer<typeof recurringExpenseSchema>;
 
-export const expenseSourceOfFundSchema = z.enum(["CASHIER", "PERSONAL_MONEY"], {
-  error: "Select source of fund",
-});
+export const expenseSourceOfFundSchema = z.enum(
+  ["CASHIER", "QRIS", "PERSONAL_MONEY"],
+  {
+    error: "Select source of fund",
+  },
+);
 
 const expenseRecordDateSchema = z.coerce
   .date({ error: "Reporting date is required" })

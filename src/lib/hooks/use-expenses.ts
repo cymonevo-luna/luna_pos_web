@@ -16,6 +16,7 @@ import {
 } from "@/lib/api/expenses";
 import type { Expense } from "@/lib/api/types";
 import type { ExpenseReceiptUploadResult } from "@/lib/api/uploads";
+import { invalidateQrisBalanceData } from "@/lib/hooks/use-qris-balance";
 
 type InvalidationListener = () => void;
 const listListeners = new Set<InvalidationListener>();
@@ -167,6 +168,7 @@ function useExpenseMutation<TArgs extends unknown[], TResult>(
       try {
         const result = await mutationFn(...args);
         invalidateExpenseLists();
+        invalidateQrisBalanceData();
         return result;
       } catch (err) {
         const message =

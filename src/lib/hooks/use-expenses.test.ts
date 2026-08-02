@@ -7,7 +7,17 @@ import {
   useExpenses,
   useUploadExpenseReceipt,
 } from "@/lib/hooks/use-expenses";
+import { invalidateQrisBalanceData } from "@/lib/hooks/use-qris-balance";
 import { tokenStore } from "@/lib/auth/tokens";
+
+vi.mock("@/lib/hooks/use-qris-balance", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/hooks/use-qris-balance")>();
+  return {
+    ...actual,
+    invalidateQrisBalanceData: vi.fn(actual.invalidateQrisBalanceData),
+  };
+});
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -145,6 +155,8 @@ describe("useCreateExpense", () => {
       ).length;
       expect(listCallsAfterCreate).toBeGreaterThan(listCallsBeforeCreate);
     });
+
+    expect(invalidateQrisBalanceData).toHaveBeenCalled();
   });
 });
 
@@ -202,6 +214,8 @@ describe("useDeleteExpense", () => {
       ).length;
       expect(listCallsAfterDelete).toBeGreaterThan(listCallsBeforeDelete);
     });
+
+    expect(invalidateQrisBalanceData).toHaveBeenCalled();
   });
 });
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { todayWIB } from "@/lib/datetime/wib";
-import { expenseCreateSchema } from "@/lib/validations";
+import { expenseCreateSchema, expenseSourceOfFundSchema } from "@/lib/validations";
 
 const validFields = {
   title: "Office supplies",
@@ -9,6 +9,20 @@ const validFields = {
   source_of_fund: "PERSONAL_MONEY" as const,
   receipt_url: "",
 };
+
+describe("expenseSourceOfFundSchema", () => {
+  it("accepts CASHIER, QRIS, and PERSONAL_MONEY", () => {
+    expect(expenseSourceOfFundSchema.safeParse("CASHIER").success).toBe(true);
+    expect(expenseSourceOfFundSchema.safeParse("QRIS").success).toBe(true);
+    expect(expenseSourceOfFundSchema.safeParse("PERSONAL_MONEY").success).toBe(
+      true,
+    );
+  });
+
+  it("rejects unknown source values", () => {
+    expect(expenseSourceOfFundSchema.safeParse("BANK").success).toBe(false);
+  });
+});
 
 describe("expenseCreateSchema", () => {
   it("rejects future transaction date", () => {
