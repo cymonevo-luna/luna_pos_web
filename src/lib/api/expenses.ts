@@ -54,7 +54,12 @@ export interface CreateExpensePayload {
 
 export type UpdateExpensePayload = CreateExpensePayload;
 
-/** Map form values to an API payload. */
+/**
+ * Map form values to an API payload.
+ *
+ * Server validation errors on `transaction_date` are mapped to the form field
+ * `transactionDate` in `ExpenseForm.applyServerErrors` (expense-form.tsx).
+ */
 export function expenseFormToPayload(
   values: ExpenseFormValues & { transactionDate?: string },
   options?: { includeEmptyReceipt?: boolean; includeTransactionDate?: boolean },
