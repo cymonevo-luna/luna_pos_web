@@ -123,6 +123,46 @@ function displayLineActualAmount(item: PurchaseRequestItem): string {
   return formatRupiah(item.line_actual_amount);
 }
 
+function formatImportedUnitPrice(item: PurchaseRequestItem): string | null {
+  if (
+    item.imported_price_amount == null ||
+    item.imported_price_quantity == null
+  ) {
+    return null;
+  }
+  return formatSupplierUnitPrice(
+    item.imported_price_amount,
+    item.imported_price_quantity,
+    item.unit ?? "unit",
+  );
+}
+
+function CatalogPriceMismatchBadge({ item }: { item: PurchaseRequestItem }) {
+  if (item.has_catalog_price_mismatch !== true) {
+    return null;
+  }
+
+  const importedPrice = formatImportedUnitPrice(item);
+  const catalogPrice = displayItemUnitPrice(item);
+  const tooltipParts = [
+    importedPrice ? `Imported: ${importedPrice}` : null,
+    `Catalog: ${catalogPrice}`,
+  ].filter(Boolean);
+
+  return (
+    <Badge
+      variant="warning"
+      title={tooltipParts.join(" · ")}
+      data-testid="catalog-price-mismatch-badge"
+    >
+      Imported price differs
+      {importedPrice ? (
+        <span className="ml-1 font-normal opacity-90">({importedPrice})</span>
+      ) : null}
+    </Badge>
+  );
+}
+
 function getNextStatus(
   status: PurchaseRequestStatus,
 ): PurchaseRequestStatus | null {
@@ -743,7 +783,10 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                       className="border-b border-border last:border-0"
                     >
                       <td className="px-4 py-3 font-medium">
-                        {item.food_supply_title ?? "Unknown"}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span>{item.food_supply_title ?? "Unknown"}</span>
+                          <CatalogPriceMismatchBadge item={item} />
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         {formatStockQuantity(item.quantity, item.unit ?? "unit")}

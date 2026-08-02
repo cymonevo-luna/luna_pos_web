@@ -38,6 +38,8 @@ interface PurchaseRequestItemRaw
     | "price_amount"
     | "line_estimated_amount"
     | "line_actual_amount"
+    | "imported_price_amount"
+    | "imported_price_quantity"
   > {
   quantity: number | string;
   price_quantity: number | string;
@@ -45,6 +47,8 @@ interface PurchaseRequestItemRaw
   price_amount: number | string;
   line_estimated_amount: number | string;
   line_actual_amount?: number | string | null;
+  imported_price_amount?: number | string;
+  imported_price_quantity?: number | string;
 }
 
 interface PurchaseRequestRaw
@@ -121,6 +125,14 @@ export function normalizePurchaseRequestItem(
       raw.line_actual_amount == null
         ? raw.line_actual_amount
         : parseNumeric(raw.line_actual_amount),
+    imported_price_amount:
+      raw.imported_price_amount == null
+        ? undefined
+        : parseNumeric(raw.imported_price_amount),
+    imported_price_quantity:
+      raw.imported_price_quantity == null
+        ? undefined
+        : parseNumeric(raw.imported_price_quantity),
   };
 }
 
@@ -416,8 +428,14 @@ export interface ImportPurchaseRequestsCsvParams {
   proofs?: PurchaseImportProofsMap;
 }
 
+interface ImportPurchaseRequestsCsvResultRaw {
+  created_count: number;
+  purchase_requests?: PurchaseRequestRaw[];
+}
+
 export interface ImportPurchaseRequestsCsvResult {
   created_count: number;
+  purchase_requests?: PurchaseRequest[];
 }
 
 /** Download the purchase import CSV template. */
@@ -484,9 +502,9 @@ async function importPurchaseRequestsCsvRequest(
     clearSessionAndRedirectToLogin();
   }
 
-  let json: Envelope<ImportPurchaseRequestsCsvResult>;
+  let json: Envelope<ImportPurchaseRequestsCsvResultRaw>;
   try {
-    json = (await res.json()) as Envelope<ImportPurchaseRequestsCsvResult>;
+    json = (await res.json()) as Envelope<ImportPurchaseRequestsCsvResultRaw>;
   } catch {
     throw new ApiError(res.status, "invalid_response", res.statusText);
   }
@@ -502,7 +520,11 @@ async function importPurchaseRequestsCsvRequest(
     );
   }
 
-  return json.data as ImportPurchaseRequestsCsvResult;
+  const data = json.data as ImportPurchaseRequestsCsvResultRaw;
+  return {
+    created_count: data.created_count,
+    purchase_requests: data.purchase_requests?.map(normalizePurchaseRequest),
+  };
 }
 
 /** Import purchase requests from a CSV file. */
