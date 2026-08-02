@@ -9,9 +9,15 @@ interface StaffRaw extends Omit<Staff, "salary_amount"> {
 }
 
 export function normalizeStaff(raw: StaffRaw): Staff {
+  const payoutDay = raw.payout_day_of_month;
   return {
     ...raw,
     salary_amount: parseNumeric(raw.salary_amount),
+    join_date: raw.join_date ?? null,
+    payout_day_of_month:
+      payoutDay === undefined || payoutDay === null
+        ? null
+        : Number(payoutDay),
     recurring_expense_id: raw.recurring_expense_id ?? null,
   };
 }
@@ -46,6 +52,8 @@ export interface CreateStaffPayload {
   address?: string;
   job_title: string;
   salary_amount: number;
+  join_date?: string;
+  payout_day_of_month?: number;
   ktp_photo_url?: string;
   benefits?: string;
   bank_name?: string;
@@ -97,6 +105,11 @@ export function staffFormToPayload(
     if (bankAccountHolderName) {
       payload.bank_account_holder_name = bankAccountHolderName;
     }
+  }
+
+  if (payload.salary_amount >= 1) {
+    payload.join_date = values.join_date?.trim();
+    payload.payout_day_of_month = values.payout_day_of_month;
   }
 
   return payload;

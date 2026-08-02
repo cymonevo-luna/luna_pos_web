@@ -21,6 +21,8 @@ describe("staffSchema", () => {
     address: "Jl. Merdeka No. 10",
     job_title: "Cashier",
     salary_amount: 5000000,
+    join_date: "2026-06-01",
+    payout_day_of_month: 26,
     bank_name: "",
     bank_account_holder_name: "",
     bank_account_number: "",
@@ -38,6 +40,8 @@ describe("staffSchema", () => {
       address: "",
       job_title: "Cashier",
       salary_amount: 5000000,
+      join_date: "2026-06-01",
+      payout_day_of_month: 26,
       bank_name: "",
       bank_account_holder_name: "",
       bank_account_number: "",
@@ -52,6 +56,8 @@ describe("staffSchema", () => {
       address: "",
       job_title: "Role",
       salary_amount: 1000,
+      join_date: "2026-06-01",
+      payout_day_of_month: 26,
       bank_name: "",
       bank_account_holder_name: "",
       bank_account_number: "",
@@ -120,11 +126,57 @@ describe("staffSchema", () => {
     const result = staffSchema.safeParse({
       ...base,
       salary_amount: Number.NaN,
+      join_date: "",
+      payout_day_of_month: undefined,
     });
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.salary_amount).toBeUndefined();
     }
+  });
+
+  it("requires join date and payout day when salary is set", () => {
+    const result = staffSchema.safeParse({
+      ...base,
+      join_date: "",
+      payout_day_of_month: undefined,
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((issue) => issue.path.includes("join_date")),
+      ).toBe(true);
+      expect(
+        result.error.issues.some((issue) =>
+          issue.path.includes("payout_day_of_month"),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("rejects payout day outside 1–31 when salary is set", () => {
+    const result = staffSchema.safeParse({
+      ...base,
+      payout_day_of_month: 32,
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((issue) =>
+          issue.path.includes("payout_day_of_month"),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("does not require schedule fields when salary is unset", () => {
+    const result = staffSchema.safeParse({
+      ...base,
+      salary_amount: undefined,
+      join_date: "",
+      payout_day_of_month: undefined,
+    });
+    expect(result.success).toBe(true);
   });
 });
 
@@ -135,6 +187,8 @@ describe("staffFormToPayload", () => {
     address: "Jl. Merdeka No. 10",
     job_title: "Cashier",
     salary_amount: 5000000,
+    join_date: "2026-06-01",
+    payout_day_of_month: 26,
     bank_name: "",
     bank_account_holder_name: "",
     bank_account_number: "",
@@ -153,6 +207,8 @@ describe("staffFormToPayload", () => {
       address: "Jl. Merdeka No. 10",
       job_title: "Cashier",
       salary_amount: 5000000,
+      join_date: "2026-06-01",
+      payout_day_of_month: 26,
       ktp_photo_url: "https://example.com/ktp.jpg",
       benefits: "BPJS, meal allowance",
     });
@@ -172,6 +228,8 @@ describe("staffFormToPayload", () => {
       address: "Jl. Merdeka No. 10",
       job_title: "Cashier",
       salary_amount: 5000000,
+      join_date: "2026-06-01",
+      payout_day_of_month: 26,
       bank_name: "BCA",
       bank_account_holder_name: "Budi Santoso",
       bank_account_number: "1234567890",
@@ -226,6 +284,8 @@ describe("staffFormToPayload", () => {
       address: "Jl. Merdeka No. 10",
       job_title: "Cashier",
       salary_amount: 5000000,
+      join_date: "2026-06-01",
+      payout_day_of_month: 26,
     });
     expect(payload.ktp_photo_url).toBeUndefined();
     expect(payload.benefits).toBeUndefined();
@@ -244,14 +304,46 @@ describe("staffFormToPayload", () => {
     });
   });
 
-  it("maps undefined salary to zero", () => {
+  it("maps undefined salary to zero without schedule fields", () => {
     expect(
       staffFormToPayload({
         ...base,
         salary_amount: undefined,
+        join_date: "",
+        payout_day_of_month: undefined,
       }),
     ).toMatchObject({
       salary_amount: 0,
+    });
+    expect(
+      staffFormToPayload({
+        ...base,
+        salary_amount: undefined,
+        join_date: "",
+        payout_day_of_month: undefined,
+      }).join_date,
+    ).toBeUndefined();
+    expect(
+      staffFormToPayload({
+        ...base,
+        salary_amount: undefined,
+        join_date: "",
+        payout_day_of_month: undefined,
+      }).payout_day_of_month,
+    ).toBeUndefined();
+  });
+
+  it("includes schedule fields when salary is at least 1", () => {
+    const payload = staffFormToPayload({
+      ...base,
+      salary_amount: 1,
+      join_date: "2026-06-01",
+      payout_day_of_month: 15,
+    });
+    expect(payload).toMatchObject({
+      salary_amount: 1,
+      join_date: "2026-06-01",
+      payout_day_of_month: 15,
     });
   });
 
@@ -260,6 +352,8 @@ describe("staffFormToPayload", () => {
       staffFormToPayload({
         ...base,
         salary_amount: Number.NaN,
+        join_date: "",
+        payout_day_of_month: undefined,
       }),
     ).toMatchObject({
       salary_amount: 0,
@@ -295,6 +389,23 @@ describe("normalizeStaff", () => {
       updated_at: "2026-01-01T00:00:00Z",
     });
     expect(normalized.recurring_expense_id).toBe("recurring-expense-1");
+  });
+
+  it("passes through join_date and payout_day_of_month", () => {
+    const normalized = normalizeStaff({
+      id: "staff-1",
+      name: "Budi Santoso",
+      nik: "3201010101010001",
+      address: "Jl. Merdeka No. 10",
+      job_title: "Cashier",
+      salary_amount: 5000000,
+      join_date: "2026-06-01",
+      payout_day_of_month: 26,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+    expect(normalized.join_date).toBe("2026-06-01");
+    expect(normalized.payout_day_of_month).toBe(26);
   });
 
   it("normalizes missing recurring_expense_id to null", () => {
