@@ -48,6 +48,7 @@ export interface CreateExpensePayload {
   amount: number;
   source_of_fund: ExpenseSourceOfFund;
   receipt_url?: string;
+  transaction_date?: string;
 }
 
 export type UpdateExpensePayload = CreateExpensePayload;

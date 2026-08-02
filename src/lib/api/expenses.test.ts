@@ -10,7 +10,9 @@ import {
   normalizeExpense,
   updateExpense,
   updateRecordDate,
+  type CreateExpensePayload,
 } from "./expenses";
+import type { Expense } from "./types";
 import { uploadExpenseReceipt } from "./uploads";
 import { tokenStore } from "@/lib/auth/tokens";
 
@@ -30,6 +32,7 @@ const expenseRaw = {
   receipt_url: "https://example.com/receipt.jpg",
   created_by_user_id: "user-1",
   created_by_username: "manager",
+  transaction_date: "2026-07-01T10:00:00Z",
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
@@ -175,10 +178,65 @@ describe("normalizeExpense", () => {
       id: "exp-1",
       title: "Supplies",
       amount: "250000",
+      transaction_date: "2026-07-01T10:00:00Z",
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     });
     expect(normalized.amount).toBe(250_000);
+  });
+});
+
+describe("expense transaction_date types", () => {
+  beforeEach(() => {
+    tokenStore.clear();
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("accepts optional transaction_date on create payload", () => {
+    const payload = {
+      title: "Supplies",
+      amount: 100_000,
+      source_of_fund: "PERSONAL_MONEY",
+      transaction_date: "2026-07-01T10:00:00Z",
+    } satisfies CreateExpensePayload;
+
+    expect(payload.transaction_date).toBe("2026-07-01T10:00:00Z");
+  });
+
+  it("exposes transaction_date on parsed expense response", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, data: expenseRaw }),
+    );
+
+    const result = await getExpense("exp-1");
+    const expense: Expense = result.data;
+    expect(expense.transaction_date).toBe("2026-07-01T10:00:00Z");
+  });
+
+  it("passes transaction_date in create request body", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, data: expenseRaw }),
+    );
+
+    await createExpense({
+      title: "Office supplies",
+      amount: 150_000,
+      source_of_fund: "PERSONAL_MONEY",
+      transaction_date: "2026-07-01T10:00:00Z",
+    });
+
+    const postCall = fetchMock.mock.calls.find(
+      ([, init]) => init?.method === "POST",
+    );
+    expect(postCall).toBeDefined();
+    const [, init] = postCall!;
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      transaction_date: "2026-07-01T10:00:00Z",
+    });
   });
 });
 
@@ -264,6 +322,7 @@ describe("expenseToFormValues", () => {
         amount: 250_000,
         source_of_fund: "CASHIER",
         receipt_url: "https://cdn.example.com/receipt.jpg",
+        transaction_date: "2026-07-01T10:00:00Z",
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-01T00:00:00Z",
       }),
@@ -285,6 +344,7 @@ describe("expenseToFormValues", () => {
         description: null,
         amount: 250_000,
         receipt_url: null,
+        transaction_date: "2026-07-01T10:00:00Z",
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-01T00:00:00Z",
       }),

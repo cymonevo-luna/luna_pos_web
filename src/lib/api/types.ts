@@ -834,6 +834,7 @@ export interface Expense {
   receipt_url?: string | null;
   created_by_user_id?: string | null;
   created_by_username?: string | null;
+  transaction_date: string;
   created_at: string;
   updated_at: string;
 }
