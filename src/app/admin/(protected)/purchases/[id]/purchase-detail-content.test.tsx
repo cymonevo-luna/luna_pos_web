@@ -445,7 +445,7 @@ describe("AdminPurchaseDetailContent", () => {
     );
   });
 
-  it("disables contact supplier when supplier_contact_info is missing", async () => {
+  it("disables contact supplier when supplier has no contact info", async () => {
     vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
       data: {
         ...purchase,
