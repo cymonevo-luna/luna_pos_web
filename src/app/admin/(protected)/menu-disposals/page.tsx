@@ -30,6 +30,7 @@ import {
   HistoryDateRangeFilter,
   type HistoryDateRangeValue,
 } from "@/components/admin/history-date-range-filter";
+import { MenuDisposalSummarySection } from "@/components/admin/menu-disposal-summary-section";
 
 const PER_PAGE = 10;
 
@@ -144,6 +145,8 @@ export default function AdminMenuDisposalsPage() {
 
   return (
     <div className="space-y-6" data-testid="menu-disposals-page">
+      <MenuDisposalSummarySection />
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-semibold">Menu Disposals</h2>
