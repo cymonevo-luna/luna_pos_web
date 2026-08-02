@@ -245,7 +245,7 @@ describe("ExpenseForm", () => {
     expect(screen.getByTestId("expense-record-date-input")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Business date used for expense reporting and cash-flow calculations.",
+        "When cash left the business for this expense. This affects cash-flow reporting, not when the expense was recorded.",
       ),
     ).toBeInTheDocument();
   });

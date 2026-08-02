@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -53,6 +53,7 @@ export function AdminEditExpenseContent({ id }: { id: string }) {
   const formRef = useRef<ExpenseFormHandle>(null);
   const { user } = useAuth();
   const { expense, loading, error } = useExpense(id);
+  const [displayExpense, setDisplayExpense] = useState<Expense | null>(null);
   const { mutateAsync: updateExpense, isPending: savingExpense } =
     useUpdateExpense();
   const { mutateAsync: updateExpenseRecordDate, isPending: savingRecordDate } =
@@ -62,15 +63,21 @@ export function AdminEditExpenseContent({ id }: { id: string }) {
     user.features.includes("records.edit_date");
   const saving = savingExpense || savingRecordDate;
 
-  const handleSubmit = async (values: ExpenseFormValues) => {
-    if (!expense) return;
+  useEffect(() => {
+    if (expense) {
+      setDisplayExpense(expense);
+    }
+  }, [expense]);
 
-    const originalDate = new Date(expense.transaction_date);
+  const handleSubmit = async (values: ExpenseFormValues) => {
+    if (!displayExpense) return;
+
+    const originalDate = new Date(displayExpense.transaction_date);
     const recordDateChanged =
       canEditRecordDate &&
       values.recordDate instanceof Date &&
       !datesEqualToMinute(values.recordDate, originalDate);
-    const detailsChanged = expenseDetailsChanged(expense, values);
+    const detailsChanged = expenseDetailsChanged(displayExpense, values);
 
     if (!recordDateChanged && !detailsChanged) {
       toast.success("Expense updated");
@@ -81,7 +88,8 @@ export function AdminEditExpenseContent({ id }: { id: string }) {
     try {
       if (recordDateChanged && values.recordDate) {
         try {
-          await updateExpenseRecordDate(id, values.recordDate);
+          const result = await updateExpenseRecordDate(id, values.recordDate);
+          setDisplayExpense(result.data);
         } catch (err) {
           if (err instanceof ApiError && err.status === 403) {
             toast.error("You don't have permission to edit dates.");
@@ -92,10 +100,11 @@ export function AdminEditExpenseContent({ id }: { id: string }) {
       }
 
       if (detailsChanged) {
-        await updateExpense(
+        const result = await updateExpense(
           id,
           expenseFormToPayload(values, { includeEmptyReceipt: true }),
         );
+        setDisplayExpense(result.data);
       }
 
       toast.success("Expense updated");
@@ -140,7 +149,7 @@ export function AdminEditExpenseContent({ id }: { id: string }) {
             {error}
           </CardContent>
         </Card>
-      ) : expense ? (
+      ) : displayExpense ? (
         <Card>
           <CardHeader>
             <CardTitle>Edit expense</CardTitle>
@@ -150,23 +159,27 @@ export function AdminEditExpenseContent({ id }: { id: string }) {
             >
               <div>
                 <CardDescription>Transaction date</CardDescription>
-                <p className="text-lg font-semibold">
-                  {formatDateTime(expense.transaction_date)}
+                <p
+                  className="text-lg font-semibold"
+                  data-testid="expense-transaction-date-display"
+                >
+                  {formatDateTime(displayExpense.transaction_date)}
                 </p>
                 <p
                   className="text-xs text-muted-foreground"
-                  title={`System created at ${formatDateTime(expense.created_at)}`}
+                  data-testid="expense-recorded-at-display"
+                  title={`System created at ${formatDateTime(displayExpense.created_at)}`}
                 >
-                  Recorded at {formatDateTime(expense.created_at)}
+                  Recorded at {formatDateTime(displayExpense.created_at)}
                 </p>
               </div>
             </div>
           </CardHeader>
           <CardContent>
             <ExpenseForm
-              key={expense.id}
+              key={displayExpense.id}
               ref={formRef}
-              defaultValues={expenseToFormValues(expense)}
+              defaultValues={expenseToFormValues(displayExpense)}
               showRecordDate={canEditRecordDate}
               onSubmit={handleSubmit}
               onCancel={() => router.push("/admin/expenses")}
