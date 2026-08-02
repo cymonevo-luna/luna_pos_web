@@ -12,7 +12,7 @@ import { TestQueryProvider } from "@/test/query-provider";
 import { invalidateTransactionQueries } from "@/lib/query/invalidate-transaction-queries";
 import { invalidateCashierBalanceData } from "@/lib/hooks/use-cashier-balance";
 import { formatDateTime } from "@/lib/utils";
-import * as wib from "@/lib/datetime/wib";
+import * as utils from "@/lib/utils";
 
 const mockPush = vi.fn();
 
@@ -170,16 +170,22 @@ describe("AdminTransactionDetailPage", () => {
 
   it("limits record-date picker to WIB today", async () => {
     const user = userEvent.setup();
-    vi.spyOn(wib, "todayWIB").mockReturnValue("2026-07-25");
+    const maxSpy = vi
+      .spyOn(utils, "maxRecordDatetimeLocalInput")
+      .mockReturnValue("2026-07-25T23:59");
 
-    renderDetail();
-    await screen.findByRole("button", { name: "Edit date" });
-    await user.click(screen.getByRole("button", { name: "Edit date" }));
+    try {
+      renderDetail();
+      await screen.findByRole("button", { name: "Edit date" });
+      await user.click(screen.getByRole("button", { name: "Edit date" }));
 
-    expect(screen.getByLabelText("Transaction date")).toHaveAttribute(
-      "max",
-      "2026-07-25T23:59",
-    );
+      expect(screen.getByLabelText("Transaction date")).toHaveAttribute(
+        "max",
+        "2026-07-25T23:59",
+      );
+    } finally {
+      maxSpy.mockRestore();
+    }
   });
 
   it("saves a new transaction date and invalidates queries", async () => {

@@ -204,4 +204,39 @@ describe("AdminExpensesPage", () => {
     expect(screen.getByTestId("expense-import-dialog")).toBeInTheDocument();
     expect(screen.getByTestId("download-import-template")).toBeInTheDocument();
   });
+
+  it("shows Staff salary badge for auto-generated salary expenses", async () => {
+    vi.mocked(useExpenses).mockReturnValue({
+      expenses: [
+        {
+          ...expense,
+          id: "exp-salary-1",
+          title: "Salary: Budi Santoso",
+          recurring_expense_id: "recurring-expense-1",
+          recurring_expense_staff_id: "staff-1",
+        },
+      ],
+      meta: { page: 1, per_page: 10, total: 1 },
+      loading: false,
+      error: null,
+      data: null,
+      refetch: vi.fn(),
+    });
+
+    render(<AdminExpensesPage />);
+
+    expect(await screen.findByText("Salary: Budi Santoso")).toBeInTheDocument();
+    expect(screen.getByTestId("staff-salary-expense-badge")).toHaveTextContent(
+      "Staff salary",
+    );
+  });
+
+  it("does not show Staff salary badge for manual expenses", async () => {
+    render(<AdminExpensesPage />);
+    await screen.findByText("Office supplies");
+
+    expect(
+      screen.queryByTestId("staff-salary-expense-badge"),
+    ).not.toBeInTheDocument();
+  });
 });

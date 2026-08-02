@@ -272,4 +272,108 @@ describe("AdminEditExpenseContent", () => {
     ).toHaveTextContent("Record date cannot be in the future");
     expect(mockPush).not.toHaveBeenCalled();
   });
+
+  it("allows editing amount for staff salary expenses with recurring_expense_id", async () => {
+    const user = userEvent.setup();
+    const salaryExpense: Expense = {
+      ...expense,
+      id: "exp-salary-1",
+      title: "Salary: Budi Santoso",
+      amount: 5_000_000,
+      recurring_expense_id: "recurring-expense-1",
+      recurring_expense_staff_id: "staff-1",
+    };
+
+    mockExpenseState(salaryExpense);
+    updateExpense.mockResolvedValue({
+      data: { ...salaryExpense, amount: 5_500_000 },
+    } as ApiResult<Expense>);
+
+    renderWithProviders(<AdminEditExpenseContent id="exp-salary-1" />);
+    await screen.findByTestId("staff-salary-expense-badge");
+
+    const amountInput = screen.getByTestId("expense-amount-input");
+    await user.clear(amountInput);
+    await user.type(amountInput, "5500000");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(updateExpense).toHaveBeenCalledWith(
+        "exp-salary-1",
+        expect.objectContaining({
+          title: "Salary: Budi Santoso",
+          amount: 5_500_000,
+        }),
+      );
+      expect(toast.success).toHaveBeenCalledWith("Expense updated");
+      expect(mockPush).toHaveBeenCalledWith("/admin/expenses");
+    });
+  });
+
+  it("allows admin with records.edit_date to edit reporting date on staff salary expense", async () => {
+    const user = userEvent.setup();
+    mockAuthUser(adminUser);
+    const salaryExpense: Expense = {
+      ...expense,
+      id: "exp-salary-1",
+      title: "Salary: Budi Santoso",
+      amount: 5_000_000,
+      recurring_expense_id: "recurring-expense-1",
+      recurring_expense_staff_id: "staff-1",
+    };
+    const updatedTransactionDate = "2026-01-01T10:30:00Z";
+
+    mockExpenseState(salaryExpense);
+    updateExpenseRecordDate.mockResolvedValue({
+      data: {
+        ...salaryExpense,
+        transaction_date: updatedTransactionDate,
+      },
+    } as ApiResult<Expense>);
+
+    renderWithProviders(<AdminEditExpenseContent id="exp-salary-1" />);
+    await screen.findByTestId("expense-record-date-section");
+
+    const recordDateInput = screen.getByTestId("expense-record-date-input");
+    fireEvent.change(recordDateInput, { target: { value: "2026-01-01T17:30" } });
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(updateExpenseRecordDate).toHaveBeenCalledWith(
+        "exp-salary-1",
+        expect.any(Date),
+      );
+      expect(updateExpense).not.toHaveBeenCalled();
+      expect(toast.success).toHaveBeenCalledWith("Expense updated");
+      expect(mockPush).toHaveBeenCalledWith("/admin/expenses");
+    });
+  });
+
+  it("allows editing amount on non-salary expenses without regression", async () => {
+    const user = userEvent.setup();
+    updateExpense.mockResolvedValue({
+      data: { ...expense, amount: 175_000 },
+    } as ApiResult<Expense>);
+
+    renderWithProviders(<AdminEditExpenseContent id="exp-1" />);
+    await screen.findByTestId("expense-amount-input");
+
+    const amountInput = screen.getByTestId("expense-amount-input");
+    await user.clear(amountInput);
+    await user.type(amountInput, "175000");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(updateExpense).toHaveBeenCalledWith(
+        "exp-1",
+        expect.objectContaining({
+          title: "Office supplies",
+          amount: 175_000,
+        }),
+      );
+      expect(updateExpenseRecordDate).not.toHaveBeenCalled();
+      expect(toast.success).toHaveBeenCalledWith("Expense updated");
+      expect(mockPush).toHaveBeenCalledWith("/admin/expenses");
+    });
+  });
 });

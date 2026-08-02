@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import {
   expenseFormToPayload,
   expenseToFormValues,
+  isStaffSalaryExpense,
 } from "@/lib/api/expenses";
 import { ApiError } from "@/lib/api/client";
 import type { Expense } from "@/lib/api/types";
@@ -23,6 +24,7 @@ import {
   ExpenseForm,
   type ExpenseFormHandle,
 } from "@/components/admin/expense-form";
+import { StaffSalaryExpenseBadge } from "@/components/admin/staff-salary-expense-badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -152,7 +154,12 @@ export function AdminEditExpenseContent({ id }: { id: string }) {
       ) : displayExpense ? (
         <Card>
           <CardHeader>
-            <CardTitle>Edit expense</CardTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              <CardTitle>Edit expense</CardTitle>
+              {isStaffSalaryExpense(displayExpense) ? (
+                <StaffSalaryExpenseBadge />
+              ) : null}
+            </div>
             <div
               className="mt-2 grid gap-4 sm:grid-cols-2"
               data-testid="expense-transaction-date-card"

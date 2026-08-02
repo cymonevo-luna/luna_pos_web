@@ -16,12 +16,34 @@ import type { ExpenseFormValues } from "@/lib/validations";
 /** Wire format from the Go backend (`decimal.Decimal` marshals as JSON string). */
 interface ExpenseRaw extends Omit<Expense, "amount"> {
   amount: number | string;
+  recurring_expense?: {
+    staff_id?: string | null;
+  } | null;
+}
+
+export const STAFF_SALARY_EXPENSE_TOOLTIP =
+  "Auto-generated from staff salary schedule. Amount and reporting date can be edited here.";
+
+export function isStaffSalaryExpense(
+  expense: Pick<Expense, "recurring_expense_id" | "recurring_expense_staff_id">,
+): boolean {
+  return (
+    expense.recurring_expense_id != null &&
+    expense.recurring_expense_id !== "" &&
+    expense.recurring_expense_staff_id != null &&
+    expense.recurring_expense_staff_id !== ""
+  );
 }
 
 export function normalizeExpense(raw: ExpenseRaw): Expense {
   return {
     ...raw,
     amount: parseNumeric(raw.amount),
+    recurring_expense_id: raw.recurring_expense_id ?? null,
+    recurring_expense_staff_id:
+      raw.recurring_expense_staff_id ??
+      raw.recurring_expense?.staff_id ??
+      null,
   };
 }
 

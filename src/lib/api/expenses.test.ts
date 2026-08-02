@@ -10,6 +10,7 @@ import {
   expensesAdminApi,
   getExpense,
   importExpensesCsv,
+  isStaffSalaryExpense,
   listExpenses,
   normalizeExpense,
   updateExpense,
@@ -215,6 +216,65 @@ describe("normalizeExpense", () => {
       updated_at: "2026-01-01T00:00:00Z",
     });
     expect(normalized.amount).toBe(250_000);
+  });
+
+  it("passes through recurring_expense_id and nested recurring staff_id", () => {
+    const normalized = normalizeExpense({
+      id: "exp-salary-1",
+      title: "Salary: Budi",
+      amount: "5000000",
+      transaction_date: "2026-07-01T10:00:00Z",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      recurring_expense_id: "recurring-expense-1",
+      recurring_expense: { staff_id: "staff-1" },
+    });
+
+    expect(normalized.recurring_expense_id).toBe("recurring-expense-1");
+    expect(normalized.recurring_expense_staff_id).toBe("staff-1");
+  });
+
+  it("normalizes missing recurring fields to null", () => {
+    const normalized = normalizeExpense({
+      id: "exp-1",
+      title: "Office supplies",
+      amount: "150000",
+      transaction_date: "2026-07-01T10:00:00Z",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+
+    expect(normalized.recurring_expense_id).toBeNull();
+    expect(normalized.recurring_expense_staff_id).toBeNull();
+  });
+});
+
+describe("isStaffSalaryExpense", () => {
+  it("returns true when recurring expense is linked to staff", () => {
+    expect(
+      isStaffSalaryExpense({
+        recurring_expense_id: "recurring-expense-1",
+        recurring_expense_staff_id: "staff-1",
+      }),
+    ).toBe(true);
+  });
+
+  it("returns false for manual expenses without recurring link", () => {
+    expect(
+      isStaffSalaryExpense({
+        recurring_expense_id: null,
+        recurring_expense_staff_id: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("returns false when recurring link has no staff", () => {
+    expect(
+      isStaffSalaryExpense({
+        recurring_expense_id: "recurring-expense-1",
+        recurring_expense_staff_id: null,
+      }),
+    ).toBe(false);
   });
 });
 

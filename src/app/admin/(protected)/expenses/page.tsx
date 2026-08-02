@@ -13,7 +13,9 @@ import {
   Upload,
 } from "lucide-react";
 import { ExpenseImportDialog } from "@/components/admin/expense-import-dialog";
+import { StaffSalaryExpenseBadge } from "@/components/admin/staff-salary-expense-badge";
 import { ApiError } from "@/lib/api/client";
+import { isStaffSalaryExpense } from "@/lib/api/expenses";
 import type { Expense } from "@/lib/api/types";
 import { useFeatures } from "@/lib/auth/use-features";
 import { useDeleteExpense, useExpenses } from "@/lib/hooks/use-expenses";
@@ -232,7 +234,14 @@ export default function AdminExpensesPage() {
                     data-testid={`expense-row-${expense.id}`}
                     onClick={() => openEdit(expense)}
                   >
-                    <td className="px-4 py-3 font-medium">{expense.title}</td>
+                    <td className="px-4 py-3 font-medium">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{expense.title}</span>
+                        {isStaffSalaryExpense(expense) ? (
+                          <StaffSalaryExpenseBadge />
+                        ) : null}
+                      </div>
+                    </td>
                     <td className="max-w-xs px-4 py-3 text-muted-foreground">
                       {displayDescription(expense.description)}
                     </td>
