@@ -203,4 +203,21 @@ export const suppliersAdminApi = {
 
   deletePrice: (priceId: string) =>
     api.delete<void>(`/api/admin/supplier-prices/${priceId}`),
+
+  exportCsv: () => api.downloadBlobResult("/api/admin/suppliers/export"),
 };
+
+/** Trigger a browser download for a suppliers CSV blob. */
+export function downloadSuppliersCsv(
+  blob: Blob,
+  options: { filename?: string; date?: Date } = {},
+) {
+  const { filename, date = new Date() } = options;
+  const stamp = date.toISOString().slice(0, 10);
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename ?? `suppliers-export-${stamp}.csv`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}

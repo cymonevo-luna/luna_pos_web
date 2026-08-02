@@ -10,8 +10,10 @@ import {
   Plus,
   Pencil,
   Eye,
+  Download,
 } from "lucide-react";
 import {
+  downloadSuppliersCsv,
   suppliersAdminApi,
   type SupplierSortBy,
   type SupplierSortOrder,
@@ -40,6 +42,7 @@ export default function AdminSuppliersPage() {
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Supplier | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -84,6 +87,21 @@ export default function AdminSuppliersPage() {
     void load();
   }, [load]);
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { blob, filename } = await suppliersAdminApi.exportCsv();
+      downloadSuppliersCsv(blob, { filename });
+      toast.success("Suppliers CSV exported");
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError ? err.message : "Failed to export suppliers CSV",
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!pendingDelete) return;
     setDeleting(true);
@@ -120,6 +138,15 @@ export default function AdminSuppliersPage() {
               className="pl-9"
             />
           </div>
+          <Button
+            variant="outline"
+            data-testid="export-suppliers"
+            onClick={() => void handleExport()}
+            isLoading={exporting}
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
           <Link
             href="/admin/suppliers/new"
             className={buttonVariants()}
