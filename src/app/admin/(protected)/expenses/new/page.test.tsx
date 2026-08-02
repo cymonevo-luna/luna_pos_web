@@ -21,8 +21,17 @@ vi.mock("@/lib/hooks/use-expenses", () => ({
 }));
 
 vi.mock("@/components/admin/expense-form", () => ({
-  ExpenseForm: ({ submitLabel }: { submitLabel?: string }) => (
+  ExpenseForm: ({
+    submitLabel,
+    showTransactionDate,
+  }: {
+    submitLabel?: string;
+    showTransactionDate?: boolean;
+  }) => (
     <form aria-label="Expense form">
+      {showTransactionDate ? (
+        <div data-testid="expense-transaction-date-input" />
+      ) : null}
       <button type="submit">{submitLabel ?? "Save"}</button>
     </form>
   ),
@@ -39,6 +48,9 @@ describe("AdminNewExpensePage", () => {
     expect(screen.getByRole("form", { name: "Expense form" })).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Create expense" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("expense-transaction-date-input"),
     ).toBeInTheDocument();
   });
 });
