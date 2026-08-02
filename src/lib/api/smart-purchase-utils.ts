@@ -1,4 +1,5 @@
 import { startOfDayWIB } from "@/lib/datetime/wib";
+import type { CreatePurchaseRequestItemPayload } from "./purchase-requests";
 import type {
   PurchaseRequestSupplierGroup,
   PurchaseRequestSupplierQuote,
@@ -24,17 +25,7 @@ export interface SmartPurchaseWizardItem extends PurchaseRequestSuggestItem {
   catalog_price_quantity?: number;
 }
 
-export interface BatchPurchaseLineItemPayload {
-  food_supply_id: string;
-  quantity: string;
-  line_actual_amount?: string;
-  supplier_price_update?: SupplierPriceUpdateDraftPayload;
-}
-
-export interface SupplierPriceUpdateDraftPayload {
-  price_amount: string;
-  price_quantity: string;
-}
+export type BatchPurchaseLineItemPayload = CreatePurchaseRequestItemPayload;
 
 export interface BatchPurchaseGroupPayload {
   supplier_id: string;
@@ -71,7 +62,7 @@ function defaultCatalogPriceDraft(
 /** Build optional supplier_price_update payload when catalog update is enabled. */
 export function buildSupplierPriceUpdatePayload(
   item: SmartPurchaseWizardItem,
-): SupplierPriceUpdateDraftPayload | undefined {
+): CreatePurchaseRequestItemPayload["supplier_price_update"] | undefined {
   if (!item.update_catalog_price) return undefined;
 
   const draft = defaultCatalogPriceDraft(item);
@@ -79,8 +70,8 @@ export function buildSupplierPriceUpdatePayload(
   if (!parsed.success) return undefined;
 
   return {
-    price_amount: String(parsed.data.price_amount),
-    price_quantity: String(parsed.data.price_quantity),
+    price_amount: parsed.data.price_amount,
+    price_quantity: parsed.data.price_quantity,
   };
 }
 
@@ -93,7 +84,7 @@ function buildBatchLineItem(
   };
 
   if (hasValidLineActualAmount(item.line_actual_amount)) {
-    lineItem.line_actual_amount = String(item.line_actual_amount);
+    lineItem.line_actual_amount = item.line_actual_amount;
   }
 
   const supplierPriceUpdate = buildSupplierPriceUpdatePayload(item);
