@@ -11,6 +11,7 @@ import type { Transaction } from "@/lib/api/types";
 import { useFeatures } from "@/lib/auth/use-features";
 import { useRoles } from "@/lib/auth/use-roles";
 import { invalidateCashierBalanceData } from "@/lib/hooks/use-cashier-balance";
+import { invalidateQrisBalanceData } from "@/lib/hooks/use-qris-balance";
 import { useDeleteTransaction } from "@/lib/query/hooks/use-delete-transaction";
 import { invalidateTransactionQueries } from "@/lib/query/invalidate-transaction-queries";
 import {
@@ -69,8 +70,9 @@ export function AdminTransactionDetailContent({ id }: { id: string }) {
   }, [id]);
 
   const handleDelete = async () => {
+    if (!transaction) return;
     try {
-      await deleteTransaction(id);
+      await deleteTransaction(id, { method: transaction.method });
       toast.success("Transaction deleted");
       router.push("/admin/transactions");
     } catch (err) {
@@ -104,6 +106,8 @@ export function AdminTransactionDetailContent({ id }: { id: string }) {
       await invalidateTransactionQueries(queryClient);
       if (transaction.method === "CASH") {
         invalidateCashierBalanceData();
+      } else if (transaction.method === "QRIS") {
+        invalidateQrisBalanceData();
       }
       toast.success("Transaction date updated");
       setEditDateOpen(false);
@@ -376,6 +380,11 @@ export function AdminTransactionDetailContent({ id }: { id: string }) {
           {transaction.method === "CASH" ? (
             <p className="mt-3 text-sm text-amber-600 dark:text-amber-500">
               This will also update linked cashier balance entries.
+            </p>
+          ) : null}
+          {transaction.method === "QRIS" ? (
+            <p className="mt-3 text-sm text-amber-600 dark:text-amber-500">
+              This will also update linked QRIS balance entries.
             </p>
           ) : null}
           <div className="mt-4">

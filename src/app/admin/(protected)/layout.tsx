@@ -18,6 +18,7 @@ import {
   TrendingUp,
   Repeat,
   ListOrdered,
+  QrCode,
   Wallet,
   Trash2,
   Building2,
@@ -124,6 +125,12 @@ export const allNavItems: NavEntry[] = [
         label: "Cashier Balance",
         icon: Wallet,
         feature: "cashier_balance.manage",
+      },
+      {
+        href: "/admin/qris-balance",
+        label: "QRIS Balance",
+        icon: QrCode,
+        feature: "qris_balance.manage",
       },
       {
         href: "/admin/cash-flow/bep",

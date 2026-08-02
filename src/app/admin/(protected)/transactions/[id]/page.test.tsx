@@ -56,6 +56,10 @@ vi.mock("@/lib/hooks/use-cashier-balance", () => ({
   invalidateCashierBalanceData: vi.fn(),
 }));
 
+vi.mock("@/lib/hooks/use-qris-balance", () => ({
+  invalidateQrisBalanceData: vi.fn(),
+}));
+
 const transaction: Transaction = {
   id: "txn-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
   method: "CASH",
@@ -170,7 +174,9 @@ describe("AdminTransactionDetailPage", () => {
 
   it("limits record-date picker to WIB today", async () => {
     const user = userEvent.setup();
-    vi.spyOn(wib, "todayWIB").mockReturnValue("2026-07-25");
+    vi.spyOn(wib, "maxWibDatetimeLocalInput").mockReturnValue(
+      "2026-07-25T23:59",
+    );
 
     renderDetail();
     await screen.findByRole("button", { name: "Edit date" });

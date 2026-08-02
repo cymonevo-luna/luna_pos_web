@@ -964,3 +964,31 @@ export interface CashierBalanceEntry {
   requested_by_username?: string | null;
   created_at: string;
 }
+
+export type QrisBalanceAdjustmentType = "ADD" | "DEDUCT";
+
+export type QrisBalanceEntrySource =
+  | "MANUAL"
+  | "EXPENSE"
+  | "QRIS_PAYMENT"
+  | "TRANSACTION_REVERSAL";
+
+/** Wire `data` payload from GET /api/admin/qris-balance. */
+export interface QrisBalance {
+  balance: number;
+  updated_at?: string;
+}
+
+/** One ledger entry from GET /api/admin/qris-balance/entries. */
+export interface QrisBalanceEntry {
+  id: string;
+  type: QrisBalanceAdjustmentType;
+  source: QrisBalanceEntrySource;
+  amount: number;
+  purpose: string;
+  transaction_id?: string | null;
+  expense_id?: string | null;
+  requested_by_user_id?: string | null;
+  requested_by_username?: string | null;
+  created_at: string;
+}

@@ -55,6 +55,7 @@ describe("POS-86-4 admin sidebar nav groups", () => {
     ]);
     expect(childLabels(filtered, "Cash Flow")).toEqual([
       "Cashier Balance",
+      "QRIS Balance",
       "BEP",
       "Summary",
       "Expenses",
@@ -92,6 +93,7 @@ describe("POS-86-4 admin sidebar nav groups", () => {
     expect(childLabels(filtered, "Supplier")).toEqual(["List", "Purchases"]);
     expect(childLabels(filtered, "Cash Flow")).toEqual([
       "Cashier Balance",
+      "QRIS Balance",
       "Expenses",
       "Recurring Expenses",
     ]);
