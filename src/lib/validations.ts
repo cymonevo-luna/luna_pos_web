@@ -456,6 +456,13 @@ export const staffSchema = z
         (value) => value === "" || /^\d{5,30}$/.test(value),
         "Account number must be 5–30 digits",
       ),
+    join_date: z.string().optional().or(z.literal("")),
+    payout_day_of_month: z
+      .union([z.nan(), z.undefined(), z.number()])
+      .transform((value) =>
+        value === undefined || Number.isNaN(value) ? undefined : value,
+      )
+      .optional(),
   })
   .superRefine((data, ctx) => {
     const bankName = data.bank_name?.trim() ?? "";
@@ -472,6 +479,47 @@ export const staffSchema = z
         code: "custom",
         message: "Bank name is required when account number is provided",
         path: ["bank_name"],
+      });
+    }
+
+    const salary = data.salary_amount;
+    if (salary === undefined || salary <= 0) {
+      return;
+    }
+
+    const joinDate = data.join_date?.trim() ?? "";
+    if (!joinDate) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Join date is required",
+        path: ["join_date"],
+      });
+    } else if (!/^\d{4}-\d{2}-\d{2}$/.test(joinDate)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Enter a valid date",
+        path: ["join_date"],
+      });
+    } else if (joinDate > todayWIB()) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Join date cannot be in the future",
+        path: ["join_date"],
+      });
+    }
+
+    const payoutDay = data.payout_day_of_month;
+    if (payoutDay === undefined) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Payout day of month is required",
+        path: ["payout_day_of_month"],
+      });
+    } else if (payoutDay < 1 || payoutDay > 31) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Payout day of month must be between 1 and 31",
+        path: ["payout_day_of_month"],
       });
     }
   });

@@ -44,6 +44,13 @@ vi.mock("@/lib/api/staff", () => ({
       const holder = values.bank_account_holder_name?.trim();
       if (holder) payload.bank_account_holder_name = holder;
     }
+    if (
+      (payload.salary_amount as number) >= 1 &&
+      values.join_date?.trim()
+    ) {
+      payload.join_date = values.join_date.trim();
+      payload.payout_day_of_month = values.payout_day_of_month;
+    }
     return payload;
   }),
 }));
@@ -191,6 +198,17 @@ describe("AdminStaffPage", () => {
       within(screen.getByRole("dialog")).getByLabelText(/Salary/),
       "5000000",
     );
+    await user.type(
+      within(screen.getByRole("dialog")).getByLabelText("Join date"),
+      "2026-06-01",
+    );
+    await user.clear(
+      within(screen.getByRole("dialog")).getByLabelText("Payout day of month"),
+    );
+    await user.type(
+      within(screen.getByRole("dialog")).getByLabelText("Payout day of month"),
+      "26",
+    );
     await user.click(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Add staff" }),
     );
@@ -198,6 +216,12 @@ describe("AdminStaffPage", () => {
     await waitFor(() => {
       expect(staffAdminApi.create).toHaveBeenCalled();
     });
+    expect(staffAdminApi.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        join_date: "2026-06-01",
+        payout_day_of_month: 26,
+      }),
+    );
     expect(await screen.findByTestId("staff-recurring-payout-active")).toHaveTextContent(
       "Active",
     );

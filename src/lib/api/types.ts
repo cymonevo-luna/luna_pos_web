@@ -209,6 +209,10 @@ export interface Staff {
   address: string;
   job_title: string;
   salary_amount: number;
+  /** Calendar date when salary schedule starts (`YYYY-MM-DD`). */
+  join_date?: string | null;
+  /** Day of month (1–31) when salary expenses are generated. */
+  payout_day_of_month?: number | null;
   /** Auto-managed recurring expense linked to salary payouts. */
   recurring_expense_id?: string | null;
   benefits?: string | null;

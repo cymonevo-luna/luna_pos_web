@@ -25,10 +25,18 @@ const validStaff = buildDefaultStaffValues({
   address: "Jl. Merdeka No. 10",
   job_title: "Cashier",
   salary_amount: 5000000,
+  join_date: "2026-06-01",
+  payout_day_of_month: 26,
   bank_name: "",
   bank_account_holder_name: "",
   bank_account_number: "",
 });
+
+async function fillSalarySchedule(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(screen.getByLabelText("Join date"), "2026-06-01");
+  await user.clear(screen.getByLabelText("Payout day of month"));
+  await user.type(screen.getByLabelText("Payout day of month"), "26");
+}
 
 describe("StaffForm", () => {
   beforeEach(() => {
@@ -70,6 +78,7 @@ describe("StaffForm", () => {
     await user.type(screen.getByLabelText("Job title"), "Cashier");
     await user.clear(screen.getByLabelText(/Salary/));
     await user.type(screen.getByLabelText(/Salary/), "5000000");
+    await fillSalarySchedule(user);
     await user.click(screen.getByRole("button", { name: "Save staff" }));
 
     await waitFor(() => {
@@ -174,6 +183,7 @@ describe("StaffForm", () => {
       screen.getByLabelText(/Salary/),
       String(validStaff.salary_amount),
     );
+    await fillSalarySchedule(user);
     await user.click(screen.getByRole("button", { name: "Save staff" }));
 
     await waitFor(() => {
@@ -187,6 +197,89 @@ describe("StaffForm", () => {
       bank_account_holder_name: "",
       bank_account_number: "",
     });
+  });
+
+  it("shows salary schedule fields when salary is entered", async () => {
+    const user = userEvent.setup();
+
+    render(<StaffForm onSubmit={() => {}} onCancel={() => {}} />);
+
+    expect(
+      screen.queryByTestId("staff-salary-schedule-section"),
+    ).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/Salary/), "5000000");
+
+    expect(
+      screen.getByTestId("staff-salary-schedule-section"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Join date")).toBeInTheDocument();
+    expect(screen.getByLabelText("Payout day of month")).toBeInTheDocument();
+  });
+
+  it("blocks submit when salary is set but payout day is missing", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<StaffForm onSubmit={onSubmit} onCancel={() => {}} />);
+
+    await user.type(screen.getByLabelText("Name"), validStaff.name);
+    await user.type(screen.getByLabelText("Job title"), validStaff.job_title);
+    await user.type(screen.getByLabelText(/Salary/), "5000000");
+    await user.type(screen.getByLabelText("Join date"), "2026-06-01");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("Payout day of month is required"),
+    ).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("pre-fills schedule fields when editing staff with salary", () => {
+    const staff: Staff = {
+      id: "staff-1",
+      name: "Budi Santoso",
+      nik: "3201010101010001",
+      ktp_photo_url: null,
+      address: "Jl. Merdeka No. 10",
+      job_title: "Cashier",
+      salary_amount: 5000000,
+      join_date: "2026-06-01",
+      payout_day_of_month: 26,
+      benefits: null,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    };
+
+    render(
+      <StaffForm
+        defaultValues={staffToFormValues(staff)}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+
+    expect(screen.getByLabelText("Join date")).toHaveValue("2026-06-01");
+    expect(screen.getByLabelText("Payout day of month")).toHaveValue(26);
+  });
+
+  it("applies server field errors for schedule fields via ref", async () => {
+    const user = userEvent.setup();
+    const ref = createRef<StaffFormHandle>();
+
+    render(
+      <StaffForm ref={ref} onSubmit={() => {}} onCancel={() => {}} />,
+    );
+
+    await user.type(screen.getByLabelText(/Salary/), "5000000");
+
+    ref.current?.applyServerErrors({
+      join_date: "invalid join date",
+      payout_day_of_month: "invalid payout day",
+    });
+
+    expect(await screen.findByText("invalid join date")).toBeInTheDocument();
+    expect(await screen.findByText("invalid payout day")).toBeInTheDocument();
   });
 
   it("submits without salary when salary field is left blank", async () => {
@@ -313,6 +406,7 @@ describe("StaffForm", () => {
       screen.getByLabelText(/Salary/),
       String(validStaff.salary_amount),
     );
+    await fillSalarySchedule(user);
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(
@@ -371,6 +465,7 @@ describe("StaffForm", () => {
       screen.getByLabelText(/Salary/),
       String(validStaff.salary_amount),
     );
+    await fillSalarySchedule(user);
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
@@ -393,6 +488,8 @@ describe("staff form helpers", () => {
       bank_name: "",
       bank_account_holder_name: "",
       bank_account_number: "",
+      join_date: "",
+      payout_day_of_month: undefined,
     });
   });
 
@@ -424,6 +521,30 @@ describe("staff form helpers", () => {
       bank_name: "BCA",
       bank_account_holder_name: "",
       bank_account_number: "1234567890",
+      join_date: "",
+      payout_day_of_month: undefined,
+    });
+  });
+
+  it("staffToFormValues maps schedule fields from staff entity", () => {
+    const staff: Staff = {
+      id: "staff-1",
+      name: "Budi Santoso",
+      nik: "3201010101010001",
+      ktp_photo_url: null,
+      address: "Jl. Merdeka No. 10",
+      job_title: "Cashier",
+      salary_amount: 5000000,
+      join_date: "2026-06-01",
+      payout_day_of_month: 26,
+      benefits: null,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    };
+
+    expect(staffToFormValues(staff)).toMatchObject({
+      join_date: "2026-06-01",
+      payout_day_of_month: 26,
     });
   });
 

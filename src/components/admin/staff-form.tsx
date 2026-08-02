@@ -14,6 +14,7 @@ import {
   staffSchema,
   type StaffFormValues,
 } from "@/lib/validations";
+import { todayWIB } from "@/lib/datetime/wib";
 import { menuPhotoUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,8 @@ export function buildDefaultStaffValues(
     bank_name: defaultValues?.bank_name ?? "",
     bank_account_holder_name: defaultValues?.bank_account_holder_name ?? "",
     bank_account_number: defaultValues?.bank_account_number ?? "",
+    join_date: defaultValues?.join_date ?? "",
+    payout_day_of_month: defaultValues?.payout_day_of_month,
   };
 }
 
@@ -53,6 +56,8 @@ export function staffToFormValues(staff: Staff): StaffFormValues {
     bank_name: staff.bank_name ?? "",
     bank_account_holder_name: staff.bank_account_holder_name ?? "",
     bank_account_number: staff.bank_account_number ?? "",
+    join_date: staff.join_date ?? "",
+    payout_day_of_month: staff.payout_day_of_month ?? undefined,
   };
 }
 
@@ -109,6 +114,19 @@ export const StaffForm = React.forwardRef<StaffFormHandle, StaffFormProps>(
     });
 
     const ktpPhotoUrl = watch("ktp_photo_url");
+    const salaryAmount = watch("salary_amount");
+    const showSalarySchedule =
+      salaryAmount !== undefined &&
+      !Number.isNaN(salaryAmount) &&
+      salaryAmount > 0;
+
+    useEffect(() => {
+      if (!showSalarySchedule) {
+        setValue("join_date", "");
+        setValue("payout_day_of_month", undefined);
+        clearErrors(["join_date", "payout_day_of_month"]);
+      }
+    }, [showSalarySchedule, setValue, clearErrors]);
 
     useEffect(() => {
       const values = buildDefaultStaffValues(defaultValues);
@@ -129,7 +147,9 @@ export const StaffForm = React.forwardRef<StaffFormHandle, StaffFormProps>(
             field === "benefits" ||
             field === "bank_name" ||
             field === "bank_account_holder_name" ||
-            field === "bank_account_number"
+            field === "bank_account_number" ||
+            field === "join_date" ||
+            field === "payout_day_of_month"
           ) {
             setError(field, { message });
           }
@@ -327,6 +347,55 @@ export const StaffForm = React.forwardRef<StaffFormHandle, StaffFormProps>(
             </p>
           ) : null}
         </div>
+
+        {showSalarySchedule ? (
+          <div
+            className="space-y-4 rounded-lg border border-border p-4"
+            data-testid="staff-salary-schedule-section"
+          >
+            <div className="space-y-1.5">
+              <Label htmlFor="staff-join-date">Join date</Label>
+              <Input
+                id="staff-join-date"
+                type="date"
+                max={todayWIB()}
+                {...register("join_date")}
+              />
+              {errors.join_date && (
+                <p className="text-sm text-destructive">
+                  {errors.join_date.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="staff-payout-day">Payout day of month</Label>
+              <Input
+                id="staff-payout-day"
+                type="number"
+                min="1"
+                max="31"
+                step="1"
+                inputMode="numeric"
+                onKeyDown={blockDecimalInput}
+                {...register("payout_day_of_month", { valueAsNumber: true })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter a day between 1 and 31. Shorter months run on their last
+                day.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Salary expenses are generated on this day each month starting
+                from the join date.
+              </p>
+              {errors.payout_day_of_month && (
+                <p className="text-sm text-destructive">
+                  {errors.payout_day_of_month.message}
+                </p>
+              )}
+            </div>
+          </div>
+        ) : null}
 
         <div className="space-y-1.5">
           <Label htmlFor="staff-benefits">
