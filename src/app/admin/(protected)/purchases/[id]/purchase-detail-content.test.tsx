@@ -1185,4 +1185,58 @@ describe("AdminPurchaseDetailContent", () => {
       screen.queryByTestId("purchase-paid-date-input"),
     ).not.toBeInTheDocument();
   });
+
+  it("renders mismatch badge with imported price for flagged line item", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        items: [
+          {
+            ...purchase.items[0],
+            has_catalog_price_mismatch: true,
+            imported_price_amount: 150000,
+            imported_price_quantity: 1000,
+            unit: "gr",
+          },
+        ],
+      },
+    });
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+
+    expect(await screen.findByText("Imported price differs")).toBeInTheDocument();
+    expect(screen.getByText(/\(Rp 150 \/ gr\)/)).toBeInTheDocument();
+    expect(screen.getByTestId("catalog-price-mismatch-badge")).toHaveAttribute(
+      "title",
+      expect.stringContaining("Imported: Rp 150 / gr"),
+    );
+    expect(screen.getByTestId("catalog-price-mismatch-badge")).toHaveAttribute(
+      "title",
+      expect.stringContaining("Catalog:"),
+    );
+  });
+
+  it("hides mismatch badge when has_catalog_price_mismatch is false", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        items: [
+          {
+            ...purchase.items[0],
+            has_catalog_price_mismatch: false,
+            imported_price_amount: 150000,
+            imported_price_quantity: 1000,
+          },
+        ],
+      },
+    });
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+
+    await screen.findByText("Beras Supplier");
+    expect(screen.queryByText("Imported price differs")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("catalog-price-mismatch-badge"),
+    ).not.toBeInTheDocument();
+  });
 });

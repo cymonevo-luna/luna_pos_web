@@ -475,4 +475,31 @@ describe("AdminPurchasesPage", () => {
     expect(screen.getByTestId("purchase-import-dialog")).toBeInTheDocument();
     expect(screen.getByTestId("download-import-template")).toBeInTheDocument();
   });
+
+  it("shows price mismatch badge on flagged purchase row only", async () => {
+    vi.mocked(purchaseRequestsAdminApi.list).mockResolvedValue({
+      data: [
+        { ...purchase, has_catalog_price_mismatch: true },
+        {
+          ...purchase,
+          id: "pr-2",
+          supplier_name: "Sayur Supplier",
+          has_catalog_price_mismatch: false,
+        },
+      ],
+      meta: { page: 1, per_page: 10, total: 2 },
+    });
+
+    render(<AdminPurchasesPage />);
+
+    expect(await screen.findByText("Beras Supplier")).toBeInTheDocument();
+    const mismatchBadges = screen.getAllByText("Price mismatch");
+    expect(mismatchBadges).toHaveLength(1);
+    expect(
+      mismatchBadges[0]?.closest("tr")?.textContent,
+    ).toContain("Beras Supplier");
+    expect(screen.getByText("Sayur Supplier").closest("tr")?.textContent).not.toContain(
+      "Price mismatch",
+    );
+  });
 });

@@ -337,9 +337,19 @@ export default function AdminPurchasesPage() {
                       {purchase.supplier_name}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge variant={purchaseStatusBadgeVariant(purchase.status)}>
-                        {purchase.status}
-                      </Badge>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={purchaseStatusBadgeVariant(purchase.status)}>
+                          {purchase.status}
+                        </Badge>
+                        {purchase.has_catalog_price_mismatch === true ? (
+                          <Badge
+                            variant="warning"
+                            data-testid="purchase-price-mismatch-badge"
+                          >
+                            Price mismatch
+                          </Badge>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="px-4 py-3">{purchase.item_count}</td>
                     <td className="px-4 py-3 font-medium">
