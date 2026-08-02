@@ -191,6 +191,7 @@ export interface Supplier {
   name: string;
   phone_number: string;
   address: string;
+  store_link?: string | null;
   supports_delivery: boolean;
   delivery_cost: number | null;
   price_quotes: SupplierPrice[];

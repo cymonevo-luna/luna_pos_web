@@ -21,6 +21,7 @@ describe("supplierSchema", () => {
   const base = {
     name: "Beras Supplier",
     phone_number: "08123456789",
+    store_link: "",
     address: "Jl. Pasar 12",
     supports_delivery: true,
     delivery_cost: 5000,
@@ -98,6 +99,43 @@ describe("supplierSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("accepts a valid store link", () => {
+    const result = supplierSchema.safeParse({
+      ...base,
+      store_link: "https://tokopedia.com/shop",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts an empty store link", () => {
+    const result = supplierSchema.safeParse({
+      ...base,
+      store_link: "",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an invalid store link", () => {
+    const result = supplierSchema.safeParse({
+      ...base,
+      store_link: "bad",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((issue) => issue.path.includes("store_link")),
+      ).toBe(true);
+    }
+  });
+
+  it("rejects a store link without http or https scheme", () => {
+    const result = supplierSchema.safeParse({
+      ...base,
+      store_link: "www.example.com",
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("supplierPriceSchema", () => {
@@ -124,6 +162,7 @@ describe("supplierFormToPayload", () => {
   const base = {
     name: "Toko Aji",
     phone_number: "08161974323",
+    store_link: "",
     address: "Jl Cempaka Putih Tengah",
     supports_delivery: true,
     delivery_cost: 0,
@@ -190,6 +229,7 @@ describe("supplierFormToPayload", () => {
       supplierFormToPayload({
         name: "Toko Beras",
         phone_number: "08123456789",
+        store_link: "",
         address: "Jl Deket Kios",
         supports_delivery: true,
       }),
@@ -200,6 +240,30 @@ describe("supplierFormToPayload", () => {
       supports_delivery: true,
       delivery_cost: 0,
     });
+  });
+
+  it("includes store_link in payload when provided", () => {
+    expect(
+      supplierFormToPayload({
+        ...base,
+        store_link: "https://tokopedia.com/shop",
+      }),
+    ).toEqual({
+      name: "Toko Aji",
+      phone_number: "08161974323",
+      address: "Jl Cempaka Putih Tengah",
+      store_link: "https://tokopedia.com/shop",
+      supports_delivery: true,
+      delivery_cost: 0,
+    });
+  });
+
+  it("omits store_link from payload when empty", () => {
+    const payload = supplierFormToPayload({
+      ...base,
+      store_link: "",
+    });
+    expect(payload.store_link).toBeUndefined();
   });
 });
 
@@ -554,5 +618,46 @@ describe("normalizeSupplier", () => {
     });
     expect(normalized.price_quotes[0]?.price_amount).toBe(140000);
     expect(normalized.price_quotes_count).toBe(1);
+  });
+
+  it("round-trips store_link from API response", () => {
+    const normalized = normalizeSupplier({
+      id: "sup-1",
+      name: "Online Supplier",
+      phone_number: "",
+      address: "Jl. Pasar 12",
+      store_link: "https://tokopedia.com/shop",
+      supports_delivery: false,
+      delivery_cost: null,
+      price_quotes: [],
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+    expect(normalized.store_link).toBe("https://tokopedia.com/shop");
+
+    const payload = supplierFormToPayload({
+      name: normalized.name,
+      phone_number: normalized.phone_number,
+      store_link: normalized.store_link ?? "",
+      address: normalized.address,
+      supports_delivery: normalized.supports_delivery,
+    });
+    expect(payload.store_link).toBe("https://tokopedia.com/shop");
+  });
+
+  it("normalizes blank store_link to null", () => {
+    const normalized = normalizeSupplier({
+      id: "sup-1",
+      name: "Supplier",
+      phone_number: "08123456789",
+      address: "Jl. Pasar 12",
+      store_link: "   ",
+      supports_delivery: false,
+      delivery_cost: null,
+      price_quotes: [],
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+    expect(normalized.store_link).toBeNull();
   });
 });

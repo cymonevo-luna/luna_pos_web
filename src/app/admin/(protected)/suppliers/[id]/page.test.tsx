@@ -115,6 +115,29 @@ describe("AdminSupplierDetailContent", () => {
     expect(screen.queryByText(/·/)).not.toBeInTheDocument();
   });
 
+  it("renders store link as clickable external link in metadata", async () => {
+    vi.mocked(suppliersAdminApi.get).mockResolvedValue({
+      data: {
+        ...supplier,
+        store_link: "https://tokopedia.com/shop",
+      },
+    });
+
+    render(<AdminSupplierDetailContent id="sup-1" />);
+
+    expect(await screen.findByText("Store link")).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: "https://tokopedia.com/shop" });
+    expect(link).toHaveAttribute("href", "https://tokopedia.com/shop");
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("hides store link row when store link is empty", async () => {
+    render(<AdminSupplierDetailContent id="sup-1" />);
+
+    expect(await screen.findByText("Beras Supplier")).toBeInTheDocument();
+    expect(screen.queryByText("Store link")).not.toBeInTheDocument();
+  });
+
   it("adds a price quote from the modal", async () => {
     const user = userEvent.setup();
     vi.mocked(suppliersAdminApi.createPrice).mockResolvedValue({

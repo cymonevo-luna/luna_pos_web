@@ -113,7 +113,7 @@ describe("POS-107-2 supplier phone optional verification", () => {
       />,
     );
 
-    const phoneInput = screen.getByLabelText(/Phone number/);
+    const phoneInput = screen.getByLabelText(/WhatsApp\/contact/);
     await user.clear(phoneInput);
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 

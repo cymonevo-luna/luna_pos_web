@@ -345,6 +345,22 @@ export const supplierSchema = z
         (value) => value.length <= 30,
         "Phone number is too long",
       ),
+    store_link: z
+      .string()
+      .max(2048, "Store link is too long")
+      .refine((value) => {
+        const trimmed = value.trim();
+        if (!trimmed) return true;
+        if (
+          !trimmed.startsWith("http://") &&
+          !trimmed.startsWith("https://")
+        ) {
+          return false;
+        }
+        return z.string().url().safeParse(trimmed).success;
+      }, "Enter a valid URL starting with http:// or https://")
+      .optional()
+      .or(z.literal("")),
     address: z
       .string()
       .min(2, "Address must be at least 2 characters")

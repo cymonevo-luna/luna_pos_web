@@ -31,6 +31,7 @@ function supplierToFormValues(
   return {
     name: supplier.name,
     phone_number: supplier.phone_number,
+    store_link: supplier.store_link ?? "",
     address: supplier.address,
     supports_delivery: supplier.supports_delivery,
     delivery_cost: supplier.delivery_cost ?? undefined,
