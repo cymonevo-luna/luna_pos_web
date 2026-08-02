@@ -341,7 +341,7 @@ export default function AdminPurchasesPage() {
                         <Badge variant={purchaseStatusBadgeVariant(purchase.status)}>
                           {purchase.status}
                         </Badge>
-                        {purchase.has_catalog_price_mismatch === true ? (
+                        {purchase.has_price_mismatch === true ? (
                           <Badge
                             variant="warning"
                             data-testid="purchase-price-mismatch-badge"
