@@ -21,6 +21,9 @@ describe("staffSchema", () => {
     address: "Jl. Merdeka No. 10",
     job_title: "Cashier",
     salary_amount: 5000000,
+    bank_name: "",
+    bank_account_holder_name: "",
+    bank_account_number: "",
   };
 
   it("accepts valid staff form values", () => {
@@ -28,13 +31,30 @@ describe("staffSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects invalid NIK", () => {
+  it("accepts staff without nik, address, or banking", () => {
+    const result = staffSchema.safeParse({
+      name: "Budi Santoso",
+      nik: "",
+      address: "",
+      job_title: "Cashier",
+      salary_amount: 5000000,
+      bank_name: "",
+      bank_account_holder_name: "",
+      bank_account_number: "",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid NIK when provided", () => {
     const result = staffSchema.safeParse({
       name: "Test",
       nik: "123",
-      address: "Addr",
+      address: "",
       job_title: "Role",
       salary_amount: 1000,
+      bank_name: "",
+      bank_account_holder_name: "",
+      bank_account_number: "",
     });
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -42,6 +62,32 @@ describe("staffSchema", () => {
         result.error.issues.some((issue) => issue.path.includes("nik")),
       ).toBe(true);
     }
+  });
+
+  it("rejects bank name without account number", () => {
+    const result = staffSchema.safeParse({
+      ...base,
+      bank_name: "BCA",
+      bank_account_number: "",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((issue) =>
+          issue.path.includes("bank_account_number"),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("accepts bank name and account number without holder name", () => {
+    const result = staffSchema.safeParse({
+      ...base,
+      bank_name: "BCA",
+      bank_account_holder_name: "",
+      bank_account_number: "1234567890",
+    });
+    expect(result.success).toBe(true);
   });
 
   it("rejects negative salary", () => {
@@ -89,6 +135,9 @@ describe("staffFormToPayload", () => {
     address: "Jl. Merdeka No. 10",
     job_title: "Cashier",
     salary_amount: 5000000,
+    bank_name: "",
+    bank_account_holder_name: "",
+    bank_account_number: "",
   };
 
   it("maps valid values to backend CreateInput shape", () => {
@@ -107,6 +156,62 @@ describe("staffFormToPayload", () => {
       ktp_photo_url: "https://example.com/ktp.jpg",
       benefits: "BPJS, meal allowance",
     });
+  });
+
+  it("maps banking fields when provided", () => {
+    expect(
+      staffFormToPayload({
+        ...base,
+        bank_name: "BCA",
+        bank_account_holder_name: "Budi Santoso",
+        bank_account_number: "1234567890",
+      }),
+    ).toEqual({
+      name: "Budi Santoso",
+      nik: "3201010101010001",
+      address: "Jl. Merdeka No. 10",
+      job_title: "Cashier",
+      salary_amount: 5000000,
+      bank_name: "BCA",
+      bank_account_holder_name: "Budi Santoso",
+      bank_account_number: "1234567890",
+    });
+  });
+
+  it("omits banking fields when empty", () => {
+    const payload = staffFormToPayload({
+      ...base,
+      bank_name: "",
+      bank_account_holder_name: "",
+      bank_account_number: "",
+    });
+    expect(payload.bank_name).toBeUndefined();
+    expect(payload.bank_account_holder_name).toBeUndefined();
+    expect(payload.bank_account_number).toBeUndefined();
+  });
+
+  it("omits holder name when only bank name and number are provided", () => {
+    const payload = staffFormToPayload({
+      ...base,
+      bank_name: "BCA",
+      bank_account_holder_name: "",
+      bank_account_number: "1234567890",
+    });
+    expect(payload).toMatchObject({
+      bank_name: "BCA",
+      bank_account_number: "1234567890",
+    });
+    expect(payload.bank_account_holder_name).toBeUndefined();
+  });
+
+  it("omits optional nik and address when empty", () => {
+    const payload = staffFormToPayload({
+      ...base,
+      nik: "",
+      address: "",
+    });
+    expect(payload.nik).toBeUndefined();
+    expect(payload.address).toBeUndefined();
   });
 
   it("omits optional ktp_photo_url and benefits when empty", () => {
