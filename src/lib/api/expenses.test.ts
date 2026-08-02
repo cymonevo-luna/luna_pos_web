@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { startOfDayWIB, todayWIB } from "@/lib/datetime/wib";
 import {
   createExpense,
   deleteExpense,
@@ -336,6 +337,68 @@ describe("expenseFormToPayload", () => {
       amount: 150_000,
       source_of_fund: "PERSONAL_MONEY",
       receipt_url: "",
+    });
+  });
+
+  it("omits transaction_date when date is today", () => {
+    expect(
+      expenseFormToPayload(
+        {
+          title: "Office supplies",
+          description: "",
+          amount: 150_000,
+          source_of_fund: "PERSONAL_MONEY",
+          receipt_url: "",
+          transactionDate: todayWIB(),
+        },
+        { includeTransactionDate: true },
+      ),
+    ).toEqual({
+      title: "Office supplies",
+      amount: 150_000,
+      source_of_fund: "PERSONAL_MONEY",
+    });
+  });
+
+  it("includes transaction_date for past dates as start of WIB day", () => {
+    expect(
+      expenseFormToPayload(
+        {
+          title: "Office supplies",
+          description: "",
+          amount: 150_000,
+          source_of_fund: "PERSONAL_MONEY",
+          receipt_url: "",
+          transactionDate: "2026-07-20",
+        },
+        { includeTransactionDate: true },
+      ),
+    ).toEqual({
+      title: "Office supplies",
+      amount: 150_000,
+      source_of_fund: "PERSONAL_MONEY",
+      transaction_date: startOfDayWIB("2026-07-20").toISOString(),
+    });
+  });
+
+  it("includes transaction_date for cashier expenses with past dates", () => {
+    expect(
+      expenseFormToPayload(
+        {
+          title: "Petty cash",
+          description: "",
+          amount: 50_000,
+          source_of_fund: "CASHIER",
+          receipt_url: "",
+          transactionDate: "2026-07-20",
+        },
+        { includeTransactionDate: true },
+      ),
+    ).toEqual({
+      title: "Petty cash",
+      amount: 50_000,
+      source_of_fund: "CASHIER",
+      transaction_date: startOfDayWIB("2026-07-20").toISOString(),
     });
   });
 });
