@@ -238,4 +238,23 @@ describe("AdminSuppliersPage", () => {
       expect(toast.error).toHaveBeenCalledWith("Export failed");
     });
   });
+
+  it("shows store link indicator in contact column when present", async () => {
+    vi.mocked(suppliersAdminApi.list).mockResolvedValue({
+      data: [
+        {
+          ...supplier,
+          store_link: "https://tokopedia.com/shop",
+        },
+      ],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminSuppliersPage />);
+
+    expect(await screen.findByText("Beras Supplier")).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /tokopedia\.com\/shop/i });
+    expect(link).toHaveAttribute("href", "https://tokopedia.com/shop");
+    expect(link).toHaveAttribute("target", "_blank");
+  });
 });

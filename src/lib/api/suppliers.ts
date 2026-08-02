@@ -49,8 +49,10 @@ function normalizePrice(raw: SupplierPriceRaw): SupplierPrice {
 
 export function normalizeSupplier(raw: SupplierRaw): Supplier {
   const priceQuotes = (raw.price_quotes ?? []).map(normalizePrice);
+  const storeLink = raw.store_link?.trim() || null;
   return {
     ...raw,
+    store_link: storeLink,
     delivery_cost: parseDeliveryCost(raw.delivery_cost),
     price_quotes: priceQuotes,
     price_quotes_count:
@@ -100,6 +102,7 @@ export interface CreateSupplierPayload {
   name: string;
   phone_number: string;
   address: string;
+  store_link?: string;
   supports_delivery: boolean;
   /** Present only when supports_delivery is true. */
   delivery_cost?: number;
@@ -120,12 +123,16 @@ export type UpdateSupplierPricePayload = CreateSupplierPricePayload;
 export function supplierFormToPayload(
   values: SupplierFormValues,
 ): CreateSupplierPayload {
+  const storeLink = values.store_link?.trim() ?? "";
   const payload: CreateSupplierPayload = {
     name: values.name,
     phone_number: values.phone_number.trim(),
     address: values.address,
     supports_delivery: values.supports_delivery,
   };
+  if (storeLink) {
+    payload.store_link = storeLink;
+  }
   if (values.supports_delivery) {
     payload.delivery_cost = values.delivery_cost ?? 0;
   }

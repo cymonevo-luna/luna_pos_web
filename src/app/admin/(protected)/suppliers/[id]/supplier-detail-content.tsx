@@ -210,6 +210,22 @@ export function AdminSupplierDetailContent({ id }: { id: string }) {
             <CardContent>
               <dl className="divide-y divide-border">
                 {[
+                  ...(supplier.store_link?.trim()
+                    ? [
+                        [
+                          "Store link",
+                          <a
+                            key="store-link"
+                            href={supplier.store_link.trim()}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            {supplier.store_link.trim()}
+                          </a>,
+                        ] as const,
+                      ]
+                    : []),
                   ["Delivery", supplier.supports_delivery ? "Yes" : "No"],
                   [
                     "Delivery cost",

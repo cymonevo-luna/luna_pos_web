@@ -11,6 +11,7 @@ import {
   Pencil,
   Eye,
   Download,
+  ExternalLink,
 } from "lucide-react";
 import {
   downloadSuppliersCsv,
@@ -29,6 +30,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 
 const PER_PAGE = 10;
+
+function truncateStoreLink(url: string, maxLength = 32): string {
+  if (url.length <= maxLength) return url;
+  return `${url.slice(0, maxLength - 1)}…`;
+}
 
 export default function AdminSuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -210,6 +216,7 @@ export default function AdminSuppliersPage() {
                   const quoteCount =
                     supplier.price_quotes_count ??
                     supplier.price_quotes.length;
+                  const storeLink = supplier.store_link?.trim();
                   return (
                     <tr
                       key={supplier.id}
@@ -226,6 +233,23 @@ export default function AdminSuppliersPage() {
                             <span className="text-muted-foreground/70">—</span>
                           )}
                         </p>
+                        {storeLink && (
+                          <p className="mt-0.5 flex max-w-xs items-center gap-1 text-xs">
+                            <ExternalLink
+                              className="h-3 w-3 shrink-0"
+                              aria-hidden="true"
+                            />
+                            <a
+                              href={storeLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="truncate text-primary hover:underline"
+                              title={storeLink}
+                            >
+                              {truncateStoreLink(storeLink)}
+                            </a>
+                          </p>
+                        )}
                         <p className="mt-0.5 max-w-xs truncate text-xs">
                           {supplier.address}
                         </p>

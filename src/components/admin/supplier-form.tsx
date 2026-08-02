@@ -19,6 +19,7 @@ function buildDefaultValues(
   return {
     name: defaultValues?.name ?? "",
     phone_number: defaultValues?.phone_number ?? "",
+    store_link: defaultValues?.store_link ?? "",
     address: defaultValues?.address ?? "",
     supports_delivery: defaultValues?.supports_delivery ?? false,
     delivery_cost: defaultValues?.delivery_cost,
@@ -92,6 +93,7 @@ export const SupplierForm = React.forwardRef<SupplierFormHandle, SupplierFormPro
           if (
             field === "name" ||
             field === "phone_number" ||
+            field === "store_link" ||
             field === "address" ||
             field === "supports_delivery" ||
             field === "delivery_cost"
@@ -121,10 +123,8 @@ export const SupplierForm = React.forwardRef<SupplierFormHandle, SupplierFormPro
 
         <div className="space-y-1.5">
           <Label htmlFor="supplier-phone">
-            Phone number{" "}
-            <span className="font-normal text-muted-foreground">
-              (recommended)
-            </span>
+            WhatsApp/contact{" "}
+            <span className="font-normal text-muted-foreground">(optional)</span>
           </Label>
           <Input
             id="supplier-phone"
@@ -135,6 +135,28 @@ export const SupplierForm = React.forwardRef<SupplierFormHandle, SupplierFormPro
           {errors.phone_number && (
             <p className="text-sm text-destructive">
               {errors.phone_number.message}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="supplier-store-link">
+            Store link{" "}
+            <span className="font-normal text-muted-foreground">(optional)</span>
+          </Label>
+          <Input
+            id="supplier-store-link"
+            type="url"
+            autoComplete="off"
+            placeholder="https://"
+            {...register("store_link")}
+          />
+          <p className="text-xs text-muted-foreground">
+            Online shop or marketplace URL
+          </p>
+          {errors.store_link && (
+            <p className="text-sm text-destructive">
+              {errors.store_link.message}
             </p>
           )}
         </div>

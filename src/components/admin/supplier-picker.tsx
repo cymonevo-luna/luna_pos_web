@@ -12,15 +12,25 @@ import { Label } from "@/components/ui/label";
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_PER_PAGE = 20;
 
-export function formatSupplierOptionLabel(supplier: Pick<Supplier, "name" | "phone_number">) {
-  return `${supplier.name} · ${supplier.phone_number}`;
+export function formatSupplierOptionLabel(
+  supplier: Pick<Supplier, "name" | "phone_number" | "store_link">,
+) {
+  const phone = supplier.phone_number?.trim();
+  if (phone) {
+    return `${supplier.name} · ${phone}`;
+  }
+  const storeLink = supplier.store_link?.trim();
+  if (storeLink) {
+    return `${supplier.name} · Online shop`;
+  }
+  return supplier.name;
 }
 
 export interface SupplierPickerProps {
   id?: string;
   label?: string;
   value: string;
-  selectedSupplier?: Pick<Supplier, "id" | "name" | "phone_number"> | null;
+  selectedSupplier?: Pick<Supplier, "id" | "name" | "phone_number" | "store_link"> | null;
   onChange: (supplier: Supplier) => void;
   disabled?: boolean;
   error?: string;

@@ -8,7 +8,8 @@ describe("SupplierForm", () => {
     render(<SupplierForm onSubmit={() => {}} onCancel={() => {}} />);
 
     expect(screen.getByLabelText("Name")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Phone number/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/WhatsApp\/contact/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Store link/)).toBeInTheDocument();
     expect(screen.getByLabelText("Address")).toBeInTheDocument();
     expect(screen.getByLabelText("Supports delivery")).toBeInTheDocument();
   });
@@ -40,7 +41,7 @@ describe("SupplierForm", () => {
     );
 
     await user.type(screen.getByLabelText("Name"), "Beras Supplier");
-    await user.type(screen.getByLabelText(/Phone number/), "08123456789");
+    await user.type(screen.getByLabelText(/WhatsApp\/contact/), "08123456789");
     await user.type(screen.getByLabelText("Address"), "Jl. Pasar 12");
 
     await user.click(screen.getByRole("button", { name: "Save supplier" }));
@@ -51,6 +52,7 @@ describe("SupplierForm", () => {
     expect(onSubmit.mock.calls[0]?.[0]).toEqual({
       name: "Beras Supplier",
       phone_number: "08123456789",
+      store_link: "",
       address: "Jl. Pasar 12",
       supports_delivery: false,
       delivery_cost: undefined,
@@ -73,6 +75,7 @@ describe("SupplierForm", () => {
     expect(onSubmit.mock.calls[0]?.[0]).toEqual({
       name: "Beras Supplier",
       phone_number: "",
+      store_link: "",
       address: "Jl. Pasar 12",
       supports_delivery: false,
       delivery_cost: undefined,
@@ -87,7 +90,7 @@ describe("SupplierForm", () => {
     render(<SupplierForm onSubmit={onSubmit} onCancel={() => {}} />);
 
     await user.type(screen.getByLabelText("Name"), "Beras Supplier");
-    await user.type(screen.getByLabelText(/Phone number/), "0812");
+    await user.type(screen.getByLabelText(/WhatsApp\/contact/), "0812");
     await user.type(screen.getByLabelText("Address"), "Jl. Pasar 12");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -103,7 +106,7 @@ describe("SupplierForm", () => {
 
     render(<SupplierForm onSubmit={onSubmit} onCancel={() => {}} />);
 
-    await user.type(screen.getByLabelText(/Phone number/), "08123456789");
+    await user.type(screen.getByLabelText(/WhatsApp\/contact/), "08123456789");
     await user.type(screen.getByLabelText("Address"), "Jl. Pasar 12");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -120,7 +123,7 @@ describe("SupplierForm", () => {
     render(<SupplierForm onSubmit={onSubmit} onCancel={() => {}} />);
 
     await user.type(screen.getByLabelText("Name"), "Beras Supplier");
-    await user.type(screen.getByLabelText(/Phone number/), "08123456789");
+    await user.type(screen.getByLabelText(/WhatsApp\/contact/), "08123456789");
     await user.type(screen.getByLabelText("Address"), "Jl. Pasar 12");
     await user.click(screen.getByLabelText("Supports delivery"));
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -131,5 +134,64 @@ describe("SupplierForm", () => {
       ),
     ).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("submits with a valid store link", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<SupplierForm onSubmit={onSubmit} onCancel={() => {}} />);
+
+    await user.type(screen.getByLabelText("Name"), "Beras Supplier");
+    await user.type(
+      screen.getByLabelText(/Store link/),
+      "https://tokopedia.com/shop",
+    );
+    await user.type(screen.getByLabelText("Address"), "Jl. Pasar 12");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalled();
+    });
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
+      store_link: "https://tokopedia.com/shop",
+    });
+  });
+
+  it("rejects an invalid store link", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<SupplierForm onSubmit={onSubmit} onCancel={() => {}} />);
+
+    await user.type(screen.getByLabelText("Name"), "Beras Supplier");
+    await user.type(screen.getByLabelText(/Store link/), "bad");
+    await user.type(screen.getByLabelText("Address"), "Jl. Pasar 12");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText(
+        "Enter a valid URL starting with http:// or https://",
+      ),
+    ).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("submits successfully with an empty store link", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<SupplierForm onSubmit={onSubmit} onCancel={() => {}} />);
+
+    await user.type(screen.getByLabelText("Name"), "Beras Supplier");
+    await user.type(screen.getByLabelText("Address"), "Jl. Pasar 12");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalled();
+    });
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
+      store_link: "",
+    });
   });
 });
