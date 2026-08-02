@@ -255,6 +255,7 @@ async function main() {
   await page.getByTestId("expense-transaction-date-input").fill(pastDate);
   await page.getByTestId("expense-form-submit").click();
   await page.waitForURL("**/admin/expenses/exp-verify-172-5/edit");
+  await page.getByTestId("expense-transaction-date-card").waitFor({ state: "visible" });
 
   const transactionDateCard = page.getByTestId("expense-transaction-date-card");
   const transactionDateLabelVisible = await transactionDateCard
