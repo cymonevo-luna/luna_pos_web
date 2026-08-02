@@ -29,6 +29,51 @@ export function formatDateTime(value: string | Date) {
   return formatWIB(value, "datetime");
 }
 
+/** Format a day-of-month as an ordinal (e.g. 26 → "26th"). */
+export function formatOrdinalDayOfMonth(day: number): string {
+  const n = Math.trunc(day);
+  if (!Number.isFinite(n) || n < 1 || n > 31) {
+    return String(day);
+  }
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+  if (mod10 === 1) return `${n}st`;
+  if (mod10 === 2) return `${n}nd`;
+  if (mod10 === 3) return `${n}rd`;
+  return `${n}th`;
+}
+
+/** Human-readable monthly payout day (e.g. "Every 26th"). */
+export function formatPayoutSchedule(day: number): string {
+  return `Every ${formatOrdinalDayOfMonth(day)}`;
+}
+
+/** Join date for staff list cells; em dash when unsalaried or missing. */
+export function formatStaffJoinDateDisplay(staff: {
+  salary_amount: number;
+  join_date?: string | null;
+}): string {
+  if (staff.salary_amount === 0) return "—";
+  if (!staff.join_date?.trim()) return "—";
+  return formatDate(staff.join_date);
+}
+
+/** Payout schedule summary for staff list cells; null when placeholder applies. */
+export function formatStaffPayoutScheduleDisplay(staff: {
+  salary_amount: number;
+  recurring_expense_id?: string | null;
+  payout_day_of_month?: number | null;
+}): string | null {
+  if (staff.salary_amount === 0) return null;
+  if (!staff.recurring_expense_id) return null;
+  const day = staff.payout_day_of_month;
+  if (day != null && day >= 1 && day <= 31) {
+    return `Active · ${formatOrdinalDayOfMonth(day)} monthly`;
+  }
+  return "Active";
+}
+
 /** Format a Date for `<input type="datetime-local" />` in WIB. */
 export function dateToDatetimeLocalInput(value: string | Date) {
   return toWibDatetimeLocalInput(value);

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import AdminStaffPage from "./page";
 import { staffAdminApi } from "@/lib/api/staff";
 import type { Staff } from "@/lib/api/types";
-import { formatRupiah } from "@/lib/utils";
+import { formatRupiah, formatDate } from "@/lib/utils";
 
 vi.mock("next/navigation", () => ({
   usePathname: vi.fn(() => "/admin/staff"),
@@ -116,7 +116,66 @@ describe("AdminStaffPage", () => {
     );
   });
 
-  it("shows Active recurring payout when staff is linked", async () => {
+  it("shows join date for salaried staff", async () => {
+    vi.mocked(staffAdminApi.list).mockResolvedValue({
+      data: [
+        {
+          ...staffMember,
+          join_date: "2026-01-15",
+        },
+      ],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminStaffPage />);
+
+    expect(await screen.findByText("Budi Santoso")).toBeInTheDocument();
+    expect(screen.getByText("Join date")).toBeInTheDocument();
+    expect(screen.getByTestId("staff-join-date")).toHaveTextContent(
+      formatDate("2026-01-15"),
+    );
+  });
+
+  it("shows em dash for join date when staff has no salary", async () => {
+    vi.mocked(staffAdminApi.list).mockResolvedValue({
+      data: [
+        {
+          ...staffMember,
+          salary_amount: 0,
+          join_date: "2026-01-15",
+        },
+      ],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminStaffPage />);
+
+    expect(await screen.findByText("Budi Santoso")).toBeInTheDocument();
+    expect(screen.getByTestId("staff-join-date")).toHaveTextContent("—");
+  });
+
+  it("shows payout day summary when staff is linked", async () => {
+    vi.mocked(staffAdminApi.list).mockResolvedValue({
+      data: [
+        {
+          ...staffMember,
+          salary_amount: 5_000_000,
+          recurring_expense_id: "recurring-expense-1",
+          payout_day_of_month: 26,
+        },
+      ],
+      meta: { page: 1, per_page: 10, total: 1 },
+    });
+
+    render(<AdminStaffPage />);
+
+    expect(await screen.findByText("Budi Santoso")).toBeInTheDocument();
+    expect(screen.getByTestId("staff-recurring-payout-active")).toHaveTextContent(
+      "Active · 26th monthly",
+    );
+  });
+
+  it("shows Active recurring payout when staff is linked without payout day", async () => {
     vi.mocked(staffAdminApi.list).mockResolvedValue({
       data: [
         {
