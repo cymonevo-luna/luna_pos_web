@@ -16,7 +16,7 @@ import type { Expense } from "@/lib/api/types";
 import { useDeleteExpense, useExpenses } from "@/lib/hooks/use-expenses";
 import {
   displayDescription,
-  formatDateTime,
+  formatDate,
   formatRupiah,
   menuPhotoUrl,
 } from "@/lib/utils";
@@ -146,6 +146,9 @@ export default function AdminExpensesPage() {
             presetTestId="expenses-date-preset"
             dateFromTestId="expenses-date-from"
             dateToTestId="expenses-date-to"
+            presetAriaLabel="Transaction date"
+            dateFromAriaLabel="Transaction date from"
+            dateToAriaLabel="Transaction date to"
           />
           <Link href="/admin/expenses/new" className={buttonVariants()}>
             <Plus className="h-4 w-4" />
@@ -164,7 +167,7 @@ export default function AdminExpensesPage() {
                 <th className="px-4 py-3 font-medium">Amount</th>
                 <th className="px-4 py-3 font-medium">Receipt</th>
                 <th className="px-4 py-3 font-medium">Created by</th>
-                <th className="px-4 py-3 font-medium">Created</th>
+                <th className="px-4 py-3 font-medium">Transaction date</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
@@ -218,8 +221,11 @@ export default function AdminExpensesPage() {
                     <td className="px-4 py-3">
                       {expense.created_by_username ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatDateTime(expense.created_at)}
+                    <td
+                      className="px-4 py-3 text-muted-foreground"
+                      data-testid={`expense-transaction-date-${expense.id}`}
+                    >
+                      {formatDate(expense.transaction_date)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
