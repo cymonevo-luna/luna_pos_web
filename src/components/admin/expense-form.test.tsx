@@ -1,9 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import * as React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ExpenseForm } from "./expense-form";
 import { uploadExpenseReceipt } from "@/lib/api/uploads";
+import { todayWIB } from "@/lib/datetime/wib";
 
 vi.mock("@/lib/api/uploads", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api/uploads")>();
@@ -304,5 +305,139 @@ describe("ExpenseForm", () => {
     expect(
       await screen.findByTestId("expense-record-date-error"),
     ).toHaveTextContent("Invalid reporting date");
+  });
+
+  it("shows transaction date defaulting to today in WIB when enabled", () => {
+    render(
+      <ExpenseForm
+        onSubmit={() => {}}
+        onCancel={() => {}}
+        showTransactionDate
+      />,
+    );
+
+    expect(screen.getByLabelText("Transaction date")).toBeInTheDocument();
+    expect(screen.getByTestId("expense-transaction-date-input")).toHaveValue(
+      todayWIB(),
+    );
+  });
+
+  it("hides transaction date field by default", () => {
+    render(<ExpenseForm onSubmit={() => {}} onCancel={() => {}} />);
+
+    expect(
+      screen.queryByTestId("expense-transaction-date-section"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("blocks submit when transaction date is in the future", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <ExpenseForm
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+        showTransactionDate
+        defaultValues={{
+          title: "Office supplies",
+          amount: 150_000,
+        }}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId("expense-transaction-date-input"), {
+      target: { value: "2099-01-01" },
+    });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("Transaction date cannot be in the future"),
+    ).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("submits with past transaction date when enabled", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <ExpenseForm
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+        showTransactionDate
+      />,
+    );
+
+    await user.type(screen.getByLabelText(/^Title/), "Office supplies");
+    await user.type(screen.getByLabelText(/^Amount/), "150000");
+    fireEvent.change(screen.getByTestId("expense-transaction-date-input"), {
+      target: { value: "2026-01-10" },
+    });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalled();
+    });
+
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
+      title: "Office Supplies",
+      amount: 150_000,
+      transactionDate: "2026-01-10",
+    });
+  });
+
+  it("submits cashier-funded expense with past transaction date", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <ExpenseForm
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+        showTransactionDate
+      />,
+    );
+
+    await user.type(screen.getByLabelText(/^Title/), "Petty cash");
+    await user.type(screen.getByLabelText(/^Amount/), "50000");
+    await user.selectOptions(
+      screen.getByTestId("expense-source-of-fund-select"),
+      "CASHIER",
+    );
+    fireEvent.change(screen.getByTestId("expense-transaction-date-input"), {
+      target: { value: "2026-01-10" },
+    });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalled();
+    });
+
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
+      source_of_fund: "CASHIER",
+      transactionDate: "2026-01-10",
+    });
+  });
+
+  it("applies server errors for transaction_date", async () => {
+    const ref = React.createRef<import("./expense-form").ExpenseFormHandle>();
+
+    render(
+      <ExpenseForm
+        ref={ref}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+        showTransactionDate
+      />,
+    );
+
+    ref.current?.applyServerErrors({
+      transaction_date: "Invalid transaction date",
+    });
+
+    expect(
+      await screen.findByText("Invalid transaction date"),
+    ).toBeInTheDocument();
   });
 });

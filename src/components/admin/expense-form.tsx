@@ -7,10 +7,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiError } from "@/lib/api/client";
 import { uploadExpenseReceipt, validateMenuPhotoFile } from "@/lib/api/uploads";
 import {
+  expenseCreateSchema,
   expenseEditWithRecordDateSchema,
   expenseSchema,
+  type ExpenseCreateFormValues,
   type ExpenseFormValues,
 } from "@/lib/validations";
+import { todayWIB } from "@/lib/datetime/wib";
 import {
   dateToDatetimeLocalInput,
   maxRecordDatetimeLocalInput,
@@ -55,8 +58,9 @@ function CashierBalanceHint() {
 }
 
 function buildDefaultValues(
-  defaultValues?: Partial<ExpenseFormValues>,
-): ExpenseFormValues {
+  defaultValues?: Partial<ExpenseFormValues & { transactionDate?: string }>,
+  options?: { includeTransactionDate?: boolean },
+): ExpenseFormValues & { transactionDate?: string } {
   return {
     title: defaultValues?.title ?? "",
     description: defaultValues?.description ?? "",
@@ -64,6 +68,9 @@ function buildDefaultValues(
     source_of_fund: defaultValues?.source_of_fund ?? "PERSONAL_MONEY",
     receipt_url: defaultValues?.receipt_url ?? "",
     recordDate: defaultValues?.recordDate,
+    ...(options?.includeTransactionDate
+      ? { transactionDate: defaultValues?.transactionDate ?? todayWIB() }
+      : {}),
   };
 }
 
@@ -95,6 +102,7 @@ export interface ExpenseFormProps {
   isLoading?: boolean;
   submitLabel?: string;
   showRecordDate?: boolean;
+  showTransactionDate?: boolean;
 }
 
 export interface ExpenseFormHandle {
@@ -111,10 +119,13 @@ export const ExpenseForm = React.forwardRef<ExpenseFormHandle, ExpenseFormProps>
       isLoading = false,
       submitLabel = "Save",
       showRecordDate = false,
+      showTransactionDate = false,
     },
     ref,
   ) {
-    const initialValuesRef = useRef(buildDefaultValues(defaultValues));
+    const initialValuesRef = useRef(
+      buildDefaultValues(defaultValues, { includeTransactionDate: showTransactionDate }),
+    );
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
@@ -129,10 +140,14 @@ export const ExpenseForm = React.forwardRef<ExpenseFormHandle, ExpenseFormProps>
       watch,
       control,
       formState: { errors },
-    } = useForm<ExpenseFormValues>({
+    } = useForm<ExpenseCreateFormValues>({
       resolver: zodResolver(
-        showRecordDate ? expenseEditWithRecordDateSchema : expenseSchema,
-      ) as Resolver<ExpenseFormValues>,
+        showRecordDate
+          ? expenseEditWithRecordDateSchema
+          : showTransactionDate
+            ? expenseCreateSchema
+            : expenseSchema,
+      ) as Resolver<ExpenseCreateFormValues>,
       defaultValues: initialValuesRef.current,
     });
 
@@ -140,10 +155,12 @@ export const ExpenseForm = React.forwardRef<ExpenseFormHandle, ExpenseFormProps>
     const sourceOfFund = watch("source_of_fund");
 
     useEffect(() => {
-      const values = buildDefaultValues(defaultValues);
+      const values = buildDefaultValues(defaultValues, {
+        includeTransactionDate: showTransactionDate,
+      });
       initialValuesRef.current = values;
       reset(values);
-    }, [defaultValues, reset]);
+    }, [defaultValues, reset, showTransactionDate]);
 
     useImperativeHandle(ref, () => ({
       applyServerErrors(fields: Record<string, string>) {
@@ -151,7 +168,9 @@ export const ExpenseForm = React.forwardRef<ExpenseFormHandle, ExpenseFormProps>
           const mappedField =
             field === "record_date"
               ? "recordDate"
-              : field === "title" ||
+              : field === "transaction_date"
+                ? "transactionDate"
+                : field === "title" ||
                   field === "description" ||
                   field === "amount" ||
                   field === "source_of_fund" ||
@@ -235,6 +254,34 @@ export const ExpenseForm = React.forwardRef<ExpenseFormHandle, ExpenseFormProps>
             </p>
           )}
         </div>
+
+        {showTransactionDate ? (
+          <div
+            className="space-y-1.5"
+            data-testid="expense-transaction-date-section"
+          >
+            <Label htmlFor="expense-transaction-date">Transaction date</Label>
+            <Input
+              id="expense-transaction-date"
+              type="date"
+              data-testid="expense-transaction-date-input"
+              max={todayWIB()}
+              disabled={isBusy}
+              {...register("transactionDate")}
+            />
+            <p className="text-xs text-muted-foreground">
+              Date used for cash-flow reporting.
+            </p>
+            {errors.transactionDate && (
+              <p
+                className="text-sm text-destructive"
+                data-testid="expense-transaction-date-error"
+              >
+                {errors.transactionDate.message}
+              </p>
+            )}
+          </div>
+        ) : null}
 
         {showRecordDate ? (
           <div className="space-y-1.5" data-testid="expense-record-date-section">

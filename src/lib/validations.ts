@@ -295,13 +295,19 @@ export const expenseSchema = z.object({
   source_of_fund: expenseSourceOfFundSchema,
   receipt_url: z.string().optional().or(z.literal("")),
   recordDate: expenseRecordDateSchema.optional(),
+  transactionDate: purchaseTransactionDateSchema.optional(),
 });
 
 export const expenseEditWithRecordDateSchema = expenseSchema.extend({
   recordDate: expenseRecordDateSchema,
 });
 
+export const expenseCreateSchema = expenseSchema.extend({
+  transactionDate: purchaseTransactionDateSchema,
+});
+
 export type ExpenseFormValues = z.infer<typeof expenseSchema>;
+export type ExpenseCreateFormValues = z.infer<typeof expenseCreateSchema>;
 
 export const cashierBalanceAdjustmentSchema = z.object({
   type: z.enum(["ADD", "DEDUCT"], {

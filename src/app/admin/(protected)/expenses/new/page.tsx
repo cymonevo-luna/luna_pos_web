@@ -23,9 +23,11 @@ export default function AdminNewExpensePage() {
 
   const handleSubmit = async (values: ExpenseFormValues) => {
     try {
-      await createExpense(expenseFormToPayload(values));
+      const result = await createExpense(
+        expenseFormToPayload(values, { includeTransactionDate: true }),
+      );
       toast.success("Expense created");
-      router.push("/admin/expenses");
+      router.push(`/admin/expenses/${result.data.id}/edit`);
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.fields) {
@@ -63,6 +65,7 @@ export default function AdminNewExpensePage() {
             onCancel={() => router.push("/admin/expenses")}
             isLoading={saving}
             submitLabel="Create expense"
+            showTransactionDate
           />
         </CardContent>
       </Card>

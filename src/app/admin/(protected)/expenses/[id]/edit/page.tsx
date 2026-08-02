@@ -17,7 +17,7 @@ import {
   useUpdateExpense,
   useUpdateExpenseRecordDate,
 } from "@/lib/hooks/use-expenses";
-import { datesEqualToMinute } from "@/lib/utils";
+import { datesEqualToMinute, formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   ExpenseForm,
@@ -27,6 +27,7 @@ import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -148,6 +149,9 @@ export default function AdminEditExpensePage({
         <Card>
           <CardHeader>
             <CardTitle>Edit expense</CardTitle>
+            <CardDescription data-testid="expense-transaction-date-display">
+              Transaction date: {formatDateTime(expense.transaction_date)}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ExpenseForm

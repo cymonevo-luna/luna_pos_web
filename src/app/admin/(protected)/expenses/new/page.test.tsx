@@ -10,7 +10,12 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/hooks/use-expenses", () => ({
   useCreateExpense: () => ({
-    mutateAsync: vi.fn(),
+    mutateAsync: vi.fn().mockResolvedValue({
+      data: {
+        id: "exp-new",
+        transaction_date: "2026-07-01T10:00:00Z",
+      },
+    }),
     isPending: false,
   }),
 }));

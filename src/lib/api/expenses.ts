@@ -1,3 +1,4 @@
+import { startOfDayWIB, todayWIB } from "@/lib/datetime/wib";
 import { api, type ApiResult } from "./client";
 import { parseNumeric } from "./suppliers";
 import { appendHistoryDateParams } from "./history-date-params";
@@ -55,8 +56,8 @@ export type UpdateExpensePayload = CreateExpensePayload;
 
 /** Map form values to an API payload. */
 export function expenseFormToPayload(
-  values: ExpenseFormValues,
-  options?: { includeEmptyReceipt?: boolean },
+  values: ExpenseFormValues & { transactionDate?: string },
+  options?: { includeEmptyReceipt?: boolean; includeTransactionDate?: boolean },
 ): CreateExpensePayload {
   const payload: CreateExpensePayload = {
     title: values.title.trim(),
@@ -74,6 +75,14 @@ export function expenseFormToPayload(
     payload.receipt_url = receiptUrl;
   } else if (options?.includeEmptyReceipt) {
     payload.receipt_url = "";
+  }
+
+  if (
+    options?.includeTransactionDate &&
+    values.transactionDate &&
+    values.transactionDate !== todayWIB()
+  ) {
+    payload.transaction_date = startOfDayWIB(values.transactionDate).toISOString();
   }
 
   return payload;
