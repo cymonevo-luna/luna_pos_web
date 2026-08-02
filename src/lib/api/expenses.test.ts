@@ -366,6 +366,22 @@ describe("expenseFormToPayload", () => {
     });
   });
 
+  it("includes source_of_fund for QRIS expenses", () => {
+    expect(
+      expenseFormToPayload({
+        title: "QRIS supplies",
+        description: "",
+        amount: 50_000,
+        source_of_fund: "QRIS",
+        receipt_url: "",
+      }),
+    ).toEqual({
+      title: "QRIS supplies",
+      amount: 50_000,
+      source_of_fund: "QRIS",
+    });
+  });
+
   it("includes receipt_url when present", () => {
     expect(
       expenseFormToPayload({
@@ -461,6 +477,27 @@ describe("expenseFormToPayload", () => {
       title: "Petty cash",
       amount: 50_000,
       source_of_fund: "CASHIER",
+      transaction_date: startOfDayWIB("2026-07-20").toISOString(),
+    });
+  });
+
+  it("includes transaction_date for QRIS expenses with past dates", () => {
+    expect(
+      expenseFormToPayload(
+        {
+          title: "QRIS supplies",
+          description: "",
+          amount: 50_000,
+          source_of_fund: "QRIS",
+          receipt_url: "",
+          transactionDate: "2026-07-20",
+        },
+        { includeTransactionDate: true },
+      ),
+    ).toEqual({
+      title: "QRIS supplies",
+      amount: 50_000,
+      source_of_fund: "QRIS",
       transaction_date: startOfDayWIB("2026-07-20").toISOString(),
     });
   });
