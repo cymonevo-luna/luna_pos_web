@@ -641,6 +641,7 @@ export interface PurchaseRequestItem {
   has_catalog_price_mismatch?: boolean;
   imported_price_amount?: number;
   imported_price_quantity?: number;
+  product_link?: string | null;
 }
 
 export interface PurchaseRequestStatusHistoryEntry {
@@ -657,6 +658,7 @@ export interface PurchaseRequest {
   supplier_id: string;
   supplier_name: string;
   supplier_contact_info: string;
+  supplier_store_link?: string | null;
   status: PurchaseRequestStatus;
   notes?: string | null;
   items: PurchaseRequestItem[];
