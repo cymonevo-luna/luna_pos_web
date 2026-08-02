@@ -369,51 +369,90 @@ export const supplierSchema = z
 
 export type SupplierFormValues = z.infer<typeof supplierSchema>;
 
-export const staffSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(2, "Name must be at least 2 characters")
-    .max(120, "Name is too long"),
-  nik: z
-    .string()
-    .trim()
-    .regex(/^\d{16}$/, "NIK must be exactly 16 digits"),
-  ktp_photo_url: z
-    .string()
-    .optional()
-    .or(z.literal(""))
-    .refine(
-      (value) => !value?.trim() || z.string().url().safeParse(value.trim()).success,
-      "Enter a valid URL",
-    ),
-  address: z
-    .string()
-    .min(2, "Address must be at least 2 characters")
-    .max(500, "Address is too long"),
-  job_title: z
-    .string()
-    .min(2, "Job title must be at least 2 characters")
-    .max(120, "Job title is too long"),
-  salary_amount: z
-    .union([z.nan(), z.undefined(), z.number()])
-    .transform((value) =>
-      value === undefined || Number.isNaN(value) ? undefined : value,
-    )
-    .refine(
-      (value) => value === undefined || Number.isInteger(value),
-      "Salary must be a whole number",
-    )
-    .refine(
-      (value) => value === undefined || value >= 0,
-      "Salary cannot be negative",
-    ),
-  benefits: z
-    .string()
-    .max(2000, "Benefits is too long")
-    .optional()
-    .or(z.literal("")),
-});
+export const staffSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(2, "Name must be at least 2 characters")
+      .max(120, "Name is too long"),
+    nik: z
+      .string()
+      .trim()
+      .refine(
+        (value) => value === "" || /^\d{16}$/.test(value),
+        "NIK must be exactly 16 digits",
+      ),
+    ktp_photo_url: z
+      .string()
+      .optional()
+      .or(z.literal(""))
+      .refine(
+        (value) =>
+          !value?.trim() || z.string().url().safeParse(value.trim()).success,
+        "Enter a valid URL",
+      ),
+    address: z
+      .string()
+      .trim()
+      .refine(
+        (value) => value === "" || value.length >= 2,
+        "Address must be at least 2 characters",
+      )
+      .refine(
+        (value) => value === "" || value.length <= 500,
+        "Address is too long",
+      ),
+    job_title: z
+      .string()
+      .min(2, "Job title must be at least 2 characters")
+      .max(120, "Job title is too long"),
+    salary_amount: z
+      .union([z.nan(), z.undefined(), z.number()])
+      .transform((value) =>
+        value === undefined || Number.isNaN(value) ? undefined : value,
+      )
+      .refine(
+        (value) => value === undefined || Number.isInteger(value),
+        "Salary must be a whole number",
+      )
+      .refine(
+        (value) => value === undefined || value >= 0,
+        "Salary cannot be negative",
+      ),
+    benefits: z
+      .string()
+      .max(2000, "Benefits is too long")
+      .optional()
+      .or(z.literal("")),
+    bank_name: z.string().trim().optional().or(z.literal("")),
+    bank_account_holder_name: z.string().trim().optional().or(z.literal("")),
+    bank_account_number: z
+      .string()
+      .trim()
+      .refine(
+        (value) => value === "" || /^\d{5,30}$/.test(value),
+        "Account number must be 5–30 digits",
+      ),
+  })
+  .superRefine((data, ctx) => {
+    const bankName = data.bank_name?.trim() ?? "";
+    const bankNumber = data.bank_account_number?.trim() ?? "";
+
+    if (bankName && !bankNumber) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Account number is required when bank name is provided",
+        path: ["bank_account_number"],
+      });
+    } else if (bankNumber && !bankName) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Bank name is required when account number is provided",
+        path: ["bank_name"],
+      });
+    }
+  });
 
 export type StaffFormValues = z.infer<typeof staffSchema>;
 

@@ -210,6 +210,9 @@ export interface Staff {
   /** Auto-managed recurring expense linked to salary payouts. */
   recurring_expense_id?: string | null;
   benefits?: string | null;
+  bank_name?: string | null;
+  bank_account_holder_name?: string | null;
+  bank_account_number?: string | null;
   created_at: string;
   updated_at: string;
 }

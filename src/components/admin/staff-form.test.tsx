@@ -25,6 +25,9 @@ const validStaff = buildDefaultStaffValues({
   address: "Jl. Merdeka No. 10",
   job_title: "Cashier",
   salary_amount: 5000000,
+  bank_name: "",
+  bank_account_holder_name: "",
+  bank_account_number: "",
 });
 
 describe("StaffForm", () => {
@@ -32,7 +35,7 @@ describe("StaffForm", () => {
     vi.clearAllMocks();
   });
 
-  it("renders all fields", () => {
+  it("renders all fields including banking", () => {
     render(<StaffForm onSubmit={() => {}} onCancel={() => {}} />);
 
     expect(screen.getByLabelText("Name")).toBeInTheDocument();
@@ -42,7 +45,112 @@ describe("StaffForm", () => {
     expect(screen.getByLabelText("Job title")).toBeInTheDocument();
     expect(screen.getByLabelText(/Salary/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Benefits/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Bank Name")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/Bank Account Holder Name/),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Account Number")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Choose image" })).toBeInTheDocument();
+    expect(screen.getByTestId("staff-banking-section")).toBeInTheDocument();
+  });
+
+  it("submits without nik, address, or banking when only required fields are filled", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <StaffForm
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+        submitLabel="Save staff"
+      />,
+    );
+
+    await user.type(screen.getByLabelText("Name"), "Budi Santoso");
+    await user.type(screen.getByLabelText("Job title"), "Cashier");
+    await user.clear(screen.getByLabelText(/Salary/));
+    await user.type(screen.getByLabelText(/Salary/), "5000000");
+    await user.click(screen.getByRole("button", { name: "Save staff" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalled();
+    });
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
+      name: "Budi Santoso",
+      nik: "",
+      address: "",
+      job_title: "Cashier",
+      salary_amount: 5000000,
+      bank_name: "",
+      bank_account_holder_name: "",
+      bank_account_number: "",
+    });
+  });
+
+  it("rejects bank name without account number", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<StaffForm onSubmit={onSubmit} onCancel={() => {}} />);
+
+    await user.type(screen.getByLabelText("Name"), validStaff.name);
+    await user.type(screen.getByLabelText("Job title"), validStaff.job_title);
+    await user.type(screen.getByLabelText("Bank Name"), "BCA");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText(
+        "Account number is required when bank name is provided",
+      ),
+    ).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("accepts bank name and account number without holder name", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<StaffForm onSubmit={onSubmit} onCancel={() => {}} />);
+
+    await user.type(screen.getByLabelText("Name"), validStaff.name);
+    await user.type(screen.getByLabelText("Job title"), validStaff.job_title);
+    await user.type(screen.getByLabelText("Bank Name"), "BCA");
+    await user.type(screen.getByLabelText("Account Number"), "1234567890");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalled();
+    });
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
+      bank_name: "BCA",
+      bank_account_holder_name: "",
+      bank_account_number: "1234567890",
+    });
+  });
+
+  it("rejects 15-digit NIK and accepts valid 16-digit NIK", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<StaffForm onSubmit={onSubmit} onCancel={() => {}} />);
+
+    await user.type(screen.getByLabelText("Name"), validStaff.name);
+    await user.type(screen.getByLabelText("Job title"), validStaff.job_title);
+    await user.type(screen.getByLabelText("NIK"), "123456789012345");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("NIK must be exactly 16 digits"),
+    ).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    await user.clear(screen.getByLabelText("NIK"));
+    await user.type(screen.getByLabelText("NIK"), "3201010101010001");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalled();
+    });
   });
 
   it("submits valid data via onSubmit", async () => {
@@ -75,6 +183,9 @@ describe("StaffForm", () => {
       ...validStaff,
       ktp_photo_url: "",
       benefits: "",
+      bank_name: "",
+      bank_account_holder_name: "",
+      bank_account_number: "",
     });
   });
 
@@ -105,6 +216,9 @@ describe("StaffForm", () => {
       address: validStaff.address,
       job_title: validStaff.job_title,
       salary_amount: undefined,
+      bank_name: "",
+      bank_account_holder_name: "",
+      bank_account_number: "",
     });
   });
 
@@ -276,10 +390,13 @@ describe("staff form helpers", () => {
       job_title: "",
       salary_amount: undefined,
       benefits: "",
+      bank_name: "",
+      bank_account_holder_name: "",
+      bank_account_number: "",
     });
   });
 
-  it("staffToFormValues maps staff entity to form values", () => {
+  it("staffToFormValues maps staff entity to form values including banking", () => {
     const staff: Staff = {
       id: "staff-1",
       name: "Budi Santoso",
@@ -289,6 +406,9 @@ describe("staff form helpers", () => {
       job_title: "Cashier",
       salary_amount: 5000000,
       benefits: "Health insurance",
+      bank_name: "BCA",
+      bank_account_holder_name: null,
+      bank_account_number: "1234567890",
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
@@ -301,6 +421,9 @@ describe("staff form helpers", () => {
       job_title: "Cashier",
       salary_amount: 5000000,
       benefits: "Health insurance",
+      bank_name: "BCA",
+      bank_account_holder_name: "",
+      bank_account_number: "1234567890",
     });
   });
 

@@ -17,20 +17,35 @@ vi.mock("@/lib/api/staff", () => ({
     update: vi.fn(),
     delete: vi.fn(),
   },
-  staffFormToPayload: vi.fn((values) => ({
-    name: values.name.trim(),
-    nik: values.nik.trim(),
-    address: values.address,
-    job_title: values.job_title,
-    salary_amount:
-      values.salary_amount === undefined || Number.isNaN(values.salary_amount)
-        ? 0
-        : values.salary_amount,
-    ...(values.ktp_photo_url?.trim()
-      ? { ktp_photo_url: values.ktp_photo_url.trim() }
-      : {}),
-    ...(values.benefits?.trim() ? { benefits: values.benefits.trim() } : {}),
-  })),
+  staffFormToPayload: vi.fn((values) => {
+    const payload: Record<string, unknown> = {
+      name: values.name.trim(),
+      job_title: values.job_title,
+      salary_amount:
+        values.salary_amount === undefined || Number.isNaN(values.salary_amount)
+          ? 0
+          : values.salary_amount,
+    };
+    const nik = values.nik?.trim();
+    if (nik) payload.nik = nik;
+    const address = values.address?.trim();
+    if (address) payload.address = address;
+    if (values.ktp_photo_url?.trim()) {
+      payload.ktp_photo_url = values.ktp_photo_url.trim();
+    }
+    if (values.benefits?.trim()) {
+      payload.benefits = values.benefits.trim();
+    }
+    const bankName = values.bank_name?.trim();
+    const bankAccountNumber = values.bank_account_number?.trim();
+    if (bankName && bankAccountNumber) {
+      payload.bank_name = bankName;
+      payload.bank_account_number = bankAccountNumber;
+      const holder = values.bank_account_holder_name?.trim();
+      if (holder) payload.bank_account_holder_name = holder;
+    }
+    return payload;
+  }),
 }));
 
 vi.mock("@/lib/api/uploads", () => ({

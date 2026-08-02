@@ -34,6 +34,9 @@ export function buildDefaultStaffValues(
         ? defaultValues.salary_amount
         : undefined,
     benefits: defaultValues?.benefits ?? "",
+    bank_name: defaultValues?.bank_name ?? "",
+    bank_account_holder_name: defaultValues?.bank_account_holder_name ?? "",
+    bank_account_number: defaultValues?.bank_account_number ?? "",
   };
 }
 
@@ -47,6 +50,9 @@ export function staffToFormValues(staff: Staff): StaffFormValues {
     salary_amount:
       staff.salary_amount === 0 ? undefined : staff.salary_amount,
     benefits: staff.benefits ?? "",
+    bank_name: staff.bank_name ?? "",
+    bank_account_holder_name: staff.bank_account_holder_name ?? "",
+    bank_account_number: staff.bank_account_number ?? "",
   };
 }
 
@@ -120,7 +126,10 @@ export const StaffForm = React.forwardRef<StaffFormHandle, StaffFormProps>(
             field === "address" ||
             field === "job_title" ||
             field === "salary_amount" ||
-            field === "benefits"
+            field === "benefits" ||
+            field === "bank_name" ||
+            field === "bank_account_holder_name" ||
+            field === "bank_account_number"
           ) {
             setError(field, { message });
           }
@@ -328,6 +337,66 @@ export const StaffForm = React.forwardRef<StaffFormHandle, StaffFormProps>(
           {errors.benefits && (
             <p className="text-sm text-destructive">{errors.benefits.message}</p>
           )}
+        </div>
+
+        <div className="space-y-4" data-testid="staff-banking-section">
+          <div className="space-y-1.5">
+            <Label htmlFor="staff-bank-name">Bank Name</Label>
+            <Input
+              id="staff-bank-name"
+              autoComplete="off"
+              {...register("bank_name")}
+            />
+            {errors.bank_name && (
+              <p className="text-sm text-destructive">
+                {errors.bank_name.message}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="staff-bank-account-holder">
+              Bank Account Holder Name{" "}
+              <span className="font-normal text-muted-foreground">
+                (optional)
+              </span>
+            </Label>
+            <Input
+              id="staff-bank-account-holder"
+              autoComplete="off"
+              {...register("bank_account_holder_name")}
+            />
+            {errors.bank_account_holder_name && (
+              <p className="text-sm text-destructive">
+                {errors.bank_account_holder_name.message}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="staff-bank-account-number">Account Number</Label>
+            <Input
+              id="staff-bank-account-number"
+              autoComplete="off"
+              inputMode="numeric"
+              {...register("bank_account_number", {
+                onChange: (event) => {
+                  const digitsOnly = event.target.value.replace(/\D/g, "");
+                  if (digitsOnly !== event.target.value) {
+                    event.target.value = digitsOnly;
+                    setValue("bank_account_number", digitsOnly, {
+                      shouldDirty: true,
+                    });
+                  }
+                },
+              })}
+            />
+            {errors.bank_account_number && (
+              <p className="text-sm text-destructive">
+                {errors.bank_account_number.message}
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="flex justify-end gap-2 pt-2">

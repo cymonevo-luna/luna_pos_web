@@ -42,12 +42,15 @@ export interface ListStaffParams {
 
 export interface CreateStaffPayload {
   name: string;
-  nik: string;
-  address: string;
+  nik?: string;
+  address?: string;
   job_title: string;
   salary_amount: number;
   ktp_photo_url?: string;
   benefits?: string;
+  bank_name?: string;
+  bank_account_holder_name?: string;
+  bank_account_number?: string;
 }
 
 export type UpdateStaffPayload = CreateStaffPayload;
@@ -59,12 +62,20 @@ export function staffFormToPayload(
   const salary = values.salary_amount;
   const payload: CreateStaffPayload = {
     name: values.name.trim(),
-    nik: values.nik.trim(),
-    address: values.address,
     job_title: values.job_title,
     salary_amount:
       salary === undefined || Number.isNaN(salary) ? 0 : salary,
   };
+
+  const nik = values.nik.trim();
+  if (nik) {
+    payload.nik = nik;
+  }
+
+  const address = values.address.trim();
+  if (address) {
+    payload.address = address;
+  }
 
   const ktpPhotoUrl = values.ktp_photo_url?.trim();
   if (ktpPhotoUrl) {
@@ -74,6 +85,18 @@ export function staffFormToPayload(
   const benefits = values.benefits?.trim();
   if (benefits) {
     payload.benefits = benefits;
+  }
+
+  const bankName = values.bank_name?.trim();
+  const bankAccountNumber = values.bank_account_number?.trim();
+  if (bankName && bankAccountNumber) {
+    payload.bank_name = bankName;
+    payload.bank_account_number = bankAccountNumber;
+
+    const bankAccountHolderName = values.bank_account_holder_name?.trim();
+    if (bankAccountHolderName) {
+      payload.bank_account_holder_name = bankAccountHolderName;
+    }
   }
 
   return payload;
