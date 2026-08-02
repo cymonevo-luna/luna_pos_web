@@ -126,8 +126,10 @@ export function cashFlowSummary({
   dateTo = "",
 }: CashFlowSummaryParams = {}) {
   const params = new URLSearchParams({ period });
-  if (dateFrom) params.set("date_from", dateFrom);
-  if (dateTo) params.set("date_to", dateTo);
+  if (period !== "all_time") {
+    if (dateFrom) params.set("date_from", dateFrom);
+    if (dateTo) params.set("date_to", dateTo);
+  }
   return api
     .get<CashFlowSummaryRaw>(
       `/api/admin/insights/cash-flow/summary?${params.toString()}`,

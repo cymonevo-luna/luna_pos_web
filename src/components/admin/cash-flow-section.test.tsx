@@ -502,4 +502,183 @@ describe("CashFlowSection", () => {
       ).toBeGreaterThan(0);
     });
   });
+
+  describe("POS-190-2 cash-flow filter scope", () => {
+    const dailySummary = {
+      ...sampleSummary,
+      period: "daily" as const,
+      totals: {
+        inflow_amount: 1_500_000,
+        inflow_count: 10,
+        outflow_amount: 500_000,
+        outflow_count: 2,
+        net_amount: 1_000_000,
+      },
+    };
+
+    const weeklySummary = {
+      ...sampleSummary,
+      period: "weekly" as const,
+      totals: {
+        inflow_amount: 3_200_000,
+        inflow_count: 25,
+        outflow_amount: 1_100_000,
+        outflow_count: 6,
+        net_amount: 2_100_000,
+      },
+      inflow_by_method: [
+        { method: "CASH", total_amount: 2_000_000, count: 15 },
+        { method: "QRIS", total_amount: 1_200_000, count: 10 },
+      ],
+    };
+
+    it("period change updates stat cards and breakdown", async () => {
+      const user = userEvent.setup();
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+        const url = String(input);
+        const data = url.includes("period=weekly") ? weeklySummary : dailySummary;
+        return Promise.resolve(jsonResponse({ success: true, data }));
+      });
+
+      render(<CashFlowSection />);
+      await screen.findByText("Rp 1.500.000");
+      expect(screen.getAllByText("Rp 500.000").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Rp 1.000.000").length).toBeGreaterThan(0);
+
+      await user.click(screen.getByRole("button", { name: "Weekly" }));
+
+      await waitFor(() => {
+        const lastCall = fetchMock.mock.calls.at(-1);
+        expect(lastCall?.[0]).toContain("period=weekly");
+      });
+
+      expect(await screen.findByText("Rp 3.200.000")).toBeInTheDocument();
+      expect(screen.getAllByText("Rp 1.100.000").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Rp 2.100.000").length).toBeGreaterThan(0);
+      expect(screen.getByText("Rp 2.000.000")).toBeInTheDocument();
+    });
+
+    it("date range change updates outflow breakdown and production cost", async () => {
+      const user = userEvent.setup();
+      const initialProductionCost = {
+        total_estimated_cost: 50_000,
+        completed_request_count: 2,
+        items_without_cogs_count: 1,
+      };
+      const updatedProductionCost = {
+        total_estimated_cost: 120_000,
+        completed_request_count: 5,
+        items_without_cogs_count: 0,
+      };
+      const initialOutflow = [
+        { source: "purchases", total_amount: 300_000, count: 1 },
+        { source: "expenses", total_amount: 150_000, count: 1 },
+        { source: "staff_payouts", total_amount: 50_000, count: 1 },
+        { source: "menu_disposals", total_amount: 75_000, count: 2 },
+      ];
+      const updatedOutflow = [
+        { source: "purchases", total_amount: 800_000, count: 3 },
+        { source: "expenses", total_amount: 250_000, count: 2 },
+        { source: "staff_payouts", total_amount: 100_000, count: 2 },
+        { source: "menu_disposals", total_amount: 90_000, count: 3 },
+      ];
+
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+        const url = String(input);
+        const isUpdatedRange = url.includes("date_from=2026-02-01");
+        return Promise.resolve(
+          jsonResponse({
+            success: true,
+            data: {
+              ...sampleSummary,
+              outflow_by_source: isUpdatedRange ? updatedOutflow : initialOutflow,
+              production_cost: isUpdatedRange
+                ? updatedProductionCost
+                : initialProductionCost,
+            },
+          }),
+        );
+      });
+
+      render(<CashFlowSection />);
+      await screen.findByTestId("cash-flow-production-cost-card");
+      expect(
+        within(screen.getByTestId("cash-flow-production-cost-card")).getByText(
+          "Rp 50.000",
+        ),
+      ).toBeInTheDocument();
+
+      const outflowBreakdown = screen.getByTestId("cash-flow-outflow-breakdown");
+      expect(within(outflowBreakdown).getAllByText("Rp 75.000").length).toBeGreaterThan(0);
+
+      await user.clear(screen.getByLabelText("Cash flow date from"));
+      await user.type(screen.getByLabelText("Cash flow date from"), "2026-02-01");
+
+      await waitFor(() => {
+        expect(fetchMock.mock.calls.length).toBeGreaterThan(1);
+        const lastCall = fetchMock.mock.calls.at(-1);
+        expect(lastCall?.[0]).toContain("date_from=2026-02-01");
+      });
+
+      expect(
+        await within(screen.getByTestId("cash-flow-production-cost-card")).findByText(
+          "Rp 120.000",
+        ),
+      ).toBeInTheDocument();
+      const updatedBreakdown = screen.getByTestId("cash-flow-outflow-breakdown");
+      expect(
+        within(updatedBreakdown).getAllByText("Rp 90.000").length,
+      ).toBeGreaterThan(0);
+      expect(
+        within(updatedBreakdown).getAllByText("Rp 800.000").length,
+      ).toBeGreaterThan(0);
+    });
+
+    it("All Time control disables dates and calls all_time API", async () => {
+      const user = userEvent.setup();
+      const allTimeSummary = {
+        ...sampleSummary,
+        period: "all_time" as const,
+        totals: {
+          inflow_amount: 10_000_000,
+          inflow_count: 100,
+          outflow_amount: 4_000_000,
+          outflow_count: 40,
+          net_amount: 6_000_000,
+        },
+      };
+
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+        const url = String(input);
+        const data = url.includes("period=all_time") ? allTimeSummary : dailySummary;
+        return Promise.resolve(jsonResponse({ success: true, data }));
+      });
+
+      render(<CashFlowSection />);
+      await screen.findByText("Rp 1.500.000");
+
+      await user.click(screen.getByRole("button", { name: "All Time" }));
+
+      await waitFor(() => {
+        const lastCall = fetchMock.mock.calls.at(-1);
+        expect(lastCall?.[0]).toContain("period=all_time");
+        expect(lastCall?.[0]).not.toContain("date_from");
+        expect(lastCall?.[0]).not.toContain("date_to");
+      });
+
+      const dateFromInput = screen.getByLabelText(
+        "Cash flow date from",
+      ) as HTMLInputElement;
+      const dateToInput = screen.getByLabelText(
+        "Cash flow date to",
+      ) as HTMLInputElement;
+      expect(dateFromInput).toBeDisabled();
+      expect(dateToInput).toBeDisabled();
+
+      expect(await screen.findByText("Rp 10.000.000")).toBeInTheDocument();
+      expect(screen.getAllByText("Rp 4.000.000").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Rp 6.000.000").length).toBeGreaterThan(0);
+      expect(screen.getByTestId("cash-flow-chart")).toBeInTheDocument();
+    });
+  });
 });

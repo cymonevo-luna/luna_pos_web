@@ -345,7 +345,11 @@ export interface StockEstimationResponse {
 
 export type TransactionMethod = "CASH" | "QRIS";
 
-export type TransactionSummaryPeriod = "daily" | "weekly" | "monthly";
+export type TransactionSummaryPeriod =
+  | "daily"
+  | "weekly"
+  | "monthly"
+  | "all_time";
 
 export interface TransactionLineItem {
   menu_id: string;

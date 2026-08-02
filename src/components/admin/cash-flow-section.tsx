@@ -52,6 +52,7 @@ const PERIODS: { value: TransactionSummaryPeriod; label: string }[] = [
   { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
+  { value: "all_time", label: "All Time" },
 ];
 
 const OUTFLOW_SOURCE_LABELS: Record<CashFlowOutflowSource, string> = {
@@ -269,11 +270,14 @@ export function CashFlowSection({ className }: CashFlowSectionProps) {
   const [dateTo, setDateTo] = useState(defaults.dateTo);
   const [summary, setSummary] = useState<CashFlowSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const isAllTime = period === "all_time";
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await cashFlowSummary({ period, dateFrom, dateTo });
+      const res = await cashFlowSummary(
+        isAllTime ? { period } : { period, dateFrom, dateTo },
+      );
       setSummary(res.data ?? null);
     } catch (err) {
       toast.error(
@@ -283,7 +287,7 @@ export function CashFlowSection({ className }: CashFlowSectionProps) {
     } finally {
       setLoading(false);
     }
-  }, [period, dateFrom, dateTo]);
+  }, [period, dateFrom, dateTo, isAllTime]);
 
   useEffect(() => {
     void load();
@@ -340,14 +344,22 @@ export function CashFlowSection({ className }: CashFlowSectionProps) {
               aria-label="Cash flow date from"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="w-full sm:w-40"
+              disabled={isAllTime}
+              className={cn(
+                "w-full sm:w-40",
+                isAllTime && "pointer-events-none opacity-50",
+              )}
             />
             <Input
               type="date"
               aria-label="Cash flow date to"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="w-full sm:w-40"
+              disabled={isAllTime}
+              className={cn(
+                "w-full sm:w-40",
+                isAllTime && "pointer-events-none opacity-50",
+              )}
             />
           </div>
         </div>
