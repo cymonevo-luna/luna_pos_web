@@ -33,7 +33,9 @@ vi.mock("@/lib/api/menus", async (importOriginal) => {
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
+      exportCsv: vi.fn(),
     },
+    downloadMenusCsv: vi.fn(),
     menuBasicFormToPayload: vi.fn((basic) => ({
       title: basic.title.trim(),
       category_id: basic.category_id,
@@ -678,5 +680,81 @@ describe("AdminMenusPage", () => {
     expect(
       screen.queryByTestId("missing-ingredients-badge-menu-1"),
     ).not.toBeInTheDocument();
+  });
+
+  it("exports CSV and shows success toast", async () => {
+    const user = userEvent.setup();
+    const { downloadMenusCsv } = await import("@/lib/api/menus");
+    const blob = new Blob(["csv"]);
+    vi.mocked(menusAdminApi.exportCsv).mockResolvedValue({
+      blob,
+      filename: "menus-export-2026-08-02.csv",
+    });
+
+    renderWithProviders(<AdminMenusPage />);
+    await screen.findByText("Nasi Goreng");
+
+    await user.click(screen.getByTestId("export-menus"));
+
+    await waitFor(() => {
+      expect(menusAdminApi.exportCsv).toHaveBeenCalledTimes(1);
+      expect(downloadMenusCsv).toHaveBeenCalledWith(blob, {
+        filename: "menus-export-2026-08-02.csv",
+      });
+      expect(toast.success).toHaveBeenCalledWith("Menus CSV exported");
+    });
+  });
+
+  it("disables export button while exporting", async () => {
+    const user = userEvent.setup();
+    let resolveExport: (value: {
+      blob: Blob;
+      filename: string;
+    }) => void = () => {};
+    const exportPromise = new Promise<{ blob: Blob; filename: string }>(
+      (resolve) => {
+        resolveExport = resolve;
+      },
+    );
+    vi.mocked(menusAdminApi.exportCsv).mockReturnValue(exportPromise);
+
+    renderWithProviders(<AdminMenusPage />);
+    await screen.findByText("Nasi Goreng");
+
+    const exportButton = screen.getByTestId("export-menus");
+    expect(exportButton).not.toBeDisabled();
+
+    await user.click(exportButton);
+
+    await waitFor(() => {
+      expect(exportButton).toBeDisabled();
+    });
+
+    resolveExport({
+      blob: new Blob(["csv"]),
+      filename: "menus-export-2026-08-02.csv",
+    });
+
+    await waitFor(() => {
+      expect(exportButton).not.toBeDisabled();
+    });
+  });
+
+  it("shows error toast when export fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(menusAdminApi.exportCsv).mockRejectedValue(
+      new ApiError(500, "server_error", "Export failed"),
+    );
+
+    renderWithProviders(<AdminMenusPage />);
+    await screen.findByText("Nasi Goreng");
+
+    const exportButton = screen.getByTestId("export-menus");
+    await user.click(exportButton);
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("Export failed");
+      expect(exportButton).not.toBeDisabled();
+    });
   });
 });
