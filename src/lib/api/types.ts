@@ -871,6 +871,109 @@ export interface MenuDisposal {
   updated_at: string;
 }
 
+export type MenuDisposalSummaryPeriod = "daily" | "weekly" | "monthly";
+
+/** One time bucket from GET /api/admin/menu-disposals/summary. */
+export interface MenuDisposalSummaryBucket {
+  period_start: string;
+  period_label: string;
+  count: number;
+  total_amount: number;
+  total_quantity: number;
+}
+
+/** Aggregated totals from GET /api/admin/menu-disposals/summary. */
+export interface MenuDisposalSummaryTotals {
+  count: number;
+  total_amount: number;
+  total_quantity: number;
+}
+
+/** Wire `data` payload from GET /api/admin/menu-disposals/summary. */
+export interface MenuDisposalSummary {
+  period: MenuDisposalSummaryPeriod;
+  date_from: string;
+  date_to: string;
+  totals: MenuDisposalSummaryTotals;
+  buckets: MenuDisposalSummaryBucket[];
+}
+
+/** Wire format for numeric fields on menu disposal summary buckets/totals. */
+export interface MenuDisposalSummaryBucketRaw
+  extends Omit<
+    MenuDisposalSummaryBucket,
+    "count" | "total_amount" | "total_quantity"
+  > {
+  count: number | string;
+  total_amount: number | string;
+  total_quantity: number | string;
+}
+
+export interface MenuDisposalSummaryTotalsRaw
+  extends Omit<
+    MenuDisposalSummaryTotals,
+    "count" | "total_amount" | "total_quantity"
+  > {
+  count: number | string;
+  total_amount: number | string;
+  total_quantity: number | string;
+}
+
+export interface MenuDisposalSummaryRaw
+  extends Omit<MenuDisposalSummary, "totals" | "buckets"> {
+  totals: MenuDisposalSummaryTotalsRaw;
+  buckets: MenuDisposalSummaryBucketRaw[];
+}
+
+/** Per-menu row from GET /api/admin/menu-disposals/summary/by-menu. */
+export interface MenuDisposalByMenuItem {
+  menu_id: string;
+  menu_title: string;
+  disposal_count: number;
+  quantity_disposed: number;
+  loss_amount: number;
+  loss_share_percent: number;
+  quantity_share_percent: number;
+}
+
+/** Wire `data` payload from GET /api/admin/menu-disposals/summary/by-menu. */
+export interface MenuDisposalByMenuSummary {
+  period: MenuDisposalSummaryPeriod;
+  date_from: string;
+  date_to: string;
+  total_loss_amount: number;
+  total_quantity: number;
+  total_count: number;
+  menus: MenuDisposalByMenuItem[];
+}
+
+export interface MenuDisposalByMenuItemRaw
+  extends Omit<
+    MenuDisposalByMenuItem,
+    | "disposal_count"
+    | "quantity_disposed"
+    | "loss_amount"
+    | "loss_share_percent"
+    | "quantity_share_percent"
+  > {
+  disposal_count: number | string;
+  quantity_disposed: number | string;
+  loss_amount: number | string;
+  loss_share_percent: number | string;
+  quantity_share_percent: number | string;
+}
+
+export interface MenuDisposalByMenuSummaryRaw
+  extends Omit<
+    MenuDisposalByMenuSummary,
+    "total_loss_amount" | "total_quantity" | "total_count" | "menus"
+  > {
+  total_loss_amount: number | string;
+  total_quantity: number | string;
+  total_count: number | string;
+  menus: MenuDisposalByMenuItemRaw[];
+}
+
 /** Wire `data` payload from GET /api/admin/branch-assets/summary. */
 export interface BranchAssetsSummary {
   total_asset_value: number;

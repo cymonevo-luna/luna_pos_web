@@ -1,6 +1,10 @@
 import type { ListCategoriesParams } from "@/lib/api/categories";
 import type { CashFlowSummaryParams } from "@/lib/api/cash-flow";
-import type { ListMenuDisposalsParams } from "@/lib/api/menu-disposals";
+import type {
+  ListMenuDisposalsParams,
+  MenuDisposalSummaryByMenuParams,
+  MenuDisposalSummaryParams,
+} from "@/lib/api/menu-disposals";
 import type { ListMenusParams } from "@/lib/api/menus";
 import type {
   ListTransactionsParams,
@@ -64,5 +68,12 @@ export const queryKeys = {
     lists: () => [...queryKeys.menuDisposals.all, "list"] as const,
     list: (params: ListMenuDisposalsParams) =>
       [...queryKeys.menuDisposals.lists(), params] as const,
+    summaries: () => [...queryKeys.menuDisposals.all, "summary"] as const,
+    summary: (params: MenuDisposalSummaryParams) =>
+      [...queryKeys.menuDisposals.summaries(), params] as const,
+    summaryByMenus: () =>
+      [...queryKeys.menuDisposals.all, "summary-by-menu"] as const,
+    summaryByMenu: (params: MenuDisposalSummaryByMenuParams) =>
+      [...queryKeys.menuDisposals.summaryByMenus(), params] as const,
   },
 };

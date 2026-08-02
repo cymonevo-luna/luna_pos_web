@@ -96,4 +96,71 @@ describe("menuDisposalsAdminApi", () => {
     expect(result.data.disposed_at).toBe("2025-12-15T00:00:00.000Z");
     expect(result.data.quantity).toBe(2);
   });
+
+  it("builds the correct summary URL", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        period: "weekly",
+        date_from: "2026-01-01T00:00:00.000Z",
+        date_to: "2026-01-31T23:59:59.999Z",
+        totals: {
+          count: "0",
+          total_amount: "0",
+          total_quantity: "0",
+        },
+        buckets: [],
+      },
+    });
+
+    await menuDisposalsAdminApi.summary({
+      period: "weekly",
+      dateFrom: "2026-01-01",
+      dateTo: "2026-01-31",
+    });
+
+    expect(api.get).toHaveBeenCalledWith(
+      "/api/admin/menu-disposals/summary?period=weekly&date_from=2026-01-01&date_to=2026-01-31",
+    );
+  });
+
+  it("normalizes string amounts in summaryByMenu response", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        period: "daily",
+        date_from: "2026-01-01T00:00:00.000Z",
+        date_to: "2026-01-01T23:59:59.999Z",
+        total_loss_amount: "50000",
+        total_quantity: "3",
+        total_count: "2",
+        menus: [
+          {
+            menu_id: "menu-1",
+            menu_title: "Nasi Goreng",
+            disposal_count: "2",
+            quantity_disposed: "3",
+            loss_amount: "50000",
+            loss_share_percent: "100",
+            quantity_share_percent: "100",
+          },
+        ],
+      },
+    });
+
+    const result = await menuDisposalsAdminApi.summaryByMenu({
+      period: "daily",
+      dateFrom: "2026-01-01",
+      dateTo: "2026-01-01",
+      limit: 10,
+    });
+
+    const url = vi.mocked(api.get).mock.calls[0][0] as string;
+    expect(url).toContain("/api/admin/menu-disposals/summary/by-menu?");
+    expect(url).toContain("period=daily");
+    expect(url).toContain("date_from=2026-01-01");
+    expect(url).toContain("date_to=2026-01-01");
+    expect(url).toContain("limit=10");
+    expect(result.data.total_loss_amount).toBe(50000);
+    expect(result.data.menus[0].loss_amount).toBe(50000);
+    expect(result.data.menus[0].disposal_count).toBe(2);
+  });
 });
