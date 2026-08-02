@@ -29,6 +29,8 @@ import {
   formatSupplierUnitPrice,
   maxRecordDatetimeLocalInput,
   menuPhotoUrl,
+  purchaseHasActualAmountDifference,
+  purchaseLineHasActualAmountDifference,
 } from "@/lib/utils";
 import { useRoles } from "@/lib/auth/use-roles";
 import { useFeatures } from "@/lib/auth/use-features";
@@ -160,6 +162,58 @@ function CatalogPriceMismatchBadge({ item }: { item: PurchaseRequestItem }) {
         <span className="ml-1 font-normal opacity-90">({importedPrice})</span>
       ) : null}
     </Badge>
+  );
+}
+
+function ActualPriceDifferenceBadge({
+  estimatedAmount,
+  actualAmount,
+}: {
+  estimatedAmount: number;
+  actualAmount: number;
+}) {
+  return (
+    <Badge
+      variant="warning"
+      title={`Estimate: ${formatRupiah(estimatedAmount)} · Actual: ${formatRupiah(actualAmount)}`}
+      data-testid="actual-price-difference-badge"
+    >
+      Actual price differs
+    </Badge>
+  );
+}
+
+function PurchaseLineActualPriceDifferenceBadge({
+  item,
+}: {
+  item: PurchaseRequestItem;
+}) {
+  if (!purchaseLineHasActualAmountDifference(item)) {
+    return null;
+  }
+
+  return (
+    <ActualPriceDifferenceBadge
+      estimatedAmount={item.line_estimated_amount}
+      actualAmount={item.line_actual_amount as number}
+    />
+  );
+}
+
+function PurchaseHeaderActualPriceDifferenceBadge({
+  purchase,
+}: {
+  purchase: PurchaseRequest;
+}) {
+  if (!purchaseHasActualAmountDifference(purchase)) {
+    return null;
+  }
+
+  return (
+    <ActualPriceDifferenceBadge
+      estimatedAmount={purchase.total_estimated_amount}
+      actualAmount={purchase.total_actual_amount as number}
+    />
   );
 }
 
@@ -494,6 +548,12 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                 Purchase request ·{" "}
                 <span className="font-mono">{purchase.id}</span>
               </p>
+              <div
+                className="mt-2 flex flex-wrap items-center gap-2"
+                data-testid="purchase-header-badges"
+              >
+                <PurchaseHeaderActualPriceDifferenceBadge purchase={purchase} />
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {isAdmin && !advancingStatus ? (
@@ -786,6 +846,7 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                         <div className="flex flex-wrap items-center gap-2">
                           <span>{item.food_supply_title ?? "Unknown"}</span>
                           <CatalogPriceMismatchBadge item={item} />
+                          <PurchaseLineActualPriceDifferenceBadge item={item} />
                         </div>
                       </td>
                       <td className="px-4 py-3">

@@ -14,6 +14,8 @@ import {
   extractWhatsAppPhone,
   buildPurchaseWhatsAppMessage,
   formatPurchaseSummaryTotal,
+  purchaseLineHasActualAmountDifference,
+  purchaseHasActualAmountDifference,
 } from "./utils";
 import { config } from "./config";
 
@@ -328,6 +330,85 @@ describe("buildPurchaseWhatsAppMessage", () => {
     });
 
     expect(message).toContain("Estimasi total: Rp 118.000");
+  });
+});
+
+describe("purchaseLineHasActualAmountDifference", () => {
+  it("returns true when actual differs from estimate (lower)", () => {
+    expect(
+      purchaseLineHasActualAmountDifference({
+        line_estimated_amount: 140000,
+        line_actual_amount: 135000,
+      }),
+    ).toBe(true);
+  });
+
+  it("returns true when actual differs from estimate (higher)", () => {
+    expect(
+      purchaseLineHasActualAmountDifference({
+        line_estimated_amount: 140000,
+        line_actual_amount: 145000,
+      }),
+    ).toBe(true);
+  });
+
+  it("returns false when amounts are equal", () => {
+    expect(
+      purchaseLineHasActualAmountDifference({
+        line_estimated_amount: 140000,
+        line_actual_amount: 140000,
+      }),
+    ).toBe(false);
+  });
+
+  it("returns false when actual is null or undefined", () => {
+    expect(
+      purchaseLineHasActualAmountDifference({
+        line_estimated_amount: 140000,
+        line_actual_amount: null,
+      }),
+    ).toBe(false);
+    expect(
+      purchaseLineHasActualAmountDifference({
+        line_estimated_amount: 140000,
+        line_actual_amount: undefined,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("purchaseHasActualAmountDifference", () => {
+  it("returns true when total actual differs from estimate", () => {
+    expect(
+      purchaseHasActualAmountDifference({
+        total_estimated_amount: 140000,
+        total_actual_amount: 135000,
+      }),
+    ).toBe(true);
+  });
+
+  it("returns false when totals are equal", () => {
+    expect(
+      purchaseHasActualAmountDifference({
+        total_estimated_amount: 140000,
+        total_actual_amount: 140000,
+      }),
+    ).toBe(false);
+  });
+
+  it("returns false when total actual is null or undefined", () => {
+    expect(
+      purchaseHasActualAmountDifference({
+        total_estimated_amount: 140000,
+        total_actual_amount: null,
+      }),
+    ).toBe(false);
+    expect(
+      purchaseHasActualAmountDifference({
+        total_estimated_amount: 140000,
+        total_actual_amount: undefined,
+      }),
+    ).toBe(false);
   });
 });
 

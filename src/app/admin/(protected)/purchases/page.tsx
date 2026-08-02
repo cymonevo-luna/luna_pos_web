@@ -17,7 +17,12 @@ import type {
 } from "@/lib/api/types";
 import { useFeatures } from "@/lib/auth/use-features";
 import { todayWIB } from "@/lib/datetime/wib";
-import { formatDate, formatPurchaseSummaryTotal, formatRupiah } from "@/lib/utils";
+import {
+  formatDate,
+  formatPurchaseSummaryTotal,
+  formatRupiah,
+  purchaseHasActualAmountDifference,
+} from "@/lib/utils";
 import { toast } from "sonner";
 import { buttonVariants } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
@@ -347,6 +352,15 @@ export default function AdminPurchasesPage() {
                             data-testid="purchase-price-mismatch-badge"
                           >
                             Price mismatch
+                          </Badge>
+                        ) : null}
+                        {purchaseHasActualAmountDifference(purchase) ? (
+                          <Badge
+                            variant="warning"
+                            title={`Estimate: ${formatRupiah(purchase.total_estimated_amount)} · Actual: ${formatRupiah(purchase.total_actual_amount as number)}`}
+                            data-testid="purchase-actual-price-difference-badge"
+                          >
+                            Actual price differs
                           </Badge>
                         ) : null}
                       </div>
