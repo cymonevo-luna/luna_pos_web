@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   suppliersAdminApi,
+  downloadSuppliersCsv,
   parseNumeric,
   normalizeSupplier,
   supplierFormToPayload,
@@ -442,6 +443,72 @@ describe("suppliersAdminApi", () => {
     const result = await suppliersAdminApi.list();
     expect(result.data[0]?.price_quotes[0]?.price_quantity).toBe(1000);
     expect(result.data[0]?.price_quotes_count).toBe(1);
+  });
+
+  it("downloads CSV export via the suppliers export endpoint", async () => {
+    tokenStore.set("token-abc", "refresh-abc");
+    const csv = "name,price_quotes_count\nBeras Supplier,2";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(csv, {
+        status: 200,
+        headers: { "Content-Type": "text/csv" },
+      }),
+    );
+
+    const result = await suppliersAdminApi.exportCsv();
+    expect(await result.blob.text()).toBe(csv);
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://localhost:8080/api/admin/suppliers/export");
+  });
+});
+
+describe("downloadSuppliersCsv", () => {
+  it("creates a dated download link for the blob", () => {
+    const click = vi.fn();
+    const anchor = {
+      href: "",
+      download: "",
+      click,
+    } as unknown as HTMLAnchorElement;
+
+    const createElement = vi
+      .spyOn(document, "createElement")
+      .mockReturnValue(anchor);
+    const createObjectURL = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:mock");
+    const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL");
+
+    downloadSuppliersCsv(new Blob(["name,price_quotes_count"]), {
+      date: new Date("2026-07-12T00:00:00Z"),
+    });
+
+    expect(createElement).toHaveBeenCalledWith("a");
+    expect(createObjectURL).toHaveBeenCalled();
+    expect(anchor.download).toBe("suppliers-export-2026-07-12.csv");
+    expect(click).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:mock");
+  });
+
+  it("uses Content-Disposition filename when provided", () => {
+    const click = vi.fn();
+    const anchor = {
+      href: "",
+      download: "",
+      click,
+    } as unknown as HTMLAnchorElement;
+
+    vi.spyOn(document, "createElement").mockReturnValue(anchor);
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock");
+    vi.spyOn(URL, "revokeObjectURL");
+
+    downloadSuppliersCsv(new Blob(["name,price_quotes_count"]), {
+      filename: "suppliers-2026-07-12.csv",
+    });
+
+    expect(anchor.download).toBe("suppliers-2026-07-12.csv");
+    expect(click).toHaveBeenCalled();
   });
 });
 

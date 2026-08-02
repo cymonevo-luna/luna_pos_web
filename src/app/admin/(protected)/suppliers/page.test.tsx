@@ -3,13 +3,17 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import AdminSuppliersPage from "./page";
 import { suppliersAdminApi } from "@/lib/api/suppliers";
+import { ApiError } from "@/lib/api/client";
 import type { Supplier } from "@/lib/api/types";
+import { toast } from "sonner";
 
 vi.mock("@/lib/api/suppliers", () => ({
   suppliersAdminApi: {
     list: vi.fn(),
     delete: vi.fn(),
+    exportCsv: vi.fn(),
   },
+  downloadSuppliersCsv: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({
@@ -194,5 +198,44 @@ describe("AdminSuppliersPage", () => {
     expect(
       screen.getByPlaceholderText(/food supply/i),
     ).toBeInTheDocument();
+  });
+
+  it("exports CSV and triggers download", async () => {
+    const user = userEvent.setup();
+    const { downloadSuppliersCsv } = await import("@/lib/api/suppliers");
+    const blob = new Blob(["name,price_quotes_count\nBeras Supplier,2"]);
+    vi.mocked(suppliersAdminApi.exportCsv).mockResolvedValue({
+      blob,
+      filename: "suppliers-export-2026-08-02.csv",
+    });
+
+    render(<AdminSuppliersPage />);
+    await screen.findByText("Beras Supplier");
+
+    await user.click(screen.getByTestId("export-suppliers"));
+
+    await waitFor(() => {
+      expect(suppliersAdminApi.exportCsv).toHaveBeenCalled();
+      expect(downloadSuppliersCsv).toHaveBeenCalledWith(blob, {
+        filename: "suppliers-export-2026-08-02.csv",
+      });
+      expect(toast.success).toHaveBeenCalledWith("Suppliers CSV exported");
+    });
+  });
+
+  it("shows error toast when export fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(suppliersAdminApi.exportCsv).mockRejectedValue(
+      new ApiError(500, "server_error", "Export failed"),
+    );
+
+    render(<AdminSuppliersPage />);
+    await screen.findByText("Beras Supplier");
+
+    await user.click(screen.getByTestId("export-suppliers"));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("Export failed");
+    });
   });
 });
