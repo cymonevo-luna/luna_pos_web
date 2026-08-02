@@ -16,6 +16,8 @@ vi.mock("@/lib/api/menu-disposals", () => ({
     get: vi.fn(),
     delete: vi.fn(),
     updateDisposedDate: vi.fn(),
+    summary: vi.fn(),
+    summaryByMenu: vi.fn(),
   },
 }));
 
@@ -102,14 +104,74 @@ function mockAdminEditDateFeatures() {
   });
 }
 
+const sampleSummary = {
+  period: "daily" as const,
+  date_from: "2026-01-01T00:00:00.000Z",
+  date_to: "2026-01-31T23:59:59.999Z",
+  totals: { count: 2, total_amount: 50_000, total_quantity: 3 },
+  buckets: [
+    {
+      period_start: "2026-01-15T00:00:00Z",
+      period_label: "Jan 15",
+      count: 1,
+      total_amount: 30_000,
+      total_quantity: 2,
+    },
+  ],
+};
+
+const sampleByMenu = {
+  period: "daily" as const,
+  date_from: "2026-01-01T00:00:00.000Z",
+  date_to: "2026-01-31T23:59:59.999Z",
+  total_loss_amount: 50_000,
+  total_quantity: 3,
+  total_count: 2,
+  menus: [
+    {
+      menu_id: "menu-1",
+      menu_title: "Summary Menu A",
+      disposal_count: 1,
+      quantity_disposed: 2,
+      loss_amount: 35_000,
+      loss_share_percent: 70,
+      quantity_share_percent: 66.7,
+    },
+  ],
+};
+
+function mockSummaryApis() {
+  vi.mocked(menuDisposalsAdminApi.summary).mockResolvedValue({
+    data: sampleSummary,
+  });
+  vi.mocked(menuDisposalsAdminApi.summaryByMenu).mockResolvedValue({
+    data: sampleByMenu,
+  });
+}
+
 describe("AdminMenuDisposalsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockManagerFeatures();
+    mockSummaryApis();
     vi.mocked(menuDisposalsAdminApi.list).mockResolvedValue({
       data: [disposal1, disposal2],
       meta: { page: 1, per_page: 10, total: 2 },
     });
+  });
+
+  it("renders summary section above the disposal table", async () => {
+    renderWithProviders(<AdminMenuDisposalsPage />);
+
+    const summarySection = await screen.findByTestId(
+      "menu-disposal-summary-section",
+    );
+    const tableRow = await screen.findByTestId("menu-disposal-row-disposal-1");
+
+    expect(summarySection.compareDocumentPosition(tableRow)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(screen.getByText("Disposal summary")).toBeInTheDocument();
   });
 
   it("renders disposals from the API with formatted amounts", async () => {
@@ -117,8 +179,12 @@ describe("AdminMenuDisposalsPage", () => {
 
     expect(await screen.findByText("Menu Disposals")).toBeInTheDocument();
     expect(await screen.findByText("2 total")).toBeInTheDocument();
-    expect(screen.getByText("Nasi Goreng")).toBeInTheDocument();
-    expect(screen.getByText("Mie Goreng")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("menu-disposal-row-disposal-1"),
+    ).toHaveTextContent("Nasi Goreng");
+    expect(
+      screen.getByTestId("menu-disposal-row-disposal-2"),
+    ).toHaveTextContent("Mie Goreng");
     expect(screen.getByText("Rp 15.000")).toBeInTheDocument();
     expect(screen.getByText("Rp 30.000")).toBeInTheDocument();
     expect(screen.getAllByText("Rp 20.000")).toHaveLength(2);
@@ -333,9 +399,52 @@ describe("AdminMenuDisposalsPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.queryByText("Nasi Goreng")).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("menu-disposal-row-disposal-1"),
+      ).not.toBeInTheDocument();
       expect(screen.getByText("1 total")).toBeInTheDocument();
     });
+  });
+
+  it("keeps table filters independent from summary period controls", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<AdminMenuDisposalsPage />);
+    await screen.findByText("Nasi Goreng");
+
+    await user.click(screen.getByRole("button", { name: "Weekly" }));
+
+    await waitFor(() => {
+      expect(menuDisposalsAdminApi.summary).toHaveBeenLastCalledWith(
+        expect.objectContaining({ period: "weekly" }),
+      );
+    });
+
+    const listCallsBeforeTableFilter = vi.mocked(menuDisposalsAdminApi.list).mock
+      .calls.length;
+
+    await user.selectOptions(
+      screen.getByTestId("menu-disposals-date-preset"),
+      "custom",
+    );
+    await user.type(screen.getByTestId("menu-disposals-date-from"), "2026-01-15");
+    await user.type(screen.getByTestId("menu-disposals-date-to"), "2026-01-15");
+
+    await waitFor(() => {
+      expect(menuDisposalsAdminApi.list).toHaveBeenLastCalledWith({
+        page: 1,
+        perPage: 10,
+        search: "",
+        dateFrom: "2026-01-15",
+        dateTo: "2026-01-15",
+      });
+    });
+
+    const listCalls = vi.mocked(menuDisposalsAdminApi.list).mock.calls;
+    for (const call of listCalls) {
+      expect(call[0]).not.toHaveProperty("period");
+    }
+    expect(listCalls.length).toBeGreaterThan(listCallsBeforeTableFilter);
   });
 
   it("shows error toast when loading fails", async () => {
