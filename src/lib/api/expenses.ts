@@ -97,7 +97,7 @@ export function expenseToFormValues(
     amount: expense.amount,
     source_of_fund: expense.source_of_fund ?? "PERSONAL_MONEY",
     receipt_url: expense.receipt_url ?? "",
-    recordDate: new Date(expense.created_at),
+    recordDate: new Date(expense.transaction_date),
   };
 }
 

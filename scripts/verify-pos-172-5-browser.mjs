@@ -256,11 +256,14 @@ async function main() {
   await page.getByTestId("expense-form-submit").click();
   await page.waitForURL("**/admin/expenses/exp-verify-172-5/edit");
 
-  const displayText = await page.getByTestId("expense-transaction-date-display").textContent();
+  const transactionDateCard = page.getByTestId("expense-transaction-date-card");
+  const transactionDateLabelVisible = await transactionDateCard
+    .getByText("Transaction date")
+    .isVisible();
   record(
     "Create expense with past transaction date",
     state.lastCreatePayload?.transaction_date === startOfDayWIB(pastDate).toISOString() &&
-      Boolean(displayText?.includes("Transaction date:")),
+      transactionDateLabelVisible,
     `sent=${state.lastCreatePayload?.transaction_date}`,
   );
 
