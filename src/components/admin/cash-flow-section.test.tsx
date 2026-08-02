@@ -2,7 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { CashFlowSection } from "./cash-flow-section";
+import { CashFlowSection, COMPOSED_CHART_COLORS, OUTFLOW_SOURCE_COLORS } from "./cash-flow-section";
 import { ApiError } from "@/lib/api/client";
 import { tokenStore } from "@/lib/auth/tokens";
 import { toast } from "sonner";
@@ -355,6 +355,38 @@ describe("CashFlowSection", () => {
       expect(
         screen.getByText("Customer transaction inflows, outflows, and net cash movement"),
       ).toBeInTheDocument();
+    });
+  });
+
+  describe("POS-190-3 chart color separation", () => {
+    it("outflow bar and staff payouts use different colors", () => {
+      expect(OUTFLOW_SOURCE_COLORS.staff_payouts).not.toBe(
+        COMPOSED_CHART_COLORS.outflow,
+      );
+      expect(Object.values(OUTFLOW_SOURCE_COLORS)).not.toContain(
+        COMPOSED_CHART_COLORS.outflow,
+      );
+    });
+
+    it("outflow breakdown legend colors remain per source", async () => {
+      render(<CashFlowSection />);
+
+      const breakdown = await screen.findByTestId("cash-flow-outflow-breakdown");
+      const legendDots = Array.from(breakdown.querySelectorAll("span")).filter(
+        (el) =>
+          el.classList.contains("rounded-full") &&
+          (el as HTMLElement).style.backgroundColor,
+      );
+      expect(legendDots).toHaveLength(4);
+
+      const fills = Array.from(legendDots).map(
+        (dot) => (dot as HTMLElement).style.backgroundColor,
+      );
+      expect(new Set(fills).size).toBe(4);
+      expect(fills).toContain(OUTFLOW_SOURCE_COLORS.purchases);
+      expect(fills).toContain(OUTFLOW_SOURCE_COLORS.expenses);
+      expect(fills).toContain(OUTFLOW_SOURCE_COLORS.staff_payouts);
+      expect(fills).toContain(OUTFLOW_SOURCE_COLORS.menu_disposals);
     });
   });
 

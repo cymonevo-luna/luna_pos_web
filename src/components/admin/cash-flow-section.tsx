@@ -61,12 +61,18 @@ const OUTFLOW_SOURCE_LABELS: Record<CashFlowOutflowSource, string> = {
   menu_disposals: "Menu Disposals",
 };
 
-const OUTFLOW_SOURCE_COLORS: Record<CashFlowOutflowSource, string> = {
+export const OUTFLOW_SOURCE_COLORS: Record<CashFlowOutflowSource, string> = {
   purchases: "var(--chart-1)",
   expenses: "var(--chart-2)",
   staff_payouts: "var(--chart-3)",
   menu_disposals: "var(--chart-5)",
 };
+
+export const COMPOSED_CHART_COLORS = {
+  inflow: "var(--chart-2)",
+  outflow: "var(--chart-outflow)",
+  productionCost: "var(--chart-4)",
+} as const;
 
 function formatTransactionCount(count: number): string {
   return `${count} ${count === 1 ? "transaction" : "transactions"}`;
@@ -99,7 +105,7 @@ function ChartTooltip({ active, payload }: ChartTooltipProps) {
       <p className="text-emerald-600 dark:text-emerald-400">
         Customer transactions: {formatRupiah(bucket.inflow_amount)}
       </p>
-      <p className="text-amber-600 dark:text-amber-400">
+      <p style={{ color: COMPOSED_CHART_COLORS.outflow }}>
         Outflow: {formatRupiah(bucket.outflow_amount)}
       </p>
       {bucket.production_cost_amount != null && (
@@ -471,14 +477,14 @@ export function CashFlowSection({ className }: CashFlowSectionProps) {
                     <Bar
                       dataKey="inflow_amount"
                       name="Customer transactions"
-                      fill="var(--chart-2)"
+                      fill={COMPOSED_CHART_COLORS.inflow}
                       radius={[4, 4, 0, 0]}
                       maxBarSize={32}
                     />
                     <Bar
                       dataKey="outflow_amount"
                       name="Outflow"
-                      fill="var(--chart-3)"
+                      fill={COMPOSED_CHART_COLORS.outflow}
                       radius={[4, 4, 0, 0]}
                       maxBarSize={32}
                     />
@@ -487,7 +493,7 @@ export function CashFlowSection({ className }: CashFlowSectionProps) {
                         type="monotone"
                         dataKey="production_cost_amount"
                         name="Production cost"
-                        stroke="var(--chart-4)"
+                        stroke={COMPOSED_CHART_COLORS.productionCost}
                         strokeWidth={2}
                         strokeDasharray="6 4"
                         dot={false}
