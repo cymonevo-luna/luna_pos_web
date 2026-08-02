@@ -5,7 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { invalidatePurchaseRequestQueries } from "@/lib/query/invalidate-purchase-request-queries";
-import { ArrowLeft, Camera, CircleHelp, MessageCircle, Upload } from "lucide-react";
+import {
+  ArrowLeft,
+  Camera,
+  CircleHelp,
+  ExternalLink,
+  MessageCircle,
+  Upload,
+} from "lucide-react";
 import {
   purchaseRequestsAdminApi,
   type UpdatePurchaseStatusPayload,
@@ -255,6 +262,14 @@ function purchaseHasPaidDate(status: PurchaseRequestStatus) {
   return status === "PAID" || status === "DELIVERED";
 }
 
+function isHttpUrl(value: string | null | undefined): value is string {
+  const trimmed = value?.trim();
+  return (
+    !!trimmed &&
+    (trimmed.startsWith("http://") || trimmed.startsWith("https://"))
+  );
+}
+
 export function AdminPurchaseDetailContent({ id }: { id: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -441,6 +456,10 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
   const whatsAppPhone = purchase
     ? extractWhatsAppPhone(purchase.supplier_contact_info ?? "")
     : null;
+  const supplierStoreLink =
+    purchase && isHttpUrl(purchase.supplier_store_link)
+      ? purchase.supplier_store_link.trim()
+      : null;
   const contactSupplierDisabledTitle = "No supplier phone number";
 
   const handleIncludePricesChange = (
@@ -592,6 +611,18 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                   Contact supplier
                 </Button>
               </span>
+              {supplierStoreLink ? (
+                <a
+                  href={supplierStoreLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                  aria-label="Open store"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Open store
+                </a>
+              ) : null}
             </div>
           </div>
 
@@ -845,6 +876,16 @@ export function AdminPurchaseDetailContent({ id }: { id: string }) {
                       <td className="px-4 py-3 font-medium">
                         <div className="flex flex-wrap items-center gap-2">
                           <span>{item.food_supply_title ?? "Unknown"}</span>
+                          {isHttpUrl(item.product_link) ? (
+                            <a
+                              href={item.product_link.trim()}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm font-normal text-primary underline-offset-4 hover:underline"
+                            >
+                              View product
+                            </a>
+                          ) : null}
                           <CatalogPriceMismatchBadge item={item} />
                           <PurchaseLineActualPriceDifferenceBadge item={item} />
                         </div>
