@@ -237,4 +237,23 @@ export const foodSuppliesAdminApi = {
       data: (result.data ?? []).map(normalizeFoodSupplySupplierPrice),
     };
   },
+
+  exportCsv: () =>
+    api.downloadBlobResult("/api/admin/food-supplies/export"),
 };
+
+/** Trigger a browser download for a food-supplies CSV blob. */
+export function downloadFoodSuppliesCsv(
+  blob: Blob,
+  options: { filename?: string; date?: Date } = {},
+) {
+  const { filename, date = new Date() } = options;
+  const stamp = date.toISOString().slice(0, 10);
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download =
+    filename ?? `food-supplies-export-${stamp}.csv`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}

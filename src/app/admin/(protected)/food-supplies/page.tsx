@@ -8,8 +8,10 @@ import {
   ChevronRight,
   Plus,
   Pencil,
+  Download,
 } from "lucide-react";
 import {
+  downloadFoodSuppliesCsv,
   foodSuppliesAdminApi,
   foodSupplyFormToPayload,
   type FoodSupplySortBy,
@@ -73,6 +75,7 @@ export default function AdminFoodSuppliesPage() {
   const [deleting, setDeleting] = useState(false);
   const [dialog, setDialog] = useState<SupplyDialogState>(null);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const formRef = useRef<FoodSupplyFormHandle>(null);
 
   useEffect(() => {
@@ -104,6 +107,23 @@ export default function AdminFoodSuppliesPage() {
       setLoading(false);
     }
   }, [page, debounced, sortBy, sortOrder]);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { blob, filename } = await foodSuppliesAdminApi.exportCsv();
+      downloadFoodSuppliesCsv(blob, { filename });
+      toast.success("Food supplies CSV exported");
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError
+          ? err.message
+          : "Failed to export food supplies CSV",
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const handleSort = (column: FoodSupplySortBy) => {
     setPage(1);
@@ -220,6 +240,15 @@ export default function AdminFoodSuppliesPage() {
               className="pl-9"
             />
           </div>
+          <Button
+            variant="outline"
+            data-testid="export-food-supplies"
+            onClick={() => void handleExport()}
+            isLoading={exporting}
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
           <Button onClick={() => setDialog({ mode: "create" })}>
             <Plus className="h-4 w-4" />
             Add supply
