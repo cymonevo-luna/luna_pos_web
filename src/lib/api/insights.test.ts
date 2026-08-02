@@ -66,6 +66,35 @@ describe("insights API", () => {
     ]);
   });
 
+  it("omits date params when period is all_time", async () => {
+    const summary = {
+      period: "all_time",
+      totals: {
+        inflow_amount: 10_000_000,
+        inflow_count: 100,
+        outflow_amount: 4_000_000,
+        outflow_count: 40,
+        net_amount: 6_000_000,
+      },
+      buckets: [],
+    };
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, data: summary }),
+    );
+
+    await cashFlowSummary({
+      period: "all_time",
+      dateFrom: "2026-07-13",
+      dateTo: "2026-07-13",
+    });
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/insights/cash-flow/summary?period=all_time",
+    );
+  });
+
   it("maps outflow_by_source and production_cost fields from the cash flow summary API", async () => {
     const summary = {
       period: "daily",

@@ -195,7 +195,11 @@ const WIB_PERIOD_MONTHLY_FORMATTER = new Intl.DateTimeFormat("en", {
   year: "numeric",
 });
 
-export type WibPeriodGranularity = "daily" | "weekly" | "monthly";
+export type WibPeriodGranularity =
+  | "daily"
+  | "weekly"
+  | "monthly"
+  | "all_time";
 
 /** Format a bucket `period_start` ISO value as a chart/table label in WIB. */
 export function formatPeriodStartLabel(
@@ -205,7 +209,7 @@ export function formatPeriodStartLabel(
   const date = new Date(periodStart);
   if (Number.isNaN(date.getTime())) return "—";
 
-  if (period === "monthly") {
+  if (period === "monthly" || period === "all_time") {
     return WIB_PERIOD_MONTHLY_FORMATTER.format(date);
   }
 
