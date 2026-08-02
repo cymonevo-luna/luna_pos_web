@@ -260,6 +260,92 @@ describe("SmartPurchaseRequestWizard", () => {
     expect(screen.getByTestId("catalog-update-fs-rice")).toBeInTheDocument();
   });
 
+  it("disables catalog update toggle without actual price", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SmartPurchaseRequestWizard onCancel={vi.fn()} onSuccess={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /add ingredient/i }));
+    await addIngredient(user, "Ingredient 1", "fs-rice", "2");
+    await user.click(screen.getByTestId("smart-purchase-continue"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("catalog-update-fs-rice")).toBeInTheDocument();
+    });
+
+    const toggle = screen.getByTestId("catalog-update-fs-rice");
+    expect(toggle).toBeDisabled();
+    expect(toggle).not.toBeChecked();
+    expect(
+      screen.queryByTestId("catalog-hint-fs-rice"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("enables catalog update toggle when actual price differs from estimate", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SmartPurchaseRequestWizard onCancel={vi.fn()} onSuccess={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /add ingredient/i }));
+    await addIngredient(user, "Ingredient 1", "fs-rice", "2");
+    await user.click(screen.getByTestId("smart-purchase-continue"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("actual-price-fs-rice")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId("actual-price-fs-rice"), {
+      target: { value: "175" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("catalog-update-fs-rice")).toBeEnabled();
+    });
+  });
+
+  it("disables catalog update toggle when actual price equals estimate", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SmartPurchaseRequestWizard onCancel={vi.fn()} onSuccess={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /add ingredient/i }));
+    await addIngredient(user, "Ingredient 1", "fs-rice", "2");
+    await user.click(screen.getByTestId("smart-purchase-continue"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("actual-price-fs-rice")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId("actual-price-fs-rice"), {
+      target: { value: "175" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("catalog-update-fs-rice")).toBeEnabled();
+    });
+
+    await user.click(screen.getByTestId("catalog-update-fs-rice"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("catalog-hint-fs-rice")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId("actual-price-fs-rice"), {
+      target: { value: "200" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("catalog-update-fs-rice")).toBeDisabled();
+      expect(screen.getByTestId("catalog-update-fs-rice")).not.toBeChecked();
+    });
+  });
+
   it("submits batch payload with line_actual_amount when filled", async () => {
     vi.mocked(purchaseRequestsAdminApi.suggest).mockResolvedValue({
       data: {
@@ -307,7 +393,60 @@ describe("SmartPurchaseRequestWizard", () => {
     });
   });
 
-  it("resets catalog price fields when supplier changes", async () => {
+  it("submits batch payload with auto-derived supplier_price_update", async () => {
+    vi.mocked(purchaseRequestsAdminApi.suggest).mockResolvedValue({
+      data: {
+        items: [suggestResponse.items[0]!],
+        grouped_by_supplier: [],
+      },
+    });
+
+    const user = userEvent.setup();
+    const onSuccess = vi.fn();
+
+    render(
+      <SmartPurchaseRequestWizard onCancel={vi.fn()} onSuccess={onSuccess} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /add ingredient/i }));
+    await addIngredient(user, "Ingredient 1", "fs-rice", "2");
+    await user.click(screen.getByTestId("smart-purchase-continue"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("actual-price-fs-rice")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId("actual-price-fs-rice"), {
+      target: { value: "175" },
+    });
+    await user.click(screen.getByTestId("catalog-update-fs-rice"));
+    await user.click(screen.getByTestId("smart-purchase-confirm"));
+
+    await waitFor(() => {
+      expect(purchaseRequestsAdminApi.batch).toHaveBeenCalledWith({
+        groups: [
+          {
+            supplier_id: "sup-cheap",
+            transaction_date: startOfDayWIB(todayWIB()).toISOString(),
+            items: [
+              {
+                food_supply_id: "fs-rice",
+                quantity: "2",
+                line_actual_amount: 175,
+                supplier_price_update: {
+                  price_amount: 87500,
+                  price_quantity: 1000,
+                },
+              },
+            ],
+          },
+        ],
+      });
+      expect(onSuccess).toHaveBeenCalled();
+    });
+  });
+
+  it("resets catalog update toggle when supplier changes", async () => {
     const user = userEvent.setup();
 
     render(
@@ -322,11 +461,16 @@ describe("SmartPurchaseRequestWizard", () => {
       expect(screen.getByTestId("catalog-update-fs-rice")).toBeInTheDocument();
     });
 
+    fireEvent.change(screen.getByTestId("actual-price-fs-rice"), {
+      target: { value: "175" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("catalog-update-fs-rice")).toBeEnabled();
+    });
+
     await user.click(screen.getByTestId("catalog-update-fs-rice"));
-    await user.clear(screen.getByTestId("catalog-price-amount-fs-rice"));
-    await user.type(screen.getByTestId("catalog-price-amount-fs-rice"), "99999");
-    await user.clear(screen.getByTestId("catalog-price-quantity-fs-rice"));
-    await user.type(screen.getByTestId("catalog-price-quantity-fs-rice"), "500");
+    expect(screen.getByTestId("catalog-hint-fs-rice")).toBeInTheDocument();
 
     await user.selectOptions(
       screen.getByTestId("supplier-select-fs-rice"),
@@ -334,9 +478,9 @@ describe("SmartPurchaseRequestWizard", () => {
     );
 
     expect(screen.getByTestId("catalog-update-fs-rice")).not.toBeChecked();
-    await user.click(screen.getByTestId("catalog-update-fs-rice"));
-    expect(screen.getByTestId("catalog-price-amount-fs-rice")).toHaveValue(150000);
-    expect(screen.getByTestId("catalog-price-quantity-fs-rice")).toHaveValue(1000);
+    expect(
+      screen.queryByTestId("catalog-hint-fs-rice"),
+    ).not.toBeInTheDocument();
   });
 
   it("updates displayed totals when actual price is entered", async () => {

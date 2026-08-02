@@ -20,6 +20,8 @@ import {
   allItemsHaveSupplier,
   applySupplierQuoteToItem,
   buildBatchPurchasePayload,
+  canEnableCatalogPriceUpdate,
+  deriveCatalogPriceFromActual,
   effectiveLineAmount,
   findSupplierQuote,
   groupWizardItemsBySupplier,
@@ -120,20 +122,6 @@ export function SmartPurchaseRequestWizard({
   const watchedItems = watch("items");
   const duplicateIndexes = findDuplicateItemIndexes(watchedItems);
 
-  const updateWizardItem = useCallback(
-    (
-      foodSupplyId: string,
-      patch: Partial<SmartPurchaseWizardItem>,
-    ) => {
-      setWizardItems((current) =>
-        current.map((item) =>
-          item.food_supply_id === foodSupplyId ? { ...item, ...patch } : item,
-        ),
-      );
-    },
-    [],
-  );
-
   const loadManualPrices = useCallback(async (items: SmartPurchaseWizardItem[]) => {
     const unmatched = items.filter((item) => !item.has_supplier_price);
     if (unmatched.length === 0) return items;
@@ -209,33 +197,62 @@ export function SmartPurchaseRequestWizard({
   };
 
   const handleActualAmountChange = (foodSupplyId: string, raw: string) => {
-    if (raw.trim() === "") {
-      updateWizardItem(foodSupplyId, { line_actual_amount: undefined });
-      return;
-    }
-    const parsed = Number(raw);
-    updateWizardItem(foodSupplyId, {
-      line_actual_amount: Number.isFinite(parsed) ? parsed : undefined,
-    });
+    setWizardItems((current) =>
+      current.map((item) => {
+        if (item.food_supply_id !== foodSupplyId) return item;
+
+        let lineActualAmount: number | undefined;
+        if (raw.trim() === "") {
+          lineActualAmount = undefined;
+        } else {
+          const parsed = Number(raw);
+          lineActualAmount = Number.isFinite(parsed) ? parsed : undefined;
+        }
+
+        const updated: SmartPurchaseWizardItem = {
+          ...item,
+          line_actual_amount: lineActualAmount,
+        };
+
+        if (!canEnableCatalogPriceUpdate(updated)) {
+          return { ...updated, update_catalog_price: false };
+        }
+
+        if (updated.update_catalog_price) {
+          const derived = deriveCatalogPriceFromActual(updated);
+          if (derived) {
+            return {
+              ...updated,
+              catalog_price_amount: derived.price_amount,
+              catalog_price_quantity: derived.price_quantity,
+            };
+          }
+        }
+
+        return updated;
+      }),
+    );
   };
 
   const handleCatalogUpdateToggle = (foodSupplyId: string, enabled: boolean) => {
-    updateWizardItem(foodSupplyId, { update_catalog_price: enabled });
-  };
-
-  const handleCatalogPriceChange = (
-    foodSupplyId: string,
-    field: "catalog_price_amount" | "catalog_price_quantity",
-    raw: string,
-  ) => {
-    if (raw.trim() === "") {
-      updateWizardItem(foodSupplyId, { [field]: undefined });
-      return;
-    }
-    const parsed = Number(raw);
-    updateWizardItem(foodSupplyId, {
-      [field]: Number.isFinite(parsed) ? parsed : undefined,
-    });
+    setWizardItems((current) =>
+      current.map((item) => {
+        if (item.food_supply_id !== foodSupplyId) return item;
+        if (!enabled) {
+          return { ...item, update_catalog_price: false };
+        }
+        const derived = deriveCatalogPriceFromActual(item);
+        if (!derived) {
+          return { ...item, update_catalog_price: false };
+        }
+        return {
+          ...item,
+          update_catalog_price: true,
+          catalog_price_amount: derived.price_amount,
+          catalog_price_quantity: derived.price_quantity,
+        };
+      }),
+    );
   };
 
   const groupedItems = groupWizardItemsBySupplier(wizardItems);
@@ -524,7 +541,6 @@ export function SmartPurchaseRequestWizard({
                           onSupplierChange={handleSupplierChange}
                           onActualAmountChange={handleActualAmountChange}
                           onCatalogUpdateToggle={handleCatalogUpdateToggle}
-                          onCatalogPriceChange={handleCatalogPriceChange}
                         />
                       ))}
                     </div>
@@ -543,7 +559,6 @@ export function SmartPurchaseRequestWizard({
                         onSupplierChange={handleSupplierChange}
                         onActualAmountChange={handleActualAmountChange}
                         onCatalogUpdateToggle={handleCatalogUpdateToggle}
-                        onCatalogPriceChange={handleCatalogPriceChange}
                       />
                     </div>
                   ))}
@@ -696,25 +711,17 @@ function ReviewItemRow({
   onSupplierChange,
   onActualAmountChange,
   onCatalogUpdateToggle,
-  onCatalogPriceChange,
 }: {
   item: SmartPurchaseWizardItem;
   onSupplierChange: (foodSupplyId: string, supplierId: string) => void;
   onActualAmountChange: (foodSupplyId: string, value: string) => void;
   onCatalogUpdateToggle: (foodSupplyId: string, enabled: boolean) => void;
-  onCatalogPriceChange: (
-    foodSupplyId: string,
-    field: "catalog_price_amount" | "catalog_price_quantity",
-    value: string,
-  ) => void;
 }) {
   const options = supplierOptionsForItem(item);
   const needsSupplier = !item.selected_supplier_id;
   const lineTotal = needsSupplier ? null : effectiveLineAmount(item);
-  const catalogAmount =
-    item.catalog_price_amount ?? item.price_amount ?? Number.NaN;
-  const catalogQuantity =
-    item.catalog_price_quantity ?? item.price_quantity ?? Number.NaN;
+  const catalogAmount = item.price_amount ?? Number.NaN;
+  const catalogQuantity = item.price_quantity ?? Number.NaN;
   const canShowCatalogUpdate =
     item.selected_supplier_id != null &&
     (options.length > 0 ||
@@ -722,6 +729,11 @@ function ReviewItemRow({
         catalogAmount > 0 &&
         Number.isFinite(catalogQuantity) &&
         catalogQuantity > 0));
+  const canEnableCatalog = canEnableCatalogPriceUpdate(item);
+  const derivedCatalog =
+    item.update_catalog_price && canEnableCatalog
+      ? deriveCatalogPriceFromActual(item)
+      : null;
 
   return (
     <div
@@ -821,8 +833,9 @@ function ReviewItemRow({
               <input
                 id={`catalog-update-${item.food_supply_id}`}
                 type="checkbox"
-                className="border-input h-4 w-4 rounded border"
-                checked={Boolean(item.update_catalog_price)}
+                className="border-input h-4 w-4 rounded border disabled:cursor-not-allowed disabled:opacity-50"
+                checked={Boolean(item.update_catalog_price) && canEnableCatalog}
+                disabled={needsSupplier || !canEnableCatalog}
                 onChange={(event) =>
                   onCatalogUpdateToggle(item.food_supply_id, event.target.checked)
                 }
@@ -833,60 +846,18 @@ function ReviewItemRow({
               </Label>
             </div>
 
-            {item.update_catalog_price && (
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor={`catalog-price-amount-${item.food_supply_id}`}>
-                    Price amount (Rp)
-                  </Label>
-                  <Input
-                    id={`catalog-price-amount-${item.food_supply_id}`}
-                    type="number"
-                    min="1"
-                    step="1"
-                    inputMode="numeric"
-                    value={
-                      Number.isFinite(catalogAmount) ? String(catalogAmount) : ""
-                    }
-                    onKeyDown={blockDecimalInput}
-                    onChange={(event) =>
-                      onCatalogPriceChange(
-                        item.food_supply_id,
-                        "catalog_price_amount",
-                        event.target.value,
-                      )
-                    }
-                    data-testid={`catalog-price-amount-${item.food_supply_id}`}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor={`catalog-price-quantity-${item.food_supply_id}`}
-                  >
-                    Price quantity
-                  </Label>
-                  <Input
-                    id={`catalog-price-quantity-${item.food_supply_id}`}
-                    type="number"
-                    step="any"
-                    min="0"
-                    inputMode="decimal"
-                    value={
-                      Number.isFinite(catalogQuantity)
-                        ? String(catalogQuantity)
-                        : ""
-                    }
-                    onChange={(event) =>
-                      onCatalogPriceChange(
-                        item.food_supply_id,
-                        "catalog_price_quantity",
-                        event.target.value,
-                      )
-                    }
-                    data-testid={`catalog-price-quantity-${item.food_supply_id}`}
-                  />
-                </div>
-              </div>
+            {derivedCatalog && (
+              <p
+                className="text-muted-foreground text-sm"
+                data-testid={`catalog-hint-${item.food_supply_id}`}
+              >
+                Catalog will update to{" "}
+                {formatSupplierUnitPrice(
+                  derivedCatalog.price_amount,
+                  derivedCatalog.price_quantity,
+                  item.unit,
+                )}
+              </p>
             )}
           </div>
         )}

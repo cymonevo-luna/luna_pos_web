@@ -50,12 +50,51 @@ function hasValidLineActualAmount(value: number | undefined): value is number {
   return purchaseLineActualAmountSchema.safeParse(value).success;
 }
 
-function defaultCatalogPriceDraft(
+/** Whether the catalog price update toggle can be enabled for this item. */
+export function canEnableCatalogPriceUpdate(
   item: SmartPurchaseWizardItem,
-): SupplierPriceUpdateDraft {
+): boolean {
+  if (!item.selected_supplier_id) return false;
+  if (
+    !Number.isFinite(item.price_amount) ||
+    item.price_amount <= 0 ||
+    !Number.isFinite(item.price_quantity) ||
+    item.price_quantity <= 0
+  ) {
+    return false;
+  }
+  if (!hasValidLineActualAmount(item.line_actual_amount)) return false;
+
+  const lineEstimated = estimateLineAmount(
+    item.price_amount,
+    item.price_quantity,
+    item.quantity,
+  );
+  return item.line_actual_amount !== lineEstimated;
+}
+
+/** Derive catalog price from actual line amount, preserving catalog quantity basis. */
+export function deriveCatalogPriceFromActual(
+  item: SmartPurchaseWizardItem,
+): SupplierPriceUpdateDraft | null {
+  const catalogPriceQuantity = item.price_quantity;
+  if (
+    !Number.isFinite(catalogPriceQuantity) ||
+    catalogPriceQuantity <= 0 ||
+    !hasValidLineActualAmount(item.line_actual_amount) ||
+    !Number.isFinite(item.quantity) ||
+    item.quantity <= 0
+  ) {
+    return null;
+  }
+
+  const catalogPriceAmount = Math.round(
+    (item.line_actual_amount / item.quantity) * catalogPriceQuantity,
+  );
+
   return {
-    price_amount: item.catalog_price_amount ?? item.price_amount,
-    price_quantity: item.catalog_price_quantity ?? item.price_quantity,
+    price_amount: catalogPriceAmount,
+    price_quantity: catalogPriceQuantity,
   };
 }
 
@@ -65,8 +104,10 @@ export function buildSupplierPriceUpdatePayload(
 ): CreatePurchaseRequestItemPayload["supplier_price_update"] | undefined {
   if (!item.update_catalog_price) return undefined;
 
-  const draft = defaultCatalogPriceDraft(item);
-  const parsed = supplierPriceUpdateSchema.safeParse(draft);
+  const derived = deriveCatalogPriceFromActual(item);
+  if (!derived) return undefined;
+
+  const parsed = supplierPriceUpdateSchema.safeParse(derived);
   if (!parsed.success) return undefined;
 
   return {
