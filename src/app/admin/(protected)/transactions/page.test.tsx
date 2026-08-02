@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "@/test/render";
@@ -6,7 +7,7 @@ import { createTestQueryClient, TestQueryProvider } from "@/test/query-provider"
 import AdminTransactionsPage from "./page";
 import { transactionsAdminApi } from "@/lib/api/transactions";
 import { ApiError } from "@/lib/api/client";
-import type { Transaction } from "@/lib/api/types";
+import type { Transaction, TransactionSummary } from "@/lib/api/types";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/query/keys";
 import { invalidateTransactionQueries } from "@/lib/query/invalidate-transaction-queries";
@@ -32,6 +33,101 @@ vi.mock("sonner", () => ({
     error: vi.fn(),
   },
 }));
+
+vi.mock("recharts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("recharts")>();
+  return {
+    ...actual,
+    ResponsiveContainer: ({
+      children,
+    }: {
+      children: React.ReactElement<{ width?: number; height?: number }>;
+    }) => React.cloneElement(children, { width: 800, height: 300 }),
+  };
+});
+
+const todaySummary: TransactionSummary = {
+  period: "daily",
+  buckets: [
+    {
+      period_start: "2026-07-25T00:00:00+07:00",
+      period_label: "Jul 25",
+      count: 5,
+      total_amount: 100_000,
+    },
+  ],
+};
+
+const weekSummary: TransactionSummary = {
+  period: "daily",
+  buckets: [
+    {
+      period_start: "2026-07-20T00:00:00+07:00",
+      period_label: "Jul 20",
+      count: 10,
+      total_amount: 250_000,
+    },
+    {
+      period_start: "2026-07-25T00:00:00+07:00",
+      period_label: "Jul 25",
+      count: 10,
+      total_amount: 250_000,
+    },
+  ],
+};
+
+const monthSummary: TransactionSummary = {
+  period: "daily",
+  buckets: [
+    {
+      period_start: "2026-07-01T00:00:00+07:00",
+      period_label: "Jul 1",
+      count: 40,
+      total_amount: 1_000_000,
+    },
+    {
+      period_start: "2026-07-25T00:00:00+07:00",
+      period_label: "Jul 25",
+      count: 40,
+      total_amount: 1_000_000,
+    },
+  ],
+};
+
+const trendChartSummary: TransactionSummary = {
+  period: "daily",
+  buckets: [
+    {
+      period_start: "2026-01-01T00:00:00Z",
+      period_label: "Jan 1",
+      count: 3,
+      total_amount: 150_000,
+    },
+    {
+      period_start: "2026-01-02T00:00:00Z",
+      period_label: "Jan 2",
+      count: 5,
+      total_amount: 250_000,
+    },
+  ],
+};
+
+function mockPeriodSummaries() {
+  vi.mocked(transactionsAdminApi.summary).mockImplementation(
+    async (params) => {
+      if (params.period !== "daily") {
+        return { data: trendChartSummary };
+      }
+      if (params.dateFrom === params.dateTo) {
+        return { data: todaySummary };
+      }
+      if (params.dateFrom?.endsWith("-01")) {
+        return { data: monthSummary };
+      }
+      return { data: weekSummary };
+    },
+  );
+}
 
 const transaction1: Transaction = {
   id: "txn-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
@@ -83,14 +179,30 @@ describe("AdminTransactionsPage", () => {
       data: [transaction1, transaction2],
       meta: { page: 1, per_page: 10, total: 2 },
     });
-    vi.mocked(transactionsAdminApi.summary).mockResolvedValue({
-      data: { period: "daily", buckets: [] },
-    });
+    mockPeriodSummaries();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
     vi.useRealTimers();
+  });
+
+  it("renders summary stats and trend chart above the transactions table", async () => {
+    renderWithProviders(<AdminTransactionsPage />);
+
+    expect(await screen.findByText("Today")).toBeInTheDocument();
+    expect(screen.getByText("This week")).toBeInTheDocument();
+    expect(screen.getByText("This month")).toBeInTheDocument();
+
+    const chart =
+      (await screen.findByTestId("transaction-trend-chart")) ??
+      screen.getByTestId("trend-chart-loading");
+    expect(chart).toBeInTheDocument();
+
+    const table = screen.getByRole("table");
+    expect(
+      chart.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("renders transactions from the API with Rupiah amounts and cashier names", async () => {
@@ -101,7 +213,7 @@ describe("AdminTransactionsPage", () => {
     expect(screen.getByText("kasir1")).toBeInTheDocument();
     expect(screen.getByText("kasir2")).toBeInTheDocument();
     expect(screen.getByText("2 total")).toBeInTheDocument();
-    expect(screen.getByText("Transactions")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Transactions" })).toBeInTheDocument();
   });
 
   it("shows empty state when no transactions match", async () => {
@@ -186,7 +298,7 @@ describe("AdminTransactionsPage", () => {
     });
   });
 
-  it("refetches list after transaction delete invalidation", async () => {
+  it("refetches list and summary after transaction delete invalidation", async () => {
     const listParams = {
       page: 1,
       perPage: 10,
@@ -222,10 +334,20 @@ describe("AdminTransactionsPage", () => {
     expect(screen.getByText("2 total")).toBeInTheDocument();
     expect(transactionsAdminApi.list).toHaveBeenCalledTimes(1);
 
+    const summaryCallsBeforeInvalidation =
+      vi.mocked(transactionsAdminApi.summary).mock.calls.length;
+    expect(summaryCallsBeforeInvalidation).toBeGreaterThan(0);
+
     await invalidateTransactionQueries(queryClient);
 
     await waitFor(() => {
       expect(transactionsAdminApi.list).toHaveBeenCalledTimes(2);
+    });
+
+    await waitFor(() => {
+      expect(
+        vi.mocked(transactionsAdminApi.summary).mock.calls.length,
+      ).toBeGreaterThan(summaryCallsBeforeInvalidation);
     });
 
     await waitFor(() => {

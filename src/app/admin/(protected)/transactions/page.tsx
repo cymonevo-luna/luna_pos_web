@@ -17,6 +17,8 @@ import {
   HistoryDateRangeFilter,
   type HistoryDateRangeValue,
 } from "@/components/admin/history-date-range-filter";
+import { TransactionSummaryStats } from "@/components/admin/transaction-summary-stats";
+import { TransactionTrendChart } from "@/components/admin/transaction-trend-chart";
 
 const PER_PAGE = 10;
 
@@ -77,27 +79,30 @@ export default function AdminTransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold">Transactions</h2>
-          <p className="text-muted-foreground">{total} total</p>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <HistoryDateRangeFilter
-            value={dateRange}
-            onChange={handleDateRangeChange}
-            presetTestId="transactions-date-preset"
-            dateFromTestId="transactions-date-from"
-            dateToTestId="transactions-date-to"
-          />
-          <Select
-            aria-label="Filter by method"
-            className="w-full sm:w-40"
-            options={METHOD_OPTIONS}
-            value={method}
-            onChange={(e) => handleMethodChange(e.target.value)}
-          />
-        </div>
+      <div>
+        <h2 className="text-2xl font-semibold">Transactions</h2>
+        <p className="text-muted-foreground">{total} total</p>
+      </div>
+
+      <TransactionSummaryStats />
+
+      <TransactionTrendChart />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <HistoryDateRangeFilter
+          value={dateRange}
+          onChange={handleDateRangeChange}
+          presetTestId="transactions-date-preset"
+          dateFromTestId="transactions-date-from"
+          dateToTestId="transactions-date-to"
+        />
+        <Select
+          aria-label="Filter by method"
+          className="w-full sm:w-40"
+          options={METHOD_OPTIONS}
+          value={method}
+          onChange={(e) => handleMethodChange(e.target.value)}
+        />
       </div>
 
       <Card className="overflow-hidden">
