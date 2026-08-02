@@ -1239,4 +1239,123 @@ describe("AdminPurchaseDetailContent", () => {
       screen.queryByTestId("catalog-price-mismatch-badge"),
     ).not.toBeInTheDocument();
   });
+
+  it("shows actual price difference badge on line when actual differs from estimate", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        items: [
+          {
+            ...purchase.items[0],
+            line_estimated_amount: 140000,
+            line_actual_amount: 135000,
+          },
+        ],
+      },
+    });
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+
+    await screen.findByText("Beras");
+    const badges = screen.getAllByTestId("actual-price-difference-badge");
+    expect(badges).toHaveLength(1);
+    expect(badges[0]).toHaveTextContent("Actual price differs");
+    expect(badges[0]).toHaveAttribute(
+      "title",
+      "Estimate: Rp 140.000 · Actual: Rp 135.000",
+    );
+  });
+
+  it("hides actual price difference badge when line amounts are equal", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        items: [
+          {
+            ...purchase.items[0],
+            line_estimated_amount: 140000,
+            line_actual_amount: 140000,
+          },
+        ],
+        total_estimated_amount: 140000,
+        total_actual_amount: 140000,
+      },
+    });
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+
+    await screen.findByText("Beras");
+    expect(
+      screen.queryByTestId("actual-price-difference-badge"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides actual price difference badge when line actual amount is null", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        items: [
+          {
+            ...purchase.items[0],
+            line_estimated_amount: 140000,
+            line_actual_amount: null,
+          },
+        ],
+      },
+    });
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+
+    await screen.findByText("Beras");
+    expect(
+      screen.queryByTestId("actual-price-difference-badge"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows header actual price difference badge when totals differ", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        total_estimated_amount: 140000,
+        total_actual_amount: 135000,
+      },
+    });
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+
+    const headerBadges = await screen.findByTestId("purchase-header-badges");
+    const badge = within(headerBadges).getByTestId(
+      "actual-price-difference-badge",
+    );
+    expect(badge).toHaveTextContent("Actual price differs");
+    expect(badge).toHaveAttribute(
+      "title",
+      "Estimate: Rp 140.000 · Actual: Rp 135.000",
+    );
+  });
+
+  it("shows both catalog mismatch and actual price difference badges on the same line", async () => {
+    vi.mocked(purchaseRequestsAdminApi.get).mockResolvedValue({
+      data: {
+        ...purchase,
+        items: [
+          {
+            ...purchase.items[0],
+            has_catalog_price_mismatch: true,
+            imported_price_amount: 150000,
+            imported_price_quantity: 1000,
+            unit: "gr",
+            line_estimated_amount: 140000,
+            line_actual_amount: 135000,
+          },
+        ],
+      },
+    });
+
+    renderWithProviders(<AdminPurchaseDetailContent id="pr-1" />);
+
+    await screen.findByText("Beras");
+    expect(screen.getByTestId("catalog-price-mismatch-badge")).toBeInTheDocument();
+    expect(screen.getByTestId("actual-price-difference-badge")).toBeInTheDocument();
+  });
 });

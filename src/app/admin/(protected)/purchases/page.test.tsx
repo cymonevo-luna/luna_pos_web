@@ -502,4 +502,39 @@ describe("AdminPurchasesPage", () => {
       "Price mismatch",
     );
   });
+
+  it("shows actual price difference badge on purchase row when totals differ", async () => {
+    vi.mocked(purchaseRequestsAdminApi.list).mockResolvedValue({
+      data: [
+        {
+          ...purchase,
+          total_estimated_amount: 140000,
+          total_actual_amount: 135000,
+        },
+        {
+          ...purchase,
+          id: "pr-2",
+          supplier_name: "Sayur Supplier",
+          total_estimated_amount: 140000,
+          total_actual_amount: 140000,
+        },
+        {
+          ...purchase,
+          id: "pr-3",
+          supplier_name: "Telur Supplier",
+          total_estimated_amount: 140000,
+          total_actual_amount: null,
+        },
+      ],
+      meta: { page: 1, per_page: 10, total: 3 },
+    });
+
+    render(<AdminPurchasesPage />);
+
+    expect(await screen.findByText("Beras Supplier")).toBeInTheDocument();
+    const badges = screen.getAllByTestId("purchase-actual-price-difference-badge");
+    expect(badges).toHaveLength(1);
+    expect(badges[0]).toHaveTextContent("Actual price differs");
+    expect(badges[0]?.closest("tr")?.textContent).toContain("Beras Supplier");
+  });
 });

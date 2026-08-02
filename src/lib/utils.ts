@@ -1,7 +1,11 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { config } from "@/lib/config";
-import type { PurchaseRequest, PurchaseRequestSummary } from "@/lib/api/types";
+import type {
+  PurchaseRequest,
+  PurchaseRequestItem,
+  PurchaseRequestSummary,
+} from "@/lib/api/types";
 import { formatMeasurementQuantity } from "@/lib/units";
 import {
   formatWIB,
@@ -223,6 +227,26 @@ export function buildPurchaseWhatsAppMessage(
 
   messageParts.push("Terima kasih.");
   return messageParts.join("\n");
+}
+
+/** True when a line has an actual amount that differs from the estimate. */
+export function purchaseLineHasActualAmountDifference(
+  item: Pick<PurchaseRequestItem, "line_actual_amount" | "line_estimated_amount">,
+): boolean {
+  if (item.line_actual_amount == null) {
+    return false;
+  }
+  return item.line_actual_amount !== item.line_estimated_amount;
+}
+
+/** True when a purchase total actual amount differs from the estimate. */
+export function purchaseHasActualAmountDifference(
+  purchase: Pick<PurchaseRequest, "total_actual_amount" | "total_estimated_amount">,
+): boolean {
+  if (purchase.total_actual_amount == null) {
+    return false;
+  }
+  return purchase.total_actual_amount !== purchase.total_estimated_amount;
 }
 
 /** Prefer actual purchase total for list display when present. */
