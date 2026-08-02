@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import AdminExpensesPage from "./page";
 import { useDeleteExpense, useExpenses } from "@/lib/hooks/use-expenses";
 import type { Expense } from "@/lib/api/types";
+import { useFeatures } from "@/lib/auth/use-features";
 
 const mockPush = vi.fn();
 
@@ -14,6 +15,10 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/hooks/use-expenses", () => ({
   useExpenses: vi.fn(),
   useDeleteExpense: vi.fn(),
+}));
+
+vi.mock("@/lib/auth/use-features", () => ({
+  useFeatures: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({
@@ -37,9 +42,26 @@ const expense: Expense = {
   updated_at: "2026-01-16T11:00:00Z",
 };
 
+function mockExpensesManageFeatures() {
+  vi.mocked(useFeatures).mockReturnValue({
+    features: ["expenses.manage"],
+    hasFeature: (key) => key === "expenses.manage",
+    hasAnyFeature: (keys) => keys.includes("expenses.manage"),
+  });
+}
+
+function mockNoExpensesManageFeatures() {
+  vi.mocked(useFeatures).mockReturnValue({
+    features: [],
+    hasFeature: () => false,
+    hasAnyFeature: () => false,
+  });
+}
+
 describe("AdminExpensesPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockExpensesManageFeatures();
     vi.mocked(useDeleteExpense).mockReturnValue({
       mutateAsync: vi.fn(),
       isPending: false,
@@ -150,5 +172,36 @@ describe("AdminExpensesPage", () => {
     expect(screen.getByTestId("expense-transaction-date-exp-1")).toHaveTextContent(
       "Jan 16, 2026",
     );
+  });
+
+  it("shows import button for users with expenses.manage", async () => {
+    render(<AdminExpensesPage />);
+    await screen.findByText("Office supplies");
+
+    expect(screen.getByTestId("open-import-dialog")).toBeInTheDocument();
+  });
+
+  it("hides import button without expenses.manage", async () => {
+    mockNoExpensesManageFeatures();
+
+    render(<AdminExpensesPage />);
+    await screen.findByText("Office supplies");
+
+    expect(screen.queryByTestId("open-import-dialog")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /New expense/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the import dialog when Import CSV is clicked", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminExpensesPage />);
+    await screen.findByText("Office supplies");
+
+    await user.click(screen.getByTestId("open-import-dialog"));
+
+    expect(screen.getByTestId("expense-import-dialog")).toBeInTheDocument();
+    expect(screen.getByTestId("download-import-template")).toBeInTheDocument();
   });
 });

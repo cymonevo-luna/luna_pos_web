@@ -1,8 +1,16 @@
+import { config } from "@/lib/config";
+import {
+  clearSessionAndRedirectToLogin,
+  ensureFreshAccessToken,
+  isLoginRoute,
+  performSessionRefresh,
+} from "@/lib/auth/session-refresh";
+import { tokenStore } from "@/lib/auth/tokens";
 import { startOfDayWIB, todayWIB } from "@/lib/datetime/wib";
-import { api, type ApiResult } from "./client";
+import { api, ApiError, type ApiResult } from "./client";
 import { parseNumeric } from "./suppliers";
 import { appendHistoryDateParams } from "./history-date-params";
-import type { Expense, ExpenseSourceOfFund } from "./types";
+import type { Envelope, Expense, ExpenseSourceOfFund } from "./types";
 import type { ExpenseFormValues } from "@/lib/validations";
 
 /** Wire format from the Go backend (`decimal.Decimal` marshals as JSON string). */
@@ -155,6 +163,108 @@ export async function deleteExpense(id: string) {
   return api.delete<void>(`/api/admin/expenses/${id}`);
 }
 
+export interface ImportExpensesCsvParams {
+  file: File;
+  transactionDate: string;
+}
+
+interface ImportExpensesCsvResultRaw {
+  imported_row_count: number;
+  expenses?: ExpenseRaw[];
+}
+
+export interface ImportExpensesCsvResult {
+  imported_row_count: number;
+  expenses?: Expense[];
+}
+
+/** Download the expense import CSV template. */
+export async function downloadExpenseImportTemplate() {
+  return api.downloadBlobResult("/api/admin/expenses/import/template");
+}
+
+/** Trigger a browser download for the expense import template blob. */
+export function downloadExpenseImportTemplateFile(
+  blob: Blob,
+  options: { filename?: string } = {},
+) {
+  const { filename } = options;
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename ?? "expense-import-template.csv";
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+async function importExpensesCsvRequest(
+  params: ImportExpensesCsvParams,
+  _retried = false,
+): Promise<ImportExpensesCsvResult> {
+  if (!isLoginRoute() && (tokenStore.access || tokenStore.refresh)) {
+    const fresh = await ensureFreshAccessToken();
+    if (!fresh) {
+      clearSessionAndRedirectToLogin();
+      throw new ApiError(401, "unauthorized", "Session expired");
+    }
+  }
+
+  const formData = new FormData();
+  formData.append("file", params.file);
+  formData.append("transaction_date", params.transactionDate);
+
+  const headers = new Headers();
+  if (!isLoginRoute()) {
+    const token = tokenStore.access;
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const res = await fetch(`${config.apiBaseUrl}/api/admin/expenses/import`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (res.status === 401 && !_retried && !isLoginRoute()) {
+    const refreshed = await performSessionRefresh();
+    if (refreshed) {
+      return importExpensesCsvRequest(params, true);
+    }
+    clearSessionAndRedirectToLogin();
+  }
+
+  let json: Envelope<ImportExpensesCsvResultRaw>;
+  try {
+    json = (await res.json()) as Envelope<ImportExpensesCsvResultRaw>;
+  } catch {
+    throw new ApiError(res.status, "invalid_response", res.statusText);
+  }
+
+  if (!res.ok || json.success === false) {
+    const err = json.error;
+    throw new ApiError(
+      res.status,
+      err?.code ?? "error",
+      err?.message ?? "Import failed",
+      err?.fields,
+      json.data,
+    );
+  }
+
+  const data = json.data as ImportExpensesCsvResultRaw;
+  return {
+    imported_row_count: data.imported_row_count,
+    expenses: data.expenses?.map(normalizeExpense),
+  };
+}
+
+/** Import expenses from a CSV file. */
+export async function importExpensesCsv(
+  params: ImportExpensesCsvParams,
+): Promise<ImportExpensesCsvResult> {
+  return importExpensesCsvRequest(params);
+}
+
 export { uploadExpenseReceipt } from "./uploads";
 
 export const expensesAdminApi = {
@@ -164,4 +274,7 @@ export const expensesAdminApi = {
   update: updateExpense,
   updateRecordDate,
   delete: deleteExpense,
+  downloadImportTemplate: downloadExpenseImportTemplate,
+  downloadImportTemplateFile: downloadExpenseImportTemplateFile,
+  importCsv: importExpensesCsv,
 };
