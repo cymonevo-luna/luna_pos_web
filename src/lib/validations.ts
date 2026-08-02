@@ -328,6 +328,25 @@ export type CashierBalanceAdjustmentFormValues = z.infer<
   typeof cashierBalanceAdjustmentSchema
 >;
 
+export const qrisBalanceAdjustmentSchema = z.object({
+  type: z.enum(["ADD", "DEDUCT"], {
+    error: "Select adjustment type",
+  }),
+  amount: z
+    .number({ error: "Amount is required" })
+    .int("Amount must be a whole number")
+    .min(1, "Amount must be at least 1"),
+  purpose: z
+    .string()
+    .trim()
+    .min(1, "Purpose is required")
+    .max(500, "Purpose is too long"),
+});
+
+export type QrisBalanceAdjustmentFormValues = z.infer<
+  typeof qrisBalanceAdjustmentSchema
+>;
+
 export const supplierSchema = z
   .object({
     name: z

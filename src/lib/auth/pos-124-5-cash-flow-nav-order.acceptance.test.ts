@@ -32,6 +32,7 @@ describe("POS-124-5 Cash Flow nav order", () => {
 
     expect(labels).toEqual([
       "Cashier Balance",
+      "QRIS Balance",
       "BEP",
       "Summary",
       "Expenses",

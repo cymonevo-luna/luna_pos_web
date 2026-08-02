@@ -56,6 +56,10 @@ vi.mock("@/lib/hooks/use-cashier-balance", () => ({
   invalidateCashierBalanceData: vi.fn(),
 }));
 
+vi.mock("@/lib/hooks/use-qris-balance", () => ({
+  invalidateQrisBalanceData: vi.fn(),
+}));
+
 const transaction: Transaction = {
   id: "txn-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
   method: "CASH",

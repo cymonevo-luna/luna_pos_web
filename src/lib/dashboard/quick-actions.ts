@@ -12,6 +12,7 @@ import {
   ChefHat,
   TrendingUp,
   Repeat,
+  QrCode,
   Wallet,
 } from "lucide-react";
 
@@ -65,6 +66,13 @@ export const overviewCards: OverviewCard[] = [
     href: "/admin/cashier-balance",
     icon: Wallet,
     feature: "cashier_balance.manage",
+  },
+  {
+    title: "QRIS balance",
+    description: "View QRIS balance and record manual adjustments.",
+    href: "/admin/qris-balance",
+    icon: QrCode,
+    feature: "qris_balance.manage",
   },
   {
     title: "Menus",
