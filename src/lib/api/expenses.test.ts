@@ -3,10 +3,13 @@ import { startOfDayWIB, todayWIB } from "@/lib/datetime/wib";
 import {
   createExpense,
   deleteExpense,
+  downloadExpenseImportTemplate,
+  downloadExpenseImportTemplateFile,
   expenseFormToPayload,
   expenseToFormValues,
   expensesAdminApi,
   getExpense,
+  importExpensesCsv,
   listExpenses,
   normalizeExpense,
   updateExpense,
@@ -495,5 +498,156 @@ describe("uploadExpenseReceipt", () => {
     expect(result.url).toBe("https://example.com/uploads/receipt.jpg");
     expect(result.filename).toBe("receipt.jpg");
     expect(result.size_bytes).toBe(3);
+  });
+});
+
+describe("expense CSV import", () => {
+  beforeEach(() => {
+    tokenStore.clear();
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("downloads the import template with authorization", async () => {
+    tokenStore.set("token-abc", "refresh-abc");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        "title,amount,description,source_of_fund,receipt_url",
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "text/csv",
+            "Content-Disposition":
+              'attachment; filename="expense-import-template.csv"',
+          },
+        },
+      ),
+    );
+
+    const result = await downloadExpenseImportTemplate();
+
+    expect(await result.blob.text()).toBe(
+      "title,amount,description,source_of_fund,receipt_url",
+    );
+    expect(result.filename).toBe("expense-import-template.csv");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "http://localhost:8080/api/admin/expenses/import/template",
+    );
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer token-abc");
+  });
+
+  it("posts multipart import payload and normalizes expense amounts", async () => {
+    tokenStore.set("token-abc", "refresh-abc");
+    const file = new File(["csv"], "import.csv", { type: "text/csv" });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: {
+          imported_row_count: 2,
+          expenses: [
+            expenseRaw,
+            { ...expenseRaw, id: "exp-2", amount: "75000" },
+          ],
+        },
+      }),
+    );
+
+    const result = await importExpensesCsv({
+      file,
+      transactionDate: "2026-07-25",
+    });
+
+    expect(result.imported_row_count).toBe(2);
+    expect(result.expenses?.[0]?.amount).toBe(150_000);
+    expect(result.expenses?.[1]?.amount).toBe(75_000);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://localhost:8080/api/admin/expenses/import");
+    expect(init?.method).toBe("POST");
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer token-abc");
+    expect(headers.get("Content-Type")).toBeNull();
+
+    const body = init?.body as FormData;
+    expect(body.get("transaction_date")).toBe("2026-07-25");
+    expect(body.get("file")).toBeInstanceOf(File);
+  });
+
+  it("throws ApiError with field errors on validation failure", async () => {
+    tokenStore.set("token-abc", "refresh-abc");
+    const file = new File(["csv"], "import.csv", { type: "text/csv" });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        {
+          success: false,
+          error: {
+            code: "validation_error",
+            message: "Import validation failed",
+            fields: {
+              "row_2.amount": "Amount must be positive",
+            },
+          },
+        },
+        422,
+      ),
+    );
+
+    await expect(
+      importExpensesCsv({ file, transactionDate: "2026-07-25" }),
+    ).rejects.toMatchObject({
+      status: 422,
+      message: "Import validation failed",
+      fields: {
+        "row_2.amount": "Amount must be positive",
+      },
+    });
+  });
+});
+
+describe("downloadExpenseImportTemplateFile", () => {
+  it("creates a download link for the template blob", () => {
+    const click = vi.fn();
+    const anchor = {
+      href: "",
+      download: "",
+      click,
+    } as unknown as HTMLAnchorElement;
+
+    vi.spyOn(document, "createElement").mockReturnValue(anchor);
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock");
+    const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL");
+
+    downloadExpenseImportTemplateFile(
+      new Blob(["title,amount,description,source_of_fund,receipt_url"]),
+      { filename: "expense-import-template.csv" },
+    );
+
+    expect(anchor.download).toBe("expense-import-template.csv");
+    expect(click).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:mock");
+  });
+
+  it("defaults to expense-import-template.csv filename", () => {
+    const click = vi.fn();
+    const anchor = {
+      href: "",
+      download: "",
+      click,
+    } as unknown as HTMLAnchorElement;
+
+    vi.spyOn(document, "createElement").mockReturnValue(anchor);
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock");
+
+    downloadExpenseImportTemplateFile(
+      new Blob(["title,amount,description,source_of_fund,receipt_url"]),
+    );
+
+    expect(anchor.download).toBe("expense-import-template.csv");
   });
 });

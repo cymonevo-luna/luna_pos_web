@@ -10,9 +10,12 @@ import {
   ChevronRight,
   Plus,
   Pencil,
+  Upload,
 } from "lucide-react";
+import { ExpenseImportDialog } from "@/components/admin/expense-import-dialog";
 import { ApiError } from "@/lib/api/client";
 import type { Expense } from "@/lib/api/types";
+import { useFeatures } from "@/lib/auth/use-features";
 import { useDeleteExpense, useExpenses } from "@/lib/hooks/use-expenses";
 import {
   displayDescription,
@@ -70,16 +73,19 @@ function ReceiptCell({ receiptUrl }: { receiptUrl?: string | null }) {
 
 export default function AdminExpensesPage() {
   const router = useRouter();
+  const { hasFeature } = useFeatures();
+  const canImport = hasFeature("expenses.manage");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [dateRange, setDateRange] =
     useState<HistoryDateRangeValue>(INITIAL_DATE_RANGE);
   const [pendingDelete, setPendingDelete] = useState<Expense | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const { dateFrom, dateTo } = dateRange;
 
-  const { expenses, meta, loading, error } = useExpenses({
+  const { expenses, meta, loading, error, refetch } = useExpenses({
     page,
     perPage: PER_PAGE,
     search: debounced,
@@ -150,12 +156,28 @@ export default function AdminExpensesPage() {
             dateFromAriaLabel="Transaction date from"
             dateToAriaLabel="Transaction date to"
           />
+          {canImport ? (
+            <Button
+              variant="outline"
+              onClick={() => setImportOpen(true)}
+              data-testid="open-import-dialog"
+            >
+              <Upload className="h-4 w-4" />
+              Import CSV
+            </Button>
+          ) : null}
           <Link href="/admin/expenses/new" className={buttonVariants()}>
             <Plus className="h-4 w-4" />
             New expense
           </Link>
         </div>
       </div>
+
+      <ExpenseImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => refetch()}
+      />
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
